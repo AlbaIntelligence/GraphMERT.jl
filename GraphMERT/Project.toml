@@ -1,7 +1,7 @@
 name = "GraphMERT"
 uuid = "b2a2c24b-f689-4ae9-9584-1f48e3cc835e"
 version = "0.1.0"
-authors = ["GraphMERT Contributors"]
+authors = ["Alba Intelligence <alba.intelligence@gmail.com"]
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -23,7 +23,7 @@ DataFrames = "1.3"
 Flux = "0.14"
 JSON = "0.21"
 MetaGraphs = "0.7"
-julia = "1.8"
+julia = "1.10"
 
 [extras]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"

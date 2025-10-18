@@ -1,0 +1,90 @@
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+Manifest.toml
+.julia/
+
+# Build artifacts
+build/
+dist/
+*.tar.gz
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Documentation build
+docs/build/
+docs/site/
+
+# Test artifacts
+test/artifacts/
+test/results/
+
+# Model files and data
+models/
+data/
+*.onnx
+*.bin
+*.safetensors
+
+# Cache directories
+.cache/
+__pycache__/
+*.pyc
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Scientific computing
+*.h5
+*.hdf5
+*.mat
+*.npy
+*.npz
+
+# Performance profiling
+*.prof
+*.jld2
+
+# Nix flakes
+flake.lock
+
+# AI Agents
+.cursor/
+.specify/
+
+
+
