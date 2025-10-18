@@ -1,0 +1,94 @@
+{ pkgs, stdenv, curl, lib, fetchurl, openssl, zlib, glib, xorg, dbus, fontconfig
+, freetype, libGL, juliaVersion, }:
+let
+  versionShas = {
+    "1.12.0" = "sha256-b4e4/PXvanNx6MedlIrt+guijORER8RG19gucPAVjag=";
+    "1.11.6" =
+      "e99e52e2029d845097c68f2372d836186f0eb3fb897a9dde0bdf9ee9250d03d5";
+    "1.11.5" =
+      "723e878c642220cc0251a0e13758c059a389cadc7f01376feaf1ea7388fe8f9c";
+    "1.11.4" =
+      "fb3d3c5fccef82158a70677c0044ac5ae40410eceb0604cdc8e643eeff21df8d";
+    "1.11.3" =
+      "7d48da416c8cb45582a1285d60127ee31ef7092ded3ec594a9f2cf58431c07fd";
+    "1.11.2" =
+      "8a372ad262d4d4d55a1044f4fe3bce7c9a4a3ce8c513d2470e58e8071eecd476";
+    "1.11.1" =
+      "cca8d13dc4507e4f62a129322293313ee574f300d4df9e7db30b7b41c5f8a8f3";
+    "1.11.0" =
+      "bcf815553fda2ed7910524c8caa189c8e8191a40a799dd8b5fbed0d9dd6b882c";
+    "1.10.8" =
+      "0410175aeec3df63173c15187f2083f179d40596d36fd3a57819cc5f522ae735";
+    "1.10.7" =
+      "21b2c69806aacf191d7c81806c7d9918bddab30c7b5b8d4251389c3abe274334";
+    "1.10.6" =
+      "8b53429e17585c66476b39f2b2279da207ea0f310c55db38f3410bdd4f6a3d49";
+    "1.10.5" =
+      "33497b93cf9dd65e8431024fd1db19cbfbe30bd796775a59d53e2df9a8de6dc0";
+    "1.10.4" =
+      "079f61757c3b5b40d2ade052b3cc4816f50f7ef6df668825772562b3746adff1";
+    "1.10.3" =
+      "81b910c922fff0e27ae1f256f2cc803db81f3960215281eddd2d484721928c70";
+    "1.10.2" =
+      "51bccc9bb245197f24e6b2394e6aa69c0dc1e41b4e300b796e17da34ef64db1e";
+    "1.10.1" = "sha256-/pJCWOVdB0QQsTQZXPa4XL6PMH/NBaT90j+JRMWUGnA=";
+    "1.10.0" = "sha256-pymCB/cvKyeyqxzjkqbqN6+9H77g8fjRkLBU3KuoeP4=";
+    "1.10.0-beta2" = "sha256-8aF/WlKYDBZ0Fsvk7aFEGdgY87dphUARVKOlZ4edZHc=";
+    "1.10.0-beta1" = "sha256-zaOKLdWw7GBcwH/6RO/T6f4QctsmUllT0eJPtDLgv08=";
+    "1.9.3" = "sha256-12ZwzJuj4P1MFUXdPQAmnAaUl2oRdjEnlevOFpLTI9E=";
+    "1.9.2" = "sha256-TC15n0Qtf+cYgnsZ2iusty6gQbnOVfJO7nsTE/V8Q4M=";
+    "1.9.0" = "sha256-AMYURm75gJwusjSA440ZaixXf/8nMMT4PRNbkT1HM1k=";
+    "1.8.3" = "sha256-M8Owk1b/qiXTMxw2RrHy1LCZROj5P8uZSVeAG4u/WKk=";
+    "1.7.2" = "sha256-p1JEck87LeDnJJyGH79kB4JXwW+0IDvnjxz03VlzupU=";
+    "1.6.7" = "sha256-bEUi1ZXky80AFXrEWKcviuwBdXBT0gc/mdqjnkQrKjY=";
+  };
+
+  julia = makeStdJulia juliaVersion;
+
+  makeStdJulia = version:
+    let
+      majorVersion = lib.versions.majorMinor version;
+      url =
+        "https://julialang-s3.julialang.org/bin/linux/x64/${majorVersion}/julia-${version}-linux-x86_64.tar.gz";
+      src = fetchurl {
+        inherit url;
+        sha256 = versionShas.${version};
+      };
+    in makeJulia version src;
+
+  makeJulia = version: src:
+    stdenv.mkDerivation {
+      name = "julia-${version}";
+      src = src;
+      installPhase = ''
+        mkdir $out
+        cp -R * $out/
+
+        # Patch for https://github.com/JuliaInterop/RCall.jl/issues/339.
+
+        # echo "patching $out"
+        # cp -L ${stdenv.cc.cc.lib}/lib/libstdc++.so.6 $out/lib/julia/
+      '';
+
+      dontStrip = true;
+      ldLibraryPath = lib.makeLibraryPath ([ stdenv.cc.cc ] ++ (with pkgs; [
+        curl
+        dbus
+        fontconfig
+        freetype
+        libGL
+        zlib
+        glib
+        openssl
+        openspecfun
+      ]) ++ (with xorg; [
+        libXi
+        libxcb
+        libXrender
+        libX11
+        libSM
+        libICE
+        libXext
+      ]));
+    };
+in julia
