@@ -66,6 +66,7 @@
           # IDE
           code-cursor
           cursor-cli
+          bash # Required by Speckit scripts
           vscode
         ]);
 
