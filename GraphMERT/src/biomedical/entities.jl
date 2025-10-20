@@ -18,6 +18,7 @@ using Random
 Enumeration of supported biomedical entity types.
 """
 @enum BiomedicalEntityType begin
+    # Biomedical entity types
     DISEASE
     DRUG
     PROTEIN
@@ -32,6 +33,19 @@ Enumeration of supported biomedical entity types.
     MOLECULAR_FUNCTION
     BIOLOGICAL_PROCESS
     CELLULAR_COMPONENT
+    # General knowledge entity types for Wikipedia
+    PERSON
+    ORGANIZATION
+    LOCATION
+    CONCEPT
+    EVENT
+    TECHNOLOGY
+    ARTWORK
+    PERIOD
+    THEORY
+    METHOD
+    INSTITUTION
+    COUNTRY
     UNKNOWN
 end
 
@@ -80,6 +94,30 @@ function parse_entity_type(type_name::String)
         return BIOLOGICAL_PROCESS
     elseif type_name_upper == "CELLULAR_COMPONENT"
         return CELLULAR_COMPONENT
+    elseif type_name_upper == "PERSON"
+        return PERSON
+    elseif type_name_upper == "ORGANIZATION"
+        return ORGANIZATION
+    elseif type_name_upper == "LOCATION"
+        return LOCATION
+    elseif type_name_upper == "CONCEPT"
+        return CONCEPT
+    elseif type_name_upper == "EVENT"
+        return EVENT
+    elseif type_name_upper == "TECHNOLOGY"
+        return TECHNOLOGY
+    elseif type_name_upper == "ARTWORK"
+        return ARTWORK
+    elseif type_name_upper == "PERIOD"
+        return PERIOD
+    elseif type_name_upper == "THEORY"
+        return THEORY
+    elseif type_name_upper == "METHOD"
+        return METHOD
+    elseif type_name_upper == "INSTITUTION"
+        return INSTITUTION
+    elseif type_name_upper == "COUNTRY"
+        return COUNTRY
     else
         return UNKNOWN
     end
@@ -259,6 +297,31 @@ function validate_biomedical_entity(entity_text::String, entity_type::Biomedical
         return occursin(r"\b(chemical|compound|molecule|substance|element|ion)\b", entity_text_lower)
     elseif entity_type == CELL_TYPE
         return occursin(r"\b(cell|tissue|line|culture|strain)\b", entity_text_lower)
+    elseif entity_type == PERSON
+        return occursin(r"\b(person|individual|scientist|artist|writer|inventor|leader|figure)\b", entity_text_lower) || 
+               occursin(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", entity_text)  # Name pattern
+    elseif entity_type == ORGANIZATION
+        return occursin(r"\b(organization|company|corporation|institution|university|college|institute|school|government|agency)\b", entity_text_lower)
+    elseif entity_type == LOCATION
+        return occursin(r"\b(location|place|city|country|state|region|continent|island|mountain|river|ocean)\b", entity_text_lower)
+    elseif entity_type == CONCEPT
+        return occursin(r"\b(concept|idea|principle|theory|method|approach|technique|algorithm|paradigm)\b", entity_text_lower)
+    elseif entity_type == EVENT
+        return occursin(r"\b(event|war|revolution|movement|period|era|age|century|decade|conference|meeting)\b", entity_text_lower)
+    elseif entity_type == TECHNOLOGY
+        return occursin(r"\b(technology|device|machine|computer|software|hardware|system|platform|tool|instrument)\b", entity_text_lower)
+    elseif entity_type == ARTWORK
+        return occursin(r"\b(artwork|painting|sculpture|music|literature|poem|novel|play|film|art|masterpiece)\b", entity_text_lower)
+    elseif entity_type == PERIOD
+        return occursin(r"\b(period|era|age|century|decade|epoch|time|phase|stage|generation)\b", entity_text_lower)
+    elseif entity_type == THEORY
+        return occursin(r"\b(theory|hypothesis|model|framework|principle|law|theorem|concept|idea)\b", entity_text_lower)
+    elseif entity_type == METHOD
+        return occursin(r"\b(method|technique|approach|procedure|process|algorithm|strategy|way|means)\b", entity_text_lower)
+    elseif entity_type == INSTITUTION
+        return occursin(r"\b(institution|university|college|institute|school|academy|museum|library|hospital|foundation)\b", entity_text_lower)
+    elseif entity_type == COUNTRY
+        return occursin(r"\b(country|nation|state|republic|kingdom|empire|federation|union|territory)\b", entity_text_lower)
     else
         return true  # Unknown type is always valid
     end
@@ -321,9 +384,17 @@ function calculate_entity_confidence(entity_text::String, entity_type::Biomedica
         confidence += 0.1
     end
     
-    # Medical terminology bonus
-    if occursin(r"\b(medical|clinical|biomedical|scientific)\b", entity_text_lower)
-        confidence += 0.1
+    # Domain-specific terminology bonus
+    if entity_type in [DISEASE, DRUG, PROTEIN, GENE, ANATOMY, SYMPTOM, PROCEDURE, ORGANISM, CHEMICAL, CELL_LINE, CELL_TYPE, MOLECULAR_FUNCTION, BIOLOGICAL_PROCESS, CELLULAR_COMPONENT]
+        # Medical terminology bonus for biomedical entities
+        if occursin(r"\b(medical|clinical|biomedical|scientific)\b", entity_text_lower)
+            confidence += 0.1
+        end
+    elseif entity_type in [PERSON, ORGANIZATION, LOCATION, CONCEPT, EVENT, TECHNOLOGY, ARTWORK, PERIOD, THEORY, METHOD, INSTITUTION, COUNTRY]
+        # General knowledge terminology bonus for Wikipedia entities
+        if occursin(r"\b(historical|cultural|academic|scientific|technological)\b", entity_text_lower)
+            confidence += 0.1
+        end
     end
     
     # UMLS integration bonus (if available)

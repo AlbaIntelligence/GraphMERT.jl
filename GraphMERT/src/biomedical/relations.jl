@@ -18,6 +18,7 @@ using Random
 Enumeration of supported biomedical relation types.
 """
 @enum BiomedicalRelationType begin
+    # Biomedical relation types
     TREATS
     CAUSES
     ASSOCIATED_WITH
@@ -43,6 +44,30 @@ Enumeration of supported biomedical relation types.
     PRODUCED_BY
     CONTAINS
     COMPONENT_OF
+    # General knowledge relation types for Wikipedia
+    CREATED_BY
+    WORKED_AT
+    BORN_IN
+    DIED_IN
+    FOUNDED
+    LED
+    INFLUENCED
+    DEVELOPED
+    INVENTED
+    DISCOVERED
+    WROTE
+    PAINTED
+    COMPOSED
+    DIRECTED
+    ACTED_IN
+    OCCURRED_IN
+    HAPPENED_DURING
+    PART_OF_EVENT
+    RELATED_TO
+    SIMILAR_TO
+    OPPOSITE_OF
+    PRECEDED_BY
+    FOLLOWED_BY
     UNKNOWN_RELATION
 end
 
@@ -113,6 +138,52 @@ function parse_relation_type(type_name::String)
         return CONTAINS
     elseif type_name_upper == "COMPONENT_OF"
         return COMPONENT_OF
+    elseif type_name_upper == "CREATED_BY"
+        return CREATED_BY
+    elseif type_name_upper == "WORKED_AT"
+        return WORKED_AT
+    elseif type_name_upper == "BORN_IN"
+        return BORN_IN
+    elseif type_name_upper == "DIED_IN"
+        return DIED_IN
+    elseif type_name_upper == "FOUNDED"
+        return FOUNDED
+    elseif type_name_upper == "LED"
+        return LED
+    elseif type_name_upper == "INFLUENCED"
+        return INFLUENCED
+    elseif type_name_upper == "DEVELOPED"
+        return DEVELOPED
+    elseif type_name_upper == "INVENTED"
+        return INVENTED
+    elseif type_name_upper == "DISCOVERED"
+        return DISCOVERED
+    elseif type_name_upper == "WROTE"
+        return WROTE
+    elseif type_name_upper == "PAINTED"
+        return PAINTED
+    elseif type_name_upper == "COMPOSED"
+        return COMPOSED
+    elseif type_name_upper == "DIRECTED"
+        return DIRECTED
+    elseif type_name_upper == "ACTED_IN"
+        return ACTED_IN
+    elseif type_name_upper == "OCCURRED_IN"
+        return OCCURRED_IN
+    elseif type_name_upper == "HAPPENED_DURING"
+        return HAPPENED_DURING
+    elseif type_name_upper == "PART_OF_EVENT"
+        return PART_OF_EVENT
+    elseif type_name_upper == "RELATED_TO"
+        return RELATED_TO
+    elseif type_name_upper == "SIMILAR_TO"
+        return SIMILAR_TO
+    elseif type_name_upper == "OPPOSITE_OF"
+        return OPPOSITE_OF
+    elseif type_name_upper == "PRECEDED_BY"
+        return PRECEDED_BY
+    elseif type_name_upper == "FOLLOWED_BY"
+        return FOLLOWED_BY
     else
         return UNKNOWN_RELATION
     end
