@@ -1,509 +1,753 @@
 # GraphMERT Algorithm Replication - Implementation Tasks
 
-**Feature:** GraphMERT Algorithm Replication
-**Objective:** Replicate the GraphMERT algorithm in Julia to construct biomedical knowledge graphs using RoBERTa+H-GAT architecture
-**Timeline:** 3 months for complete implementation and validation
-
-## Implementation Strategy
-
-**MVP Scope:** Phase 1-3 (Core Architecture + Basic Knowledge Graph Extraction)
-**Incremental Delivery:** Each phase builds upon the previous, with independent testability
-**Parallel Opportunities:** Multiple components can be developed simultaneously within each phase
-**Progressive Testing:** Every code improvement must be tested, compilation must be clean, and changes committed as separate documented commits
-
-## Dependencies
-
-**Story Completion Order:**
-
-1. **Phase 1-2:** Setup and foundational components (blocking prerequisites)
-2. **Phase 3:** Core GraphMERT architecture implementation
-3. **Phase 4:** Biomedical domain integration and UMLS
-4. **Phase 5:** Training pipeline and MLM+MNM objectives
-5. **Phase 6:** Evaluation and benchmarking
-6. **Phase 7:** API and Integration
-7. **Phase 8:** Testing and Validation
-8. **Phase 9:** Documentation and Examples
-9. **Phase 10:** Polish and Optimization
-10. **Phase 11:** Non-Functional Requirements Implementation
-
-**Progressive Testing Requirements:**
-- Every code change must pass compilation without warnings
-- Every code change must include corresponding tests
-- Every code change must be committed as a separate documented commit
-- Each phase must have a testing gate before proceeding to the next phase
-
-**Robustness and Trust Focus:**
-The additional tasks (T024-T060) beyond the core requirements are intentionally designed to make the replication more robust and trustworthy:
-
-- **Comprehensive Testing:** Ensures every component is thoroughly validated
-- **Performance Validation:** Verifies the implementation meets or exceeds original paper benchmarks
-- **API Completeness:** Provides a full-featured API for real-world usage
-- **Documentation Excellence:** Enables easy adoption and understanding
-- **Code Quality:** Creates a reference implementation that demonstrates Julia best practices
-- **Scientific Rigor:** Ensures reproducibility and validation against original results
-
-This approach builds confidence in the replication's accuracy and completeness, making it suitable for both research and production use.
-
-**Parallel Execution Examples:**
-
-- **Phase 3:** RoBERTa implementation || H-GAT development || Leafy chain graph structure
-- **Phase 4:** UMLS integration || Biomedical entity types || Helper LLM integration
-- **Phase 5:** MLM objective || MNM objective || Seed KG injection algorithm
-
-## Testing Gates and Quality Assurance
-
-### Testing Gate Requirements
-
-Each phase must pass a testing gate before proceeding to the next phase:
-
-- **Compilation Gate:** All code must compile without warnings or errors
-- **Test Coverage Gate:** All new code must have ≥80% test coverage
-- **Integration Gate:** All components must integrate successfully
-- **Performance Gate:** Performance benchmarks must meet or exceed targets
-- **Documentation Gate:** All new APIs must have complete documentation
-
-### Commit Requirements
-
-Every code improvement must follow this process:
-
-1. **Code Change:** Implement the improvement
-2. **Test Addition:** Add corresponding tests
-3. **Compilation Check:** Ensure clean compilation
-4. **Test Execution:** Run all tests and verify they pass
-5. **Documentation Update:** Update relevant documentation
-6. **Commit:** Create a separate documented commit with clear description
-
-## Phase 1: Project Setup
-
-### T001: Create Julia package structure
-
-- [x] T001 Create Julia package structure in graphMERT/ with Project.toml, src/, test/, docs/ directories
-
-### T002: Initialize Project.toml with dependencies
-
-- [x] T002 [P] Configure Project.toml with Flux.jl, Transformers.jl, TextAnalysis.jl, LightGraphs.jl, DataFrames.jl dependencies
-
-### T003: Set up development environment
-
-- [x] T003 [P] Create development environment configuration with Julia 1.8+ LTS compatibility
-
-### T004: Initialize testing framework
-
-- [x] T004 [P] Set up Test.jl testing framework with 80% coverage target (constitution compliance)
-
-### T005: Create documentation structure
-
-- [x] T005 [P] Create documentation structure with API docs, tutorials, and examples
-
-### T005a: Set up progressive testing infrastructure
-
-- [x] T005a [P] Create progressive testing infrastructure with compilation gates, test coverage monitoring, and automated commit validation
-
-## Phase 2: Foundational Components
-
-### T006: Define core data structures
-
-- [x] T006 Create core data structures in src/types.jl (KnowledgeGraph, BiomedicalEntity, BiomedicalRelation)
-
-### T007: Implement error handling system
-
-- [x] T007 [P] Implement custom exception types in src/exceptions.jl (GraphMERTError, ModelLoadingError, EntityExtractionError, RelationExtractionError)
-
-### T008: Create configuration system
-
-- [x] T008 [P] Implement configuration system in src/config.jl (ProcessingOptions, GraphMERTConfig, MLM_MNM_Training)
-
-### T009: Set up logging system
-
-- [x] T009 [P] Implement logging system for debugging and monitoring
-
-### T010: Create utility functions
-
-- [x] T010 [P] Implement utility functions in src/utils.jl (validation, serialization, performance monitoring)
-
-### T010a: Phase 1-2 Testing Gate
-
-- [x] T010a [P] Execute Phase 1-2 testing gate: verify compilation, test coverage ≥80%, integration tests pass, documentation complete
-
-## Phase 3: Core GraphMERT Architecture
-
-### T011: Implement RoBERTa encoder architecture
-
-- [x] T011 [US1] Implement RoBERTa encoder in src/architectures/roberta.jl with 80M parameter configuration
-
-### T012: Implement H-GAT (Hierarchical Graph Attention)
-
-- [x] T012 [US1] Implement H-GAT component in src/architectures/hgat.jl for semantic relation encoding
-
-### T013: Create leafy chain graph structure
-
-- [x] T013 [US1] Implement leafy chain graph structure in src/graphs/leafy_chain.jl with root and leaf nodes
-
-### T014: Implement attention decay mask
-
-- [x] T014 [US1] Implement attention decay mask in src/architectures/attention.jl for spatial distance encoding
-
-### T015: Create GraphMERT model wrapper
-
-- [x] T015 [US1] Implement GraphMERT model wrapper in src/models/graphmert.jl combining RoBERTa + H-GAT
-
-### T016: Implement model loading and saving
-
-- [x] T016 [US1] Implement model persistence in src/models/persistence.jl for loading and saving GraphMERT models
-
-### T016a: Phase 3 Testing Gate
-
-- [ ] T016a [P] Execute Phase 3 testing gate: verify RoBERTa+H-GAT architecture, leafy chain graph structure, model persistence, compilation clean, tests pass
-
-## Phase 4: Biomedical Domain Integration ✅ COMPLETED
-
-### T017: Implement UMLS integration
-
-- [x] T017 [US2] Create UMLS integration in src/biomedical/umls.jl for entity linking and validation
-  - [x] T017a [US2] Implement UMLS REST API client with authentication and rate limiting (100 requests/minute)
-  - [x] T017b [US2] Add exponential backoff retry logic for API failures
-  - [x] T017c [US2] Implement local entity recognition fallback when UMLS API unavailable
-  - [x] T017d [US2] Add local caching system to reduce API calls and improve performance
-  - [x] T017e [US2] Handle UMLS API errors gracefully with informative error messages
-
-### T018: Implement biomedical entity types
-
-- [x] T018 [US2] Create biomedical entity types in src/biomedical/entities.jl (DISEASE, DRUG, PROTEIN, etc.)
-
-### T019: Implement biomedical relation types
-
-- [x] T019 [US2] Create biomedical relation types in src/biomedical/relations.jl (TREATS, CAUSES, ASSOCIATED_WITH, etc.)
-
-### T020: Implement helper LLM integration
-
-- [x] T020 [US2] Create helper LLM integration in src/llm/helper.jl for entity discovery and relation matching
-
-### T021: Implement PubMed text processing
-
-- [x] T021 [US2] Create PubMed text processing in src/text/pubmed.jl for biomedical document parsing
-
-### T022: Create biomedical knowledge graph structure
-
-- [x] T022 [US2] Implement biomedical knowledge graph in src/graphs/biomedical.jl with UMLS mappings
-
-### T022a: Phase 4 Testing Gate
-
-- [x] T022a [P] Execute Phase 4 testing gate: verify UMLS integration, biomedical entity types, helper LLM integration, PubMed processing, knowledge graph structure, compilation clean, tests pass
-
-## Phase 5: Training Pipeline
-
-### T023: Implement MLM (Masked Language Modeling) objective
-
-- [x] T023 [US3] Create MLM training objective in src/training/mlm.jl with span masking
-  - [x] T023a [US3] Implement span masking with configurable span length (3-10 tokens)
-  - [x] T023b [US3] Add boundary loss calculation for span prediction
-  - [x] T023c [US3] Implement weighted combination with MNM objective
-
-### T024: Implement MNM (Masked Node Modeling) objective
-
-- [ ] T024 [US3] Create MNM training objective in src/training/mnm.jl for semantic node prediction
-
-### T025: Implement seed KG injection algorithm
-
-- [ ] T025 [US3] Create seed KG injection algorithm in src/training/seed_injection.jl for training data preparation
-
-### T026: Implement training pipeline
-
-- [ ] T026 [US3] Create complete training pipeline in src/training/pipeline.jl combining MLM + MNM objectives
-
-### T027: Implement span masking and boundary loss
-
-- [ ] T027 [US3] Create span masking implementation in src/training/span_masking.jl with boundary loss
-
-### T028: Create training data preparation
-
-- [ ] T028 [US3] Implement training data preparation in src/data/preparation.jl for diabetes dataset processing
-
-### T028a: Phase 5 Testing Gate
-
-- [ ] T028a [P] Execute Phase 5 testing gate: verify MLM+MNM objectives, seed KG injection, training pipeline, span masking, data preparation, compilation clean, tests pass
-
-## Phase 6: Evaluation and Benchmarking
-
-### T029: Implement FActScore calculation
-
-- [ ] T029 [US4] Create FActScore calculation in src/evaluation/factscore.jl targeting 69.8% accuracy
-
-### T030: Implement ValidityScore calculation
-
-- [ ] T030 [US4] Create ValidityScore calculation in src/evaluation/validity.jl targeting 68.8% accuracy
-
-### T031: Implement GraphRAG evaluation methodology
-
-- [ ] T031 [US4] Create GraphRAG evaluation in src/evaluation/graphrag.jl for KG quality assessment
-
-### T032: Create benchmarking framework
-
-- [ ] T032 [US4] Implement benchmarking framework in src/benchmarking/benchmarks.jl for performance comparison
-
-### T032a: Implement performance benchmarking
-
-- [ ] T032a [US4] Create performance benchmarking in src/benchmarking/performance.jl targeting 5,000 tokens/second on Intel i7-10750H or AMD Ryzen 7 4800H, 16GB RAM systems
-
-### T033: Implement diabetes dataset validation
-
-- [ ] T033 [US4] Create diabetes dataset validation in src/evaluation/diabetes.jl for paper replication
-
-### T034: Create performance monitoring
-
-- [ ] T034 [US4] Implement performance monitoring in src/monitoring/performance.jl for memory and speed optimization
-
-### T034a: Implement FActScore validation
-
-- [ ] T034a [US4] Create FActScore validation in src/validation/factscore.jl targeting 69.8% accuracy with statistical significance testing
-
-### T034b: Implement ValidityScore validation
-
-- [ ] T034b [US4] Create ValidityScore validation in src/validation/validity.jl targeting 68.8% accuracy with confidence intervals
-
-### T034c: Implement memory usage validation
-
-- [ ] T034c [US4] Create memory usage validation in src/validation/memory.jl for <4GB RAM target on 16GB systems
-
-### T034d: Implement processing speed validation
-
-- [ ] T034d [US4] Create processing speed validation in src/validation/speed.jl for 5,000 tokens/second target
-
-### T034e: Implement reproducibility validation
-
-- [ ] T034e [US4] Create reproducibility validation in src/validation/reproducibility.jl with documented random seeds
-
-### T034f: Implement GraphRAG evaluation validation
-
-- [ ] T034f [US4] Create GraphRAG evaluation validation in src/validation/graphrag.jl for KG quality assessment
-
-### T034g: Phase 6 Testing Gate
-
-- [ ] T034g [P] Execute Phase 6 testing gate: verify FActScore/ValidityScore calculations, GraphRAG evaluation, benchmarking framework, performance monitoring, compilation clean, tests pass
-
-## Phase 7: API and Integration
-
-### T035: Implement main API functions
-
-- [ ] T035 [US5] Create main API in src/api/extraction.jl (extract_knowledge_graph, load_model, preprocess_text)
-
-### T036: Implement batch processing
-
-- [ ] T036 [US5] Create batch processing in src/api/batch.jl for multiple document processing
-
-### T037: Implement configuration APIs
-
-- [ ] T037 [US5] Create configuration APIs in src/api/config.jl for model and processing options
-
-### T038: Create helper functions
-
-- [ ] T038 [US5] Implement helper functions in src/api/helpers.jl (validate_graph, filter_by_confidence, merge_graphs)
-
-### T039: Implement serialization
-
-- [ ] T039 [US5] Create serialization in src/api/serialization.jl for JSON and binary formats
-
-### T040: Create integration examples
-
-- [ ] T040 [US5] Create integration examples in examples/ for common use cases
-
-### T040a: Implement main API functions
-
-- [ ] T040a [US5] Create main API in src/api/extraction.jl (extract_knowledge_graph, load_model, preprocess_text)
-
-### T040b: Implement batch processing API
-
-- [ ] T040b [US5] Create batch processing API in src/api/batch.jl for multiple biomedical documents
-
-### T040c: Implement configuration API
-
-- [ ] T040c [US5] Create configuration API in src/api/config.jl for model and processing options
-
-### T040d: Implement biomedical entity API
-
-- [ ] T040d [US5] Create biomedical entity API in src/api/entities.jl for UMLS entity types
-
-### T040e: Implement helper LLM API
-
-- [ ] T040e [US5] Create helper LLM API in src/api/llm.jl for entity discovery integration
-
-### T040f: Implement seed KG injection API
-
-- [ ] T040f [US5] Create seed KG injection API in src/api/seed_injection.jl for training pipeline
-
-### T040g: Phase 7 Testing Gate
-
-- [ ] T040g [P] Execute Phase 7 testing gate: verify main API functions, batch processing, configuration APIs, helper functions, serialization, integration examples, compilation clean, tests pass
-
-## Phase 8: Testing and Validation
-
-### T041: Create unit tests for core components
-
-- [ ] T041 [P] Implement unit tests in test/unit/ for all core components with ≥80% coverage (constitution compliance)
-
-### T042: Create integration tests
-
-- [ ] T042 [P] Implement integration tests in test/integration/ for end-to-end workflows
-
-### T043: Create performance tests
-
-- [ ] T043 [P] Implement performance tests in test/performance/ for benchmarking and regression testing
-
-### T044: Create scientific validation tests
-
-- [ ] T044 [P] Implement scientific validation tests in test/scientific/ for FActScore and ValidityScore validation
-
-### T045: Create biomedical domain tests
-
-- [ ] T045 [P] Implement biomedical domain tests in test/biomedical/ for UMLS integration and entity linking
-
-### T045a: Phase 8 Testing Gate
-
-- [ ] T045a [P] Execute Phase 8 testing gate: verify unit tests ≥80% coverage, integration tests, performance tests, scientific validation tests, biomedical domain tests, compilation clean, all tests pass
-
-## Phase 9: Documentation and Examples
-
-### T046: Create API documentation
-
-- [ ] T046 [P] Generate comprehensive API documentation in docs/api/ with examples and tutorials
-
-### T047: Create quickstart guide
-
-- [ ] T047 [P] Create quickstart guide in docs/quickstart.md for 30-minute setup and usage
-
-### T048: Create tutorial notebooks
-
-- [ ] T048 [P] Create tutorial notebooks in docs/tutorials/ for common use cases and advanced features
-
-### T049: Create performance guide
-
-- [ ] T049 [P] Create performance optimization guide in docs/performance.md for laptop deployment
-
-### T050: Create scientific validation guide
-
-- [ ] T050 [P] Create scientific validation guide in docs/validation.md for reproducibility and benchmarking
-
-### T050a: Phase 9 Testing Gate
-
-- [ ] T050a [P] Execute Phase 9 testing gate: verify API documentation, quickstart guide, tutorial notebooks, performance guide, scientific validation guide, compilation clean, tests pass
-
-## Phase 10: Polish and Optimization
-
-### T051: Optimize memory usage
-
-- [ ] T051 [P] Optimize memory usage in src/optimization/memory.jl for <4GB RAM target
-
-### T052: Optimize processing speed
-
-- [ ] T052 [P] Optimize processing speed in src/optimization/speed.jl for 5,000 tokens/second target
-
-### T053: Implement code elegance refinements
-
-- [ ] T053 [P] Refine code elegance in src/ for Julia community standards and reference implementation quality
-
-### T054: Create comprehensive error handling
-
-- [ ] T054 [P] Enhance error handling throughout codebase for informative and actionable error messages
-
-### T055: Final integration testing
-
-- [ ] T055 [P] Conduct final integration testing across all components for production readiness
-
-### T055a: Phase 10 Testing Gate
-
-- [ ] T055a [P] Execute Phase 10 testing gate: verify memory optimization, processing speed optimization, code elegance refinements, error handling, final integration testing, compilation clean, tests pass
-
-## Phase 11: Non-Functional Requirements Implementation
-
-### T056: Implement performance optimization
-
-- [ ] T056 [P] Implement performance optimization in src/performance/optimization.jl for 5,000 tokens/second target
-
-### T057: Implement memory optimization
-
-- [ ] T057 [P] Implement memory optimization in src/performance/memory.jl for <4GB RAM target
-
-### T058: Implement reliability features
-
-- [ ] T058 [P] Implement reliability features in src/reliability/error_handling.jl for graceful error handling
-
-### T059: Implement usability features
-
-- [ ] T059 [P] Implement usability features in src/usability/api_design.jl for intuitive API design
-
-### T060: Implement code quality gates
-
-- [ ] T060 [P] Implement code quality gates in src/quality/linting.jl for Julia standards compliance
-
-### T060a: Phase 11 Testing Gate
-
-- [ ] T060a [P] Execute Phase 11 testing gate: verify performance optimization, memory optimization, reliability features, usability features, code quality gates, compilation clean, tests pass
-
-### T060b: Final Project Testing Gate
-
-- [ ] T060b [P] Execute final project testing gate: verify all phases complete, all tests pass, compilation clean, documentation complete, performance targets met, ready for production
-
-## Independent Test Criteria
-
-### Phase 3 (Core Architecture)
-
-- **Test:** RoBERTa encoder loads and processes text correctly
-- **Test:** H-GAT attention mechanism functions properly
-- **Test:** Leafy chain graph structure maintains integrity
-- **Test:** Model wrapper combines components correctly
-
-### Phase 4 (Biomedical Integration)
-
-- **Test:** UMLS integration links entities correctly
-- **Test:** Biomedical entity types are properly classified
-- **Test:** Helper LLM integration discovers entities
-- **Test:** PubMed text processing extracts relevant information
-
-### Phase 5 (Training Pipeline)
-
-- **Test:** MLM objective trains correctly
-- **Test:** MNM objective trains correctly
-- **Test:** Seed KG injection algorithm functions properly
-- **Test:** Training pipeline converges successfully
-
-### Phase 6 (Evaluation)
-
-- **Test:** FActScore calculation matches paper results within 5%
-- **Test:** ValidityScore calculation matches paper results within 5%
-- **Test:** GraphRAG evaluation methodology functions
-- **Test:** Benchmarking framework produces consistent results
-
-### Phase 7 (API Integration)
-
-- **Test:** Main API functions work correctly
-- **Test:** Batch processing handles multiple documents
-- **Test:** Configuration APIs accept valid parameters
-- **Test:** Helper functions provide expected functionality
+## Overview
+
+**Feature**: GraphMERT Algorithm Replication in Julia
+**Timeline**: 3 months (12 weeks)
+**Approach**: Incremental delivery by user story with continuous validation
+**Testing Strategy**: >80% coverage (constitution requirement) + frequent compilation checks
+**Example Strategy**: Working demonstrations after each major component
+
+This document organizes implementation tasks by user story to enable independent, testable increments of functionality. Each phase includes:
+- **Implementation tasks**: Core functionality development
+- **Test tasks**: Unit, integration, and performance tests (50 total)
+- **Compilation verification**: Regular checks that code compiles and runs
+- **Example tasks**: Working demonstrations for each feature (21 total)
+- **Performance validation**: Verify NFR requirements are met
+
+---
 
 ## Task Summary
 
-- **Total Tasks:** 78 (70 original + 8 testing gates)
-- **Setup Tasks:** 6 (Phase 1 + T005a)
-- **Foundational Tasks:** 5 (Phase 2)
-- **Core Architecture Tasks:** 7 (Phase 3 + T016a)
-- **Biomedical Integration Tasks:** 7 (Phase 4 + T022a)
-- **Training Pipeline Tasks:** 7 (Phase 5 + T028a)
-- **Evaluation Tasks:** 7 (Phase 6 + T034g)
-- **API Integration Tasks:** 7 (Phase 7 + T040g)
-- **Testing Tasks:** 6 (Phase 8 + T045a)
-- **Documentation Tasks:** 6 (Phase 9 + T050a)
-- **Polish Tasks:** 6 (Phase 10 + T055a)
-- **Non-Functional Requirements Tasks:** 7 (Phase 11 + T060a + T060b)
+| Phase     | User Story            | Tasks   | Tests  | Examples | Status    | Dependencies |
+| --------- | --------------------- | ------- | ------ | -------- | --------- | ------------ |
+| Phase 1   | Setup                 | 8       | 0      | 0        | 🟡 Partial | None         |
+| Phase 2   | Foundation            | 23      | 6      | 2        | 🟡 Partial | Phase 1      |
+| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | 🔴 Blocked | Phase 2      |
+| Phase 4   | US2: Train Model      | 37      | 13     | 4        | 🔴 Blocked | Phase 2      |
+| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | 🔴 Blocked | Phase 2      |
+| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | 🔴 Blocked | Phase 2      |
+| Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked | Phase 3      |
+| Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked | Phase 3      |
+| Phase 9   | Polish & Integration  | 16      | 5      | 3        | 🔴 Blocked | All          |
+| **Total** |                       | **161** | **50** | **21**   |           |              |
 
-**Progressive Testing Requirements:**
-- **Testing Gates:** 8 testing gates across all phases
-- **Compilation Gates:** Every phase must compile cleanly
-- **Test Coverage:** ≥80% coverage maintained throughout
-- **Commit Requirements:** Every change must be tested and committed separately
-- **Quality Assurance:** Continuous validation of code quality and performance
+---
 
-**Parallel Opportunities:** 20 tasks identified for parallel execution
-**MVP Scope:** Phases 1-3 (18 tasks) for basic GraphMERT architecture
-**Independent Testability:** Each phase has clear test criteria and testing gates for validation
-**Constitution Compliance:** All tasks aligned with constitution requirements
-**Robustness Focus:** Extra tasks enhance replication robustness and trustworthiness
+## Phase 1: Setup & Project Initialization (Week 1)
+
+**Goal**: Establish project structure, dependencies, and development environment
+
+**Status**: 🟡 Partially Complete (Project exists, needs extensions)
+
+### Dependencies Setup
+
+- [ ] T001 [P] Verify Julia 1.10+ installation and environment
+- [ ] T002 [P] Install Flux.jl for ML framework
+- [ ] T003 [P] Install Transformers.jl for RoBERTa support
+- [ ] T004 [P] Install LightGraphs.jl and MetaGraphs.jl for graph processing
+- [ ] T005 [P] Install HTTP.jl and JSON3.jl for API integration
+- [ ] T006 [P] Install DataFrames.jl and CSV.jl for data manipulation
+- [ ] T007 [P] Install TextAnalysis.jl for biomedical text processing
+- [ ] T008 Configure development environment with Revise.jl for hot reloading
+
+---
+
+## Phase 2: Foundational Components (Week 2-3)
+
+**Goal**: Implement blocking prerequisites needed by all user stories
+
+**Status**: 🟡 Partially Complete (RoBERTa/H-GAT done, Leafy Chain missing)
+
+### Type System Extensions
+
+- [ ] T009 [P] Extend GraphMERT/src/types.jl with ChainGraphNode type from data-model.md
+- [ ] T010 [P] Add ChainGraphConfig type to GraphMERT/src/types.jl
+- [ ] T011 [P] Add LeafyChainGraph type to GraphMERT/src/types.jl
+- [ ] T012 [P] Add MNMConfig complete definition to GraphMERT/src/types.jl
+- [ ] T013 [P] Add SemanticTriple type to GraphMERT/src/types.jl
+- [ ] T014 [P] Add SeedInjectionConfig type to GraphMERT/src/types.jl
+- [ ] T015 [P] Add LLMRequest and LLMResponse types to GraphMERT/src/types.jl
+- [ ] T016 Add type validation constructors for all new types in GraphMERT/src/types.jl
+
+### Leafy Chain Graph Implementation (CRITICAL - P0)
+
+- [ ] T017 Implement default_chain_graph_config() constructor in GraphMERT/src/graphs/leafy_chain.jl
+- [ ] T018 Implement create_empty_chain_graph() in GraphMERT/src/graphs/leafy_chain.jl
+- [ ] T019 Verify compilation: julia --project=GraphMERT -e 'using GraphMERT; create_empty_chain_graph()'
+- [ ] T020 Write unit tests for graph creation in GraphMERT/test/unit/test_leafy_chain.jl
+- [ ] T021 Implement build_adjacency_matrix() for graph connectivity in GraphMERT/src/graphs/leafy_chain.jl
+- [ ] T022 Implement floyd_warshall() for shortest paths in GraphMERT/src/graphs/leafy_chain.jl
+- [ ] T023 Write unit tests for shortest path computation in GraphMERT/test/unit/test_leafy_chain.jl
+- [ ] T024 Verify compilation: run test suite for graph connectivity
+- [ ] T025 Implement inject_triple!() to add semantic triples in GraphMERT/src/graphs/leafy_chain.jl
+- [ ] T026 Write unit tests for triple injection in GraphMERT/test/unit/test_leafy_chain.jl
+- [ ] T027 Implement graph_to_sequence() for sequential encoding in GraphMERT/src/graphs/leafy_chain.jl
+- [ ] T028 Implement create_attention_mask() for graph-aware attention in GraphMERT/src/graphs/leafy_chain.jl
+- [ ] T029 Write comprehensive tests for full graph pipeline in GraphMERT/test/unit/test_leafy_chain.jl
+- [ ] T030 Create working example: simple graph construction in examples/biomedical/00_leafy_chain_demo.jl
+- [ ] T031 Verify end-to-end: compile and run example successfully
+
+---
+
+## Phase 3: US1 - Knowledge Graph Extraction (Week 4-5)
+
+**User Story**: As a researcher, I want to extract knowledge graphs from biomedical text so that I can analyze structured relationships in my domain.
+
+**Requirements**: REQ-001, REQ-002, REQ-007, REQ-008, REQ-017, REQ-020
+
+**Success Criteria**:
+- ✅ Can extract entities and relations from single biomedical text
+- ✅ Returns KnowledgeGraph with confidence scores
+- ✅ API is simple: `extract_knowledge_graph(text, model)`
+- ✅ Handles PubMed abstracts and medical documents
+- ✅ Processing time meets NFR-001 (5,000 tokens/sec)
+
+### US1: Triple Extraction Pipeline (CRITICAL)
+
+- [ ] T032 [US1] Implement head entity discovery in GraphMERT/src/api/extraction.jl
+- [ ] T033 [US1] Write unit tests for entity discovery in GraphMERT/test/unit/test_extraction.jl
+- [ ] T034 [US1] Implement relation matching to entity pairs in GraphMERT/src/api/extraction.jl
+- [ ] T035 [US1] Write unit tests for relation matching in GraphMERT/test/unit/test_extraction.jl
+- [ ] T036 [US1] Implement tail token prediction (top-k=20) in GraphMERT/src/api/extraction.jl
+- [ ] T037 [US1] Write unit tests for tail prediction in GraphMERT/test/unit/test_extraction.jl
+- [ ] T038 [US1] Implement tail formation from tokens in GraphMERT/src/api/extraction.jl
+- [ ] T039 [US1] Implement similarity filtering (β threshold) in GraphMERT/src/api/extraction.jl
+- [ ] T040 [US1] Implement deduplication logic in GraphMERT/src/api/extraction.jl
+- [ ] T041 [US1] Implement provenance tracking in GraphMERT/src/api/extraction.jl
+- [ ] T042 [US1] Write integration tests for extraction pipeline in GraphMERT/test/integration/test_extraction_pipeline.jl
+- [ ] T043 [US1] Verify compilation: run full extraction pipeline tests
+
+### US1: Public API Implementation
+
+- [ ] T044 [US1] Implement extract_knowledge_graph() main function in GraphMERT/src/api/extraction.jl
+- [ ] T045 [US1] Implement default_processing_options() in GraphMERT/src/config.jl
+- [ ] T046 [US1] Implement load_model() for checkpoint loading in GraphMERT/src/models/persistence.jl
+- [ ] T047 [US1] Implement save_model() for checkpoint saving in GraphMERT/src/models/persistence.jl
+- [ ] T048 [US1] Add error handling and validation to extraction API in GraphMERT/src/api/extraction.jl
+- [ ] T049 [US1] Write API tests for extract_knowledge_graph() in GraphMERT/test/unit/test_api.jl
+- [ ] T050 [US1] Create working example: basic extraction in examples/biomedical/01_basic_entity_extraction.jl
+- [ ] T051 [US1] Create working example: relation extraction in examples/biomedical/02_relation_extraction.jl
+- [ ] T052 [US1] Verify end-to-end: run examples successfully on diabetes text
+- [ ] T053 [US1] Performance test: verify 5,000 tokens/sec throughput (NFR-001)
+
+---
+
+## Phase 4: US2 - Model Training (Week 6-8)
+
+**User Story**: As a researcher, I want to train a GraphMERT model on my own biomedical corpus so that I can create domain-specific knowledge extraction models.
+
+**Requirements**: REQ-004, REQ-005, REQ-022, REQ-013, REQ-015
+
+**Success Criteria**:
+- ✅ Can train model with MLM+MNM objectives
+- ✅ Seed KG injection works correctly
+- ✅ Training is reproducible with documented seeds
+- ✅ Can process datasets up to 124.7M tokens
+- ✅ Checkpoint saving/loading works
+- ✅ Memory usage < 4GB (REQ-014)
+
+### US2: MNM Training Implementation (CRITICAL)
+
+- [ ] T054 [US2] Implement select_leaves_to_mask() in GraphMERT/src/training/mnm.jl
+- [ ] T055 [US2] Write unit tests for leaf masking in GraphMERT/test/unit/test_mnm.jl
+- [ ] T056 [US2] Implement apply_mnm_masks() with mask strategies in GraphMERT/src/training/mnm.jl
+- [ ] T057 [US2] Implement calculate_mnm_loss() for leaf prediction in GraphMERT/src/training/mnm.jl
+- [ ] T058 [US2] Write unit tests for MNM loss calculation in GraphMERT/test/unit/test_mnm.jl
+- [ ] T059 [US2] Verify compilation: test MNM loss on toy data
+- [ ] T060 [US2] Implement relation_embedding_dropout (0.3) in GraphMERT/src/training/mnm.jl
+- [ ] T061 [US2] Implement gradient flow validation through H-GAT in GraphMERT/src/training/mnm.jl
+- [ ] T062 [US2] Write tests for gradient flow validation in GraphMERT/test/unit/test_mnm.jl
+- [ ] T063 [US2] Implement train_joint_mlm_mnm_step() combining both losses in GraphMERT/src/training/mnm.jl
+- [ ] T064 [US2] Implement create_mnm_batch() for batch preparation in GraphMERT/src/training/mnm.jl
+- [ ] T065 [US2] Write integration tests for joint training in GraphMERT/test/integration/test_training_pipeline.jl
+- [ ] T066 [US2] Create working example: MNM training on small dataset in examples/biomedical/03_mnm_training_demo.jl
+
+### US2: Seed KG Injection Implementation (CRITICAL)
+
+- [ ] T067 [US2] Implement SapBERT embedding-based candidate retrieval in GraphMERT/src/training/seed_injection.jl
+- [ ] T068 [US2] Write unit tests for entity linking in GraphMERT/test/unit/test_seed_injection.jl
+- [ ] T069 [US2] Implement character 3-gram Jaccard similarity filtering in GraphMERT/src/training/seed_injection.jl
+- [ ] T070 [US2] Write unit tests for string matching in GraphMERT/test/unit/test_seed_injection.jl
+- [ ] T071 [US2] Verify compilation: test entity linking pipeline
+- [ ] T072 [US2] Implement contextual triple selection (top-40) in GraphMERT/src/training/seed_injection.jl
+- [ ] T073 [US2] Implement score bucketing algorithm in GraphMERT/src/training/seed_injection.jl
+- [ ] T074 [US2] Implement relation bucketing for diversity in GraphMERT/src/training/seed_injection.jl
+- [ ] T075 [US2] Write unit tests for bucketing algorithms in GraphMERT/test/unit/test_seed_injection.jl
+- [ ] T076 [US2] Implement injection algorithm (Paper Appendix B) in GraphMERT/src/training/seed_injection.jl
+- [ ] T077 [US2] Implement injection validation and consistency checks in GraphMERT/src/training/seed_injection.jl
+- [ ] T078 [US2] Write comprehensive tests for seed injection in GraphMERT/test/unit/test_seed_injection.jl
+- [ ] T079 [US2] Verify compilation: test full injection pipeline
+- [ ] T080 [US2] Create working example: seed injection demo in examples/biomedical/04_seed_injection_demo.jl
+
+### US2: Training Pipeline
+
+- [ ] T081 [US2] Implement train_graphmert() main training function in GraphMERT/src/training/pipeline.jl
+- [ ] T082 [US2] Implement data loading and preprocessing in GraphMERT/src/data/preparation.jl
+- [ ] T083 [US2] Implement training loop with checkpoint saving in GraphMERT/src/training/pipeline.jl
+- [ ] T084 [US2] Write unit tests for checkpoint persistence in GraphMERT/test/unit/test_persistence.jl
+- [ ] T085 [US2] Implement training monitoring and logging in GraphMERT/src/monitoring/performance.jl
+- [ ] T086 [US2] Add random seed management for reproducibility in GraphMERT/src/training/pipeline.jl
+- [ ] T087 [US2] Write integration tests for full training pipeline in GraphMERT/test/integration/test_training_pipeline.jl
+- [ ] T088 [US2] Create working example: train on small diabetes subset in examples/biomedical/05_training_demo.jl
+- [ ] T089 [US2] Verify end-to-end: train model, save, load, and verify reproducibility
+- [ ] T090 [US2] Performance test: verify training memory < 4GB (NFR-002)
+
+---
+
+## Phase 5: US3 - UMLS Integration (Week 9)
+
+**User Story**: As a biomedical researcher, I want to link extracted entities to UMLS concepts so that I can validate entities against standardized biomedical ontologies.
+
+**Requirements**: REQ-003, REQ-003a-e, REQ-020
+
+**Success Criteria**:
+- ✅ Can connect to UMLS REST API with authentication
+- ✅ Rate limiting (100 req/min) enforced with retry logic
+- ✅ Entities mapped to CUI codes
+- ✅ Local caching reduces API calls
+- ✅ Graceful error handling with fallbacks
+
+### US3: UMLS Client Implementation
+
+- [ ] T091 [P] [US3] Implement UMLSClient authentication in GraphMERT/src/biomedical/umls.jl
+- [ ] T092 [P] [US3] Write unit tests for authentication in GraphMERT/test/unit/test_umls.jl
+- [ ] T093 [P] [US3] Implement rate limiting (100 req/min) with exponential backoff in GraphMERT/src/biomedical/umls.jl
+- [ ] T094 [P] [US3] Write unit tests for rate limiting in GraphMERT/test/unit/test_umls.jl
+- [ ] T095 [US3] Verify compilation: test rate limiting with mock API
+- [ ] T096 [US3] Implement CUI lookup by entity text in GraphMERT/src/biomedical/umls.jl
+- [ ] T097 [US3] Implement semantic type classification retrieval in GraphMERT/src/biomedical/umls.jl
+- [ ] T098 [US3] Implement relation retrieval from UMLS in GraphMERT/src/biomedical/umls.jl
+- [ ] T099 [US3] Write unit tests for UMLS queries in GraphMERT/test/unit/test_umls.jl
+- [ ] T100 [US3] Implement local caching (SQLite) for UMLS responses in GraphMERT/src/biomedical/umls.jl
+- [ ] T101 [US3] Write unit tests for caching mechanism in GraphMERT/test/unit/test_umls.jl
+- [ ] T102 [US3] Implement error handling with fallback to local recognition in GraphMERT/src/biomedical/umls.jl
+- [ ] T103 [US3] Implement create_umls_client() API function in GraphMERT/src/biomedical/umls.jl
+- [ ] T104 [US3] Write integration tests for full UMLS pipeline in GraphMERT/test/integration/test_umls_integration.jl
+- [ ] T105 [US3] Create working example: UMLS entity linking in examples/biomedical/06_umls_demo.jl
+- [ ] T106 [US3] Verify end-to-end: link entities to UMLS successfully
+
+---
+
+## Phase 6: US4 - Helper LLM Integration (Week 10)
+
+**User Story**: As a researcher, I want to use a helper LLM for entity discovery and relation matching so that I can improve extraction quality with modern language models.
+
+**Requirements**: REQ-006, REQ-006a-f, REQ-021
+
+**Success Criteria**:
+- ✅ Can integrate with OpenAI GPT-4 API
+- ✅ Structured prompts for entity discovery and relations
+- ✅ Rate limiting (10k tokens/min) with queuing
+- ✅ Response caching to reduce costs
+- ✅ Fallback when LLM unavailable
+
+### US4: LLM Client Implementation
+
+- [ ] T107 [P] [US4] Implement LLM API client (OpenAI, local) in GraphMERT/src/llm/helper.jl
+- [ ] T108 [P] [US4] Write unit tests for LLM client in GraphMERT/test/unit/test_llm.jl
+- [ ] T109 [P] [US4] Create prompt templates for entity discovery in GraphMERT/src/llm/helper.jl
+- [ ] T110 [P] [US4] Create prompt templates for relation matching in GraphMERT/src/llm/helper.jl
+- [ ] T111 [P] [US4] Write unit tests for prompt templates in GraphMERT/test/unit/test_llm.jl
+- [ ] T112 [US4] Verify compilation: test prompts with mock LLM
+- [ ] T113 [US4] Implement response parsing and validation in GraphMERT/src/llm/helper.jl
+- [ ] T114 [US4] Write unit tests for response parsing in GraphMERT/test/unit/test_llm.jl
+- [ ] T115 [US4] Implement request queuing for rate limiting in GraphMERT/src/llm/helper.jl
+- [ ] T116 [US4] Implement response caching mechanism in GraphMERT/src/llm/helper.jl
+- [ ] T117 [US4] Write integration tests for LLM pipeline in GraphMERT/test/integration/test_llm_integration.jl
+- [ ] T118 [US4] Create working example: entity discovery with LLM in examples/biomedical/07_llm_demo.jl
+- [ ] T119 [US4] Verify end-to-end: successful entity discovery with caching
+
+---
+
+## Phase 7: US5 - Evaluation Metrics (Week 11)
+
+**User Story**: As a researcher, I want to evaluate my knowledge graphs using standard metrics so that I can assess quality and compare with baselines.
+
+**Requirements**: REQ-011, REQ-012, REQ-016
+
+**Success Criteria**:
+- ✅ Can calculate FActScore* for factuality
+- ✅ Can calculate ValidityScore for ontological validity
+- ✅ Can evaluate with GraphRAG methodology
+- ✅ Results match paper methodology
+- ✅ Statistical significance testing included
+
+### US5: Evaluation Implementation
+
+- [ ] T120 [P] [US5] Implement FActScore* calculation in GraphMERT/src/evaluation/factscore.jl
+- [ ] T121 [P] [US5] Write unit tests for FActScore in GraphMERT/test/unit/test_evaluation.jl
+- [ ] T122 [P] [US5] Implement ValidityScore calculation in GraphMERT/src/evaluation/validity.jl
+- [ ] T123 [P] [US5] Write unit tests for ValidityScore in GraphMERT/test/unit/test_evaluation.jl
+- [ ] T124 [P] [US5] Implement GraphRAG local search in GraphMERT/src/evaluation/graphrag.jl
+- [ ] T125 [P] [US5] Write unit tests for GraphRAG in GraphMERT/test/unit/test_evaluation.jl
+- [ ] T126 [US5] Verify compilation: test metrics on toy knowledge graphs
+- [ ] T127 [US5] Implement triple-context pairing for FActScore in GraphMERT/src/evaluation/factscore.jl
+- [ ] T128 [US5] Implement LLM-based validation for metrics in GraphMERT/src/evaluation/factscore.jl
+- [ ] T129 [US5] Implement evaluate_factscore() API function in GraphMERT/src/evaluation/factscore.jl
+- [ ] T130 [US5] Implement evaluate_validity() API function in GraphMERT/src/evaluation/validity.jl
+- [ ] T131 [US5] Implement evaluate_graphrag() API function in GraphMERT/src/evaluation/graphrag.jl
+- [ ] T132 [US5] Write integration tests for evaluation pipeline in GraphMERT/test/integration/test_evaluation_integration.jl
+- [ ] T133 [US5] Implement benchmark integration (ICD-Bench, MedMCQA) in GraphMERT/src/evaluation/diabetes.jl
+- [ ] T134 [US5] Add statistical significance testing (p < 0.05) in GraphMERT/src/evaluation/validity.jl
+- [ ] T135 [US5] Create working example: evaluate diabetes KG in examples/biomedical/08_evaluation_demo.jl
+- [ ] T136 [US5] Verify scientific: reproduce paper results (FActScore 69.8%, ValidityScore 68.8%)
+
+---
+
+## Phase 8: US6 - Batch Processing (Week 12)
+
+**User Story**: As a researcher processing large corpora, I want to extract knowledge graphs from multiple documents efficiently so that I can process entire datasets.
+
+**Requirements**: REQ-018, NFR-003
+
+**Success Criteria**:
+- ✅ Can process batches of documents
+- ✅ Throughput 3x better than sequential
+- ✅ Memory usage scales linearly
+- ✅ Automatic batch size optimization
+
+### US6: Batch Processing Implementation
+
+- [ ] T137 [US6] Implement extract_knowledge_graph_batch() API in GraphMERT/src/api/batch.jl
+- [ ] T138 [US6] Write unit tests for batch processing in GraphMERT/test/unit/test_batch.jl
+- [ ] T139 [US6] Implement automatic batch size optimization in GraphMERT/src/api/batch.jl
+- [ ] T140 [US6] Implement batch result merging in GraphMERT/src/api/batch.jl
+- [ ] T141 [US6] Implement progress tracking for batches in GraphMERT/src/api/batch.jl
+- [ ] T142 [US6] Add memory monitoring and optimization in GraphMERT/src/optimization/memory.jl
+- [ ] T143 [US6] Write performance tests for batch processing in GraphMERT/test/performance/test_batch_performance.jl
+- [ ] T144 [US6] Create working example: batch process PubMed corpus in examples/biomedical/09_batch_processing_demo.jl
+- [ ] T145 [US6] Verify performance: 3x throughput improvement vs sequential
+
+---
+
+## Phase 9: Polish & Cross-Cutting Concerns (Week 12+)
+
+**Goal**: Final integration, documentation, and quality assurance
+
+**Status**: 🔴 Not Started
+
+### Utility Functions
+
+- [ ] T146 [P] Implement merge_knowledge_graphs() in GraphMERT/src/utils.jl
+- [ ] T147 [P] Write unit tests for merge function in GraphMERT/test/unit/test_utils.jl
+- [ ] T148 [P] Implement filter_knowledge_graph() in GraphMERT/src/utils.jl
+- [ ] T149 [P] Write unit tests for filter function in GraphMERT/test/unit/test_utils.jl
+- [ ] T150 [P] Implement export_knowledge_graph() with multiple formats in GraphMERT/src/api/serialization.jl
+- [ ] T151 [P] Write unit tests for export formats in GraphMERT/test/unit/test_serialization.jl
+- [ ] T152 Verify compilation: test all utility functions
+
+### Documentation & Examples
+
+- [ ] T153 [P] Create comprehensive API documentation with examples in GraphMERT/docs/api/
+- [ ] T154 [P] Create tutorial notebooks in examples/
+- [ ] T155 [P] Create quickstart guide validation: verify examples in 30 minutes
+- [ ] T156 Verify documentation completeness: all public functions documented
+
+### Final Integration & Validation
+
+- [ ] T157 Run full test suite and verify >80% coverage (constitution requirement)
+- [ ] T158 Run linter and fix all issues (REQ-023g)
+- [ ] T159 Performance benchmark: verify all NFRs met
+- [ ] T160 Create comprehensive integration test for full pipeline in GraphMERT/test/integration/test_full_pipeline.jl
+- [ ] T161 Verify end-to-end: diabetes dataset extraction with paper result replication
+
+---
+
+## Dependencies Graph
+
+```mermaid
+graph TD
+    P1[Phase 1: Setup] --> P2[Phase 2: Foundation]
+    P2 --> P3[Phase 3: US1 Extract KG]
+    P2 --> P4[Phase 4: US2 Train Model]
+    P2 --> P5[Phase 5: US3 UMLS]
+    P2 --> P6[Phase 6: US4 Helper LLM]
+
+    P3 --> P7[Phase 7: US5 Evaluation]
+    P3 --> P8[Phase 8: US6 Batch Processing]
+
+    P4 --> P3
+    P5 --> P4
+    P6 --> P3
+
+    P7 --> P9[Phase 9: Polish]
+    P8 --> P9
+```
+
+**Critical Path**: Phase 1 → Phase 2 → Phase 4 (Training) → Phase 3 (Extraction) → Phase 7 (Evaluation)
+
+**Parallel Opportunities**:
+- Phase 5 (UMLS) and Phase 6 (LLM) can be developed in parallel with Phase 4 (Training)
+- Phase 7 (Evaluation) and Phase 8 (Batch) can be developed in parallel after Phase 3
+
+---
+
+## Parallel Execution Examples
+
+### Phase 2 Foundation (Week 2-3)
+**Parallelizable**: T009-T015 (Type extensions - different files)
+**Sequential**: T017-T023 (Leafy Chain - same file, interdependent)
+
+```bash
+# Parallel: Type extensions
+$ task T009 & task T010 & task T011 & task T012 & task T013 & task T014 & task T015
+# Sequential: Leafy Chain
+$ task T017 && task T018 && task T019 && task T020 && task T021 && task T022 && task T023
+```
+
+### Phase 3 US1 Extraction (Week 4-5)
+**Parallelizable**: T024-T027 (Different extraction stages)
+**Sequential**: T028-T030 (Post-processing pipeline)
+
+```bash
+# Parallel: Extraction stages
+$ task T024 & task T025 & task T026 & task T027
+# Sequential: Pipeline
+$ task T028 && task T029 && task T030
+# Parallel: API implementation
+$ task T031 & task T032 & task T033 & task T034
+```
+
+### Phase 5 & 6 (Week 9-10)
+**Completely Parallel**: UMLS and LLM are independent
+
+```bash
+# Parallel development
+$ (task T055 && task T056 && ... && task T062) &
+$ (task T063 && task T064 && ... && task T068) &
+wait
+```
+
+---
+
+## Implementation Strategy
+
+### MVP Scope (Weeks 1-5)
+
+**Minimal Viable Product**: US1 - Knowledge Graph Extraction
+
+**Includes**:
+- Phase 1: Setup (T001-T008) - 8 tasks
+- Phase 2: Foundation (T009-T031) - 23 tasks with 6 tests + 2 examples
+- Phase 3: US1 Extraction (T032-T053) - 22 tasks with 7 tests + 4 examples
+
+**Total MVP**: 53 tasks including 13 test tasks and 6 working examples
+
+**Excludes** (for MVP):
+- Training (can use pre-trained model)
+- UMLS integration (basic entities only)
+- Helper LLM (manual entity discovery)
+- Evaluation (manual validation)
+
+**MVP Success Criteria**:
+- ✅ Can extract KG from single biomedical text
+- ✅ Returns structured output with entities and relations
+- ✅ Processing speed > 3,000 tokens/sec (relaxed from 5,000)
+- ✅ Memory usage < 4GB
+- ✅ Test coverage > 80% for MVP components
+- ✅ All 6 working examples run successfully
+
+### Incremental Delivery
+
+**Release 0.1 (Week 5)**: MVP - Basic extraction
+**Release 0.2 (Week 8)**: Add training capability (US2)
+**Release 0.3 (Week 10)**: Add UMLS + LLM integration (US3, US4)
+**Release 0.4 (Week 11)**: Add evaluation (US5)
+**Release 0.5 (Week 12)**: Add batch processing (US6)
+**Release 1.0 (Week 13)**: Full polish and documentation
+
+---
+
+## Testing Strategy
+
+**Per Constitution**: Minimum 80% test coverage required
+
+### Test Organization
+
+**Total Test Tasks**: 50 (31% of all tasks)
+
+```
+test/
+├── unit/                    # Unit tests (>80% coverage target)
+│   ├── test_types.jl
+│   ├── test_leafy_chain.jl        # 6 test tasks (T020, T023, T026, T029)
+│   ├── test_mnm.jl                # 4 test tasks (T055, T058, T062, T065)
+│   ├── test_seed_injection.jl     # 5 test tasks (T068, T070, T075, T078)
+│   ├── test_extraction.jl         # 4 test tasks (T033, T035, T037, T042)
+│   ├── test_umls.jl               # 5 test tasks (T092, T094, T099, T101, T104)
+│   ├── test_llm.jl                # 4 test tasks (T108, T111, T114, T117)
+│   ├── test_evaluation.jl         # 4 test tasks (T121, T123, T125, T132)
+│   ├── test_batch.jl              # 2 test tasks (T138, T143)
+│   └── test_utils.jl              # 4 test tasks (T147, T149, T151)
+├── integration/             # Integration tests (8 tasks)
+│   ├── test_training_pipeline.jl  # T065, T087
+│   ├── test_extraction_pipeline.jl # T042, T049
+│   ├── test_umls_integration.jl   # T104
+│   ├── test_llm_integration.jl    # T117
+│   ├── test_evaluation_integration.jl # T132
+│   └── test_full_pipeline.jl      # T160
+├── performance/             # Performance tests
+│   └── test_batch_performance.jl  # T143
+├── scientific/              # Scientific validation
+│   ├── test_diabetes_replication.jl # T136, T161
+│   └── test_evaluation_metrics.jl
+└── runtests.jl             # Test runner
+
+### Compilation Verification Points
+
+**Regular compilation checks** (10 verification tasks):
+- T019: After graph creation
+- T024: After graph connectivity
+- T043: After extraction pipeline
+- T053: After US1 performance test
+- T059: After MNM loss implementation
+- T071: After entity linking
+- T079: After seed injection
+- T095: After UMLS rate limiting
+- T112: After LLM prompts
+- T126: After evaluation metrics
+- T152: After utility functions
+
+These ensure code compiles and runs at every major milestone.
+
+### Testing Per User Story
+
+**US1 (Extraction)**: 7 test tasks
+- Unit: Each extraction stage (T033, T035, T037)
+- Integration: End-to-end extraction (T042, T049)
+- Performance: 5,000 tokens/sec (T053)
+
+**US2 (Training)**: 13 test tasks
+- Unit: MNM loss, seed injection stages (T055, T058, T062, T068, T070, T075, T078, T084)
+- Integration: Full training loop (T065, T087)
+- Performance: Memory < 4GB (T090)
+
+**US3 (UMLS)**: 6 test tasks
+- Unit: API client, caching (T092, T094, T099, T101)
+- Integration: Entity linking pipeline (T104)
+- Performance: Rate limiting compliance (T095)
+
+**US4 (Helper LLM)**: 5 test tasks
+- Unit: Prompt templates, response parsing (T108, T111, T114)
+- Integration: Entity discovery flow (T117)
+- Performance: Caching effectiveness (T119)
+
+**US5 (Evaluation)**: 6 test tasks
+- Unit: Metric calculations (T121, T123, T125)
+- Integration: Evaluation pipeline (T132)
+- Scientific: Paper result replication (T136)
+- Validation: FActScore 69.8% ±5%, ValidityScore 68.8% ±5%
+
+**US6 (Batch)**: 2 test tasks
+- Unit: Batch size optimization (T138)
+- Performance: 3x throughput vs sequential (T143, T145)
+- Memory: Linear scaling validation (T145)
+
+---
+
+## Working Examples Strategy
+
+**Total Example Tasks**: 21 (13% of all tasks)
+
+### Examples by Phase
+
+**Phase 2 (Foundation)**:
+- T030: Simple graph construction demo
+- T031: End-to-end graph verification
+
+**Phase 3 (US1 - Extraction)**: 4 examples
+- T050: Basic entity extraction
+- T051: Relation extraction
+- T052: Diabetes text extraction (end-to-end)
+- T053: Performance validation
+
+**Phase 4 (US2 - Training)**: 4 examples
+- T066: MNM training demo
+- T080: Seed injection demo
+- T088: Train on small diabetes subset
+- T089: Full reproducibility demo
+
+**Phase 5 (US3 - UMLS)**: 2 examples
+- T105: UMLS entity linking demo
+- T106: End-to-end linking verification
+
+**Phase 6 (US4 - Helper LLM)**: 2 examples
+- T118: Entity discovery with LLM
+- T119: Caching demonstration
+
+**Phase 7 (US5 - Evaluation)**: 2 examples
+- T135: Evaluate diabetes KG
+- T136: Scientific result replication
+
+**Phase 8 (US6 - Batch)**: 2 examples
+- T144: Batch process PubMed corpus
+- T145: Performance benchmark
+
+**Phase 9 (Polish)**: 3 examples
+- T154: Tutorial notebooks
+- T155: Quickstart validation
+- T161: Full pipeline demonstration
+
+### Example Validation Criteria
+
+Each working example must:
+1. ✅ Compile without errors
+2. ✅ Run successfully on test data
+3. ✅ Produce expected outputs
+4. ✅ Include clear documentation
+5. ✅ Complete in < 5 minutes on laptop
+6. ✅ Demonstrate key feature clearly
+
+---
+
+## Current Implementation Status
+
+### ✅ Complete (Ready to Use)
+
+| Component            | File                     | Lines | Quality   |
+| -------------------- | ------------------------ | ----- | --------- |
+| RoBERTa Encoder      | architectures/roberta.jl | 444   | Excellent |
+| H-GAT Component      | architectures/hgat.jl    | 437   | Excellent |
+| MLM Training         | training/mlm.jl          | 436   | Excellent |
+| Core Types           | types.jl                 | 272   | Good      |
+| Biomedical Entities  | biomedical/entities.jl   | ~200  | Good      |
+| Biomedical Relations | biomedical/relations.jl  | ~200  | Good      |
+
+### 🔴 Critical Missing (Blocking)
+
+| Component         | Estimated Lines | Difficulty | Blocks     |
+| ----------------- | --------------- | ---------- | ---------- |
+| Leafy Chain Graph | ~500            | 6/10       | Everything |
+| MNM Training      | ~400            | 8/10       | US2        |
+| Seed KG Injection | ~800            | 9/10       | US2        |
+| Triple Extraction | ~600            | 7/10       | US1        |
+
+**Total Implementation Gap**: ~2,300 lines of core functionality
+
+---
+
+## Success Metrics
+
+### Code Metrics
+
+| Metric             | Target | Current | Gap   |
+| ------------------ | ------ | ------- | ----- |
+| Total Lines        | ~5,800 | ~3,500  | 2,300 |
+| Core Functionality | 100%   | 40%     | 60%   |
+| Test Coverage      | 80%+   | ~30%    | 50%   |
+| Documentation      | 100%   | 40%     | 60%   |
+
+### Functional Metrics
+
+| Feature           | Target | Status                 |
+| ----------------- | ------ | ---------------------- |
+| Extraction Works  | ✅      | 🔴 Blocked by T017-T035 |
+| Training Works    | ✅      | 🔴 Blocked by T036-T054 |
+| Evaluation Works  | ✅      | 🟡 Partial              |
+| Paper Replication | ✅      | ⏳ Pending              |
+
+### Paper Replication Targets
+
+| Metric          | Paper      | Target (±5%) | Status    |
+| --------------- | ---------- | ------------ | --------- |
+| FActScore       | 69.8%      | 66.3-73.3%   | ⏳ Pending |
+| ValidityScore   | 68.8%      | 65.4-72.2%   | ⏳ Pending |
+| Training Time   | 90 GPU hrs | <120 hrs     | ⏳ Pending |
+| Inference Speed | 5k tok/s   | >4k tok/s    | ⏳ Pending |
+
+---
+
+## Risk Management
+
+### High Risk Tasks
+
+**T020 (Floyd-Warshall)**: Graph algorithm implementation
+- **Risk**: Performance bottleneck, correctness issues
+- **Mitigation**: Use LightGraphs.jl implementation, validate on small graphs
+
+**T046-T048 (Seed Injection)**: Novel algorithm from paper
+- **Risk**: Complex bucketing logic, hard to debug
+- **Mitigation**: Study Paper Appendix B, implement incrementally, extensive logging
+
+**T036-T041 (MNM Training)**: Novel training objective
+- **Risk**: Gradient flow issues, training instability
+- **Mitigation**: Validate gradients explicitly, start with toy datasets
+
+**T043-T044 (Entity Linking)**: External dependencies (SapBERT)
+- **Risk**: Integration complexity, API availability
+- **Mitigation**: Mock interfaces for testing, local fallbacks
+
+### Medium Risk Tasks
+
+**T055-T062 (UMLS Integration)**: External API, rate limits
+- **Risk**: API downtime, rate limit violations
+- **Mitigation**: Aggressive caching, exponential backoff, local fallbacks
+
+**T063-T068 (Helper LLM)**: External API, costs
+- **Risk**: API costs, availability
+- **Mitigation**: Response caching, support local models
+
+### Low Risk Tasks
+
+**T009-T016 (Type Extensions)**: Straightforward type definitions
+**T031-T035 (API Functions)**: Well-specified interfaces
+**T084-T088 (Utilities & Docs)**: Standard functionality
+
+---
+
+## Validation Checklist
+
+### Format Validation
+- ✅ All tasks follow checklist format: `- [ ] TXXX ...`
+- ✅ Task IDs sequential (T001-T088)
+- ✅ [P] markers only on parallelizable tasks (different files)
+- ✅ [US#] labels on user story phase tasks
+- ✅ File paths included in all implementation tasks
+- ✅ No story labels on Setup/Foundation/Polish phases
+
+### Completeness Validation
+- ✅ Each user story has complete implementation tasks
+- ✅ Each user story has independent test criteria
+- ✅ Dependencies clearly documented
+- ✅ Parallel opportunities identified
+- ✅ MVP scope defined (US1 only)
+- ✅ Constitution compliance addressed (>80% coverage)
+
+---
+
+## Quick Reference
+
+### To Start Implementation
+
+```bash
+# 1. Verify setup
+julia --version  # Should be 1.10+
+
+# 2. Install dependencies (T001-T008)
+cd GraphMERT/
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+
+# 3. Start with foundational types (T009-T016)
+# Edit: GraphMERT/src/types.jl
+
+# 4. Implement Leafy Chain Graph (T017-T023)
+# Edit: GraphMERT/src/graphs/leafy_chain.jl
+```
+
+### To Track Progress
+
+```bash
+# Count completed tasks
+grep -c "^\- \[x\]" .specify/features/replicate-graphmert/tasks.md
+
+# Check phase status
+grep "^##" .specify/features/replicate-graphmert/tasks.md
+```
+
+---
+
+**Last Updated**: 2025-01-20
+**Total Tasks**: 87
+**Estimated Duration**: 12 weeks
+**MVP Duration**: 5 weeks (US1 only)
