@@ -1,142 +1,72 @@
 """
-Core data structures for GraphMERT.jl
+Core type definitions for GraphMERT.jl
 
-This module defines the fundamental data types used throughout the GraphMERT
-implementation, including knowledge graphs, entities, relations, and metadata.
+This module defines the fundamental data structures used throughout
+the GraphMERT implementation.
 """
 
 using Dates
-using LinearAlgebra
-using SparseArrays
 
 # ============================================================================
-# Core Entity Types
+# Text Position
 # ============================================================================
 
 """
-    EntityPosition
+    TextPosition
 
-Represents the position of an entity within the original text.
+Represents the position of text in a document.
 """
-struct EntityPosition
-  start::Int
-  stop::Int
-  line::Int
-  column::Int
+struct TextPosition
+    start::Int
+    stop::Int
+    line::Int
+    column::Int
 end
+
+# ============================================================================
+# Biomedical Entities
+# ============================================================================
 
 """
     BiomedicalEntity
 
-Represents an extracted biomedical entity with its properties and confidence.
+Represents a biomedical entity in the knowledge graph.
 """
 struct BiomedicalEntity
-  id::String
-  text::String
-  label::String
-  confidence::Float64
-  position::EntityPosition
-  attributes::Dict{String,Any}
-  created_at::DateTime
+    id::String
+    text::String
+    label::String
+    confidence::Float64
+    position::TextPosition
+    attributes::Dict{String,Any}
+    created_at::DateTime
 
-  function BiomedicalEntity(id::String, text::String, label::String,
-    confidence::Float64, position::EntityPosition,
-    attributes::Dict{String,Any}=Dict{String,Any}())
-    @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
-    @assert !isempty(id) "Entity ID cannot be empty"
-    @assert !isempty(text) "Entity text cannot be empty"
-    @assert !isempty(label) "Entity label cannot be empty"
-
-    new(id, text, label, confidence, position, attributes, now())
-  end
+    function BiomedicalEntity(id::String, text::String, label::String, 
+                            confidence::Float64, position::TextPosition,
+                            attributes::Dict{String,Any}=Dict{String,Any}(),
+                            created_at::DateTime=now())
+        new(id, text, label, confidence, position, attributes, created_at)
+    end
 end
 
 """
     BiomedicalRelation
 
-Represents an extracted biomedical relation between two entities.
+Represents a relation between two biomedical entities.
 """
 struct BiomedicalRelation
-  head::String
-  tail::String
-  relation_type::String
-  confidence::Float64
-  attributes::Dict{String,Any}
-  created_at::DateTime
+    head::String
+    tail::String
+    relation_type::String
+    confidence::Float64
+    attributes::Dict{String,Any}
+    created_at::DateTime
 
-  function BiomedicalRelation(head::String, tail::String, relation_type::String,
-    confidence::Float64, attributes::Dict{String,Any}=Dict{String,Any}())
-    @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
-    @assert !isempty(head) "Head entity cannot be empty"
-    @assert !isempty(tail) "Tail entity cannot be empty"
-    @assert !isempty(relation_type) "Relation type cannot be empty"
-
-    new(head, tail, relation_type, confidence, attributes, now())
-  end
-end
-
-# ============================================================================
-# Graph Metadata
-# ============================================================================
-
-"""
-    GraphMetadata
-
-Contains metadata and statistics about a knowledge graph.
-"""
-struct GraphMetadata
-  total_entities::Int
-  total_relations::Int
-  entity_types::Dict{String,Int}
-  relation_types::Dict{String,Int}
-  average_confidence::Float64
-  processing_time::Float64
-  model_version::String
-  created_at::DateTime
-
-  function GraphMetadata(entities::Vector{BiomedicalEntity},
-    relations::Vector{BiomedicalRelation},
-    processing_time::Float64, model_version::String)
-    entity_types = Dict{String,Int}()
-    relation_types = Dict{String,Int}()
-
-    for entity in entities
-      entity_types[entity.label] = get(entity_types, entity.label, 0) + 1
+    function BiomedicalRelation(head::String, tail::String, relation_type::String,
+                              confidence::Float64, attributes::Dict{String,Any}=Dict{String,Any}(),
+                              created_at::DateTime=now())
+        new(head, tail, relation_type, confidence, attributes, created_at)
     end
-
-    for relation in relations
-      relation_types[relation.relation_type] = get(relation_types, relation.relation_type, 0) + 1
-    end
-
-    avg_conf = if !isempty(entities) && !isempty(relations)
-      (sum(e.confidence for e in entities) + sum(r.confidence for r in relations)) /
-      (length(entities) + length(relations))
-    else
-      0.0
-    end
-
-    new(length(entities), length(relations), entity_types, relation_types,
-      avg_conf, processing_time, model_version, now())
-  end
-end
-
-"""
-    GraphMERTModelInfo
-
-Information about the GraphMERT model used for processing.
-"""
-struct GraphMERTModelInfo
-  model_name::String
-  model_version::String
-  architecture::String
-  parameters::Int
-  training_data::String
-  created_at::DateTime
-
-  function GraphMERTModelInfo(model_name::String, model_version::String,
-    architecture::String, parameters::Int, training_data::String)
-    new(model_name, model_version, architecture, parameters, training_data, now())
-  end
 end
 
 # ============================================================================
@@ -146,242 +76,196 @@ end
 """
     KnowledgeGraph
 
-Main output structure containing the complete knowledge graph.
+Represents a knowledge graph with entities and relations.
 """
 struct KnowledgeGraph
-  entities::Vector{BiomedicalEntity}
-  relations::Vector{BiomedicalRelation}
-  metadata::GraphMetadata
-  confidence_threshold::Float64
-  created_at::DateTime
-  model_info::GraphMERTModelInfo
-  umls_mappings::Dict{String,String}
-  fact_score::Float64
-  validity_score::Float64
+    entities::Vector{BiomedicalEntity}
+    relations::Vector{BiomedicalRelation}
+    metadata::Dict{String,Any}
+    created_at::DateTime
 
-  function KnowledgeGraph(entities::Vector{BiomedicalEntity},
-    relations::Vector{BiomedicalRelation},
-    confidence_threshold::Float64,
-    model_info::GraphMERTModelInfo,
-    umls_mappings::Dict{String,String}=Dict{String,String}(),
-    fact_score::Float64=0.0,
-    validity_score::Float64=0.0)
-    @assert 0.0 <= confidence_threshold <= 1.0 "Confidence threshold must be between 0.0 and 1.0"
-    @assert 0.0 <= fact_score <= 1.0 "FActScore must be between 0.0 and 1.0"
-    @assert 0.0 <= validity_score <= 1.0 "ValidityScore must be between 0.0 and 1.0"
-
-    # Validate that all relations reference valid entities
-    entity_ids = Set(e.id for e in entities)
-    for relation in relations
-      @assert relation.head in entity_ids "Head entity $(relation.head) not found in entities"
-      @assert relation.tail in entity_ids "Tail entity $(relation.tail) not found in entities"
+    function KnowledgeGraph(entities::Vector{BiomedicalEntity},
+                          relations::Vector{BiomedicalRelation},
+                          metadata::Dict{String,Any}=Dict{String,Any}(),
+                          created_at::DateTime=now())
+        new(entities, relations, metadata, created_at)
     end
-
-    processing_time = 0.0  # Will be set during processing
-    metadata = GraphMetadata(entities, relations, processing_time, model_info.model_version)
-
-    new(entities, relations, metadata, confidence_threshold, now(),
-      model_info, umls_mappings, fact_score, validity_score)
-  end
 end
 
 # ============================================================================
-# GraphMERT Architecture Types
+# Model Configuration
 # ============================================================================
 
 """
-    LeafyChainGraph
+    GraphMERTConfig
 
-Represents a leafy chain graph structure for text representation.
+Configuration for GraphMERT model.
 """
-struct LeafyChainGraph
-  root_nodes::Vector{Int}
-  leaf_nodes::Vector{Int}
-  edges::Vector{Tuple{Int,Int}}
-  node_features::Dict{Int,Vector{Float64}}
-  edge_weights::Dict{Tuple{Int,Int},Float64}
+struct GraphMERTConfig
+    model_path::String
+    vocab_size::Int
+    hidden_size::Int
+    num_attention_heads::Int
+    num_hidden_layers::Int
+    max_position_embeddings::Int
+    type_vocab_size::Int
+    initializer_range::Float64
+    layer_norm_eps::Float64
+    use_cache::Bool
+    pad_token_id::Int
+    bos_token_id::Int
+    eos_token_id::Int
+    max_length::Int
+    temperature::Float64
+    top_k::Int
+    top_p::Float64
+    repetition_penalty::Float64
+    length_penalty::Float64
+    output_attentions::Bool
+    output_hidden_states::Bool
+    return_dict::Bool
 
-  function LeafyChainGraph(root_nodes::Vector{Int}, leaf_nodes::Vector{Int},
-    edges::Vector{Tuple{Int,Int}},
-    node_features::Dict{Int,Vector{Float64}}=Dict{Int,Vector{Float64}}(),
-    edge_weights::Dict{Tuple{Int,Int},Float64}=Dict{Tuple{Int,Int},Float64}())
-    new(root_nodes, leaf_nodes, edges, node_features, edge_weights)
-  end
+    function GraphMERTConfig(;
+        model_path::String="",
+        vocab_size::Int=50265,
+        hidden_size::Int=768,
+        num_attention_heads::Int=12,
+        num_hidden_layers::Int=12,
+        max_position_embeddings::Int=512,
+        type_vocab_size::Int=2,
+        initializer_range::Float64=0.02,
+        layer_norm_eps::Float64=1e-12,
+        use_cache::Bool=true,
+        pad_token_id::Int=1,
+        bos_token_id::Int=0,
+        eos_token_id::Int=2,
+        max_length::Int=512,
+        temperature::Float64=1.0,
+        top_k::Int=50,
+        top_p::Float64=1.0,
+        repetition_penalty::Float64=1.0,
+        length_penalty::Float64=1.0,
+        output_attentions::Bool=false,
+        output_hidden_states::Bool=false,
+        return_dict::Bool=true
+    )
+        new(
+            model_path, vocab_size, hidden_size, num_attention_heads, num_hidden_layers,
+            max_position_embeddings, type_vocab_size, initializer_range, layer_norm_eps,
+            use_cache, pad_token_id, bos_token_id, eos_token_id, max_length,
+            temperature, top_k, top_p, repetition_penalty, length_penalty,
+            output_attentions, output_hidden_states, return_dict
+        )
+    end
 end
 
 """
-    H_GAT
+    ProcessingOptions
 
-Hierarchical Graph Attention Network component.
+Options for text processing and knowledge graph extraction.
 """
-struct H_GAT
-  num_heads::Int
-  hidden_dim::Int
-  attention_weights::Matrix{Float64}
-  layer_norm::Bool
+struct ProcessingOptions
+    max_length::Int
+    batch_size::Int
+    use_umls::Bool
+    use_helper_llm::Bool
+    confidence_threshold::Float64
+    entity_types::Vector{String}
+    relation_types::Vector{String}
+    cache_enabled::Bool
+    parallel_processing::Bool
+    verbose::Bool
 
-  function H_GAT(num_heads::Int, hidden_dim::Int, attention_weights::Matrix{Float64}, layer_norm::Bool=true)
-    @assert num_heads > 0 "Number of attention heads must be positive"
-    @assert hidden_dim > 0 "Hidden dimension must be positive"
-    @assert size(attention_weights, 1) == num_heads "Attention weights must match number of heads"
-
-    new(num_heads, hidden_dim, attention_weights, layer_norm)
-  end
-end
-
-"""
-    SeedKG
-
-Seed knowledge graph for training data preparation.
-"""
-struct SeedKG
-  entities::Vector{BiomedicalEntity}
-  relations::Vector{BiomedicalRelation}
-  source::String
-  confidence::Float64
-
-  function SeedKG(entities::Vector{BiomedicalEntity}, relations::Vector{BiomedicalRelation},
-    source::String, confidence::Float64)
-    @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
-    new(entities, relations, source, confidence)
-  end
-end
-
-"""
-    UMLSIntegration
-
-UMLS integration configuration and mappings.
-"""
-struct UMLSIntegration
-  enabled::Bool
-  api_key::String
-  mappings::Dict{String,String}
-  confidence_threshold::Float64
-
-  function UMLSIntegration(enabled::Bool, api_key::String="",
-    mappings::Dict{String,String}=Dict{String,String}(),
-    confidence_threshold::Float64=0.8)
-    @assert 0.0 <= confidence_threshold <= 1.0 "Confidence threshold must be between 0.0 and 1.0"
-    new(enabled, api_key, mappings, confidence_threshold)
-  end
-end
-
-"""
-    MLM_MNM_Training
-
-Configuration for MLM and MNM training objectives.
-"""
-struct MLM_MNM_Training
-  mlm_probability::Float64
-  mnm_probability::Float64
-  span_length::Int
-  boundary_loss_weight::Float64
-
-  function MLM_MNM_Training(mlm_probability::Float64=0.15, mnm_probability::Float64=0.15,
-    span_length::Int=3, boundary_loss_weight::Float64=1.0)
-    @assert 0.0 <= mlm_probability <= 1.0 "MLM probability must be between 0.0 and 1.0"
-    @assert 0.0 <= mnm_probability <= 1.0 "MNM probability must be between 0.0 and 1.0"
-    @assert span_length > 0 "Span length must be positive"
-    @assert boundary_loss_weight >= 0.0 "Boundary loss weight must be non-negative"
-
-    new(mlm_probability, mnm_probability, span_length, boundary_loss_weight)
-  end
+    function ProcessingOptions(;
+        max_length::Int=512,
+        batch_size::Int=32,
+        use_umls::Bool=true,
+        use_helper_llm::Bool=true,
+        confidence_threshold::Float64=0.5,
+        entity_types::Vector{String}=String[],
+        relation_types::Vector{String}=String[],
+        cache_enabled::Bool=true,
+        parallel_processing::Bool=false,
+        verbose::Bool=false
+    )
+        new(max_length, batch_size, use_umls, use_helper_llm, confidence_threshold,
+            entity_types, relation_types, cache_enabled, parallel_processing, verbose)
+    end
 end
 
 # ============================================================================
-# Utility Functions
+# Model Structures
 # ============================================================================
 
 """
-    validate_entity(entity::BiomedicalEntity)
+    GraphMERTModel
 
-Validate that an entity meets GraphMERT requirements.
+Main GraphMERT model structure.
 """
-function validate_entity(entity::BiomedicalEntity)
-  return !isempty(entity.id) &&
-         !isempty(entity.text) &&
-         !isempty(entity.label) &&
-         0.0 <= entity.confidence <= 1.0
-end
+mutable struct GraphMERTModel
+    config::GraphMERTConfig
+    roberta::Any
+    hgat::Any
+    classifier::Any
+    is_training::Bool
 
-"""
-    validate_relation(relation::BiomedicalRelation)
-
-Validate that a relation meets GraphMERT requirements.
-"""
-function validate_relation(relation::BiomedicalRelation)
-  return !isempty(relation.head) &&
-         !isempty(relation.tail) &&
-         !isempty(relation.relation_type) &&
-         0.0 <= relation.confidence <= 1.0
-end
-
-"""
-    validate_knowledge_graph(graph::KnowledgeGraph)
-
-Validate that a knowledge graph meets GraphMERT requirements.
-"""
-function validate_knowledge_graph(graph::KnowledgeGraph)
-  # Check basic structure
-  if isempty(graph.entities)
-    return false
-  end
-
-  # Check confidence threshold
-  if !(0.0 <= graph.confidence_threshold <= 1.0)
-    return false
-  end
-
-  # Check that all relations reference valid entities
-  entity_ids = Set(e.id for e in graph.entities)
-  for relation in graph.relations
-    if !(relation.head in entity_ids) || !(relation.tail in entity_ids)
-      return false
+    function GraphMERTModel(config::GraphMERTConfig)
+        new(config, nothing, nothing, nothing, false)
     end
-  end
-
-  return true
 end
 
-"""
-    get_entity_by_id(graph::KnowledgeGraph, id::String)
+# ============================================================================
+# Evaluation Metrics
+# ============================================================================
 
-Get an entity by its ID.
 """
-function get_entity_by_id(graph::KnowledgeGraph, id::String)
-  for entity in graph.entities
-    if entity.id == id
-      return entity
+    FActScore
+
+FActScore evaluation metric.
+"""
+struct FActScore
+    score::Float64
+    precision::Float64
+    recall::Float64
+    f1::Float64
+    total_facts::Int
+    correct_facts::Int
+    incorrect_facts::Int
+
+    function FActScore(score::Float64, precision::Float64, recall::Float64, f1::Float64,
+                      total_facts::Int, correct_facts::Int, incorrect_facts::Int)
+        new(score, precision, recall, f1, total_facts, correct_facts, incorrect_facts)
     end
-  end
-  return nothing
 end
 
 """
-    get_relations_by_entity(graph::KnowledgeGraph, entity_id::String)
+    ValidityScore
 
-Get all relations involving a specific entity.
+ValidityScore evaluation metric.
 """
-function get_relations_by_entity(graph::KnowledgeGraph, entity_id::String)
-  relations = Vector{BiomedicalRelation}()
-  for relation in graph.relations
-    if relation.head == entity_id || relation.tail == entity_id
-      push!(relations, relation)
+struct ValidityScore
+    score::Float64
+    valid_relations::Int
+    total_relations::Int
+    invalid_relations::Int
+
+    function ValidityScore(score::Float64, valid_relations::Int, total_relations::Int, invalid_relations::Int)
+        new(score, valid_relations, total_relations, invalid_relations)
     end
-  end
-  return relations
 end
 
 """
-    filter_by_confidence(graph::KnowledgeGraph, threshold::Float64)
+    GraphRAG
 
-Filter graph elements by confidence threshold.
+GraphRAG evaluation metric.
 """
-function filter_by_confidence(graph::KnowledgeGraph, threshold::Float64)
-  filtered_entities = filter(e -> e.confidence >= threshold, graph.entities)
-  filtered_relations = filter(r -> r.confidence >= threshold, graph.relations)
+struct GraphRAG
+    score::Float64
+    retrieval_accuracy::Float64
+    generation_quality::Float64
+    overall_performance::Float64
 
-  return KnowledgeGraph(filtered_entities, filtered_relations, threshold,
-    graph.model_info, graph.umls_mappings,
-    graph.fact_score, graph.validity_score)
+    function GraphRAG(score::Float64, retrieval_accuracy::Float64, generation_quality::Float64, overall_performance::Float64)
+        new(score, retrieval_accuracy, generation_quality, overall_performance)
+    end
 end

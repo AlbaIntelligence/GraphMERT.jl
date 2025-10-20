@@ -1,394 +1,244 @@
 """
 Utility functions for GraphMERT.jl
 
-This module provides utility functions for validation, serialization, performance
-monitoring, and other common operations throughout the GraphMERT implementation.
+This module provides utility functions used throughout
+the GraphMERT implementation.
 """
 
-using Dates
-using JSON
+using Logging
 using Statistics
 using Random
-using SparseArrays
-
-# ============================================================================
-# Validation Utilities
-# ============================================================================
-
-"""
-    validate_confidence(confidence::Float64, context::String = "")
-
-Validate that a confidence score is within valid range.
-"""
-function validate_confidence(confidence::Float64, context::String="")
-  if !(0.0 <= confidence <= 1.0)
-    error_msg = "Confidence must be between 0.0 and 1.0, got $confidence"
-    if !isempty(context)
-      error_msg *= " ($context)"
-    end
-    throw(ArgumentError(error_msg))
-  end
-  return true
-end
-
-"""
-    validate_text(text::String, min_length::Int = 1, max_length::Int = 1000000)
-
-Validate that text meets length requirements.
-"""
-function validate_text(text::String, min_length::Int=1, max_length::Int=1000000)
-  if length(text) < min_length
-    throw(ArgumentError("Text too short: $(length(text)) < $min_length"))
-  end
-  if length(text) > max_length
-    throw(ArgumentError("Text too long: $(length(text)) > $max_length"))
-  end
-  return true
-end
-
-"""
-    validate_entity_id(id::String)
-
-Validate that an entity ID is valid.
-"""
-function validate_entity_id(id::String)
-  if isempty(id)
-    throw(ArgumentError("Entity ID cannot be empty"))
-  end
-  if !isvalid(id)
-    throw(ArgumentError("Entity ID contains invalid characters: $id"))
-  end
-  return true
-end
-
-"""
-    validate_knowledge_graph_structure(graph::KnowledgeGraph)
-
-Validate the structure of a knowledge graph.
-"""
-function validate_knowledge_graph_structure(graph::KnowledgeGraph)
-  # Check basic structure
-  if isempty(graph.entities)
-    throw(ArgumentError("Knowledge graph must contain at least one entity"))
-  end
-
-  # Check confidence threshold
-  validate_confidence(graph.confidence_threshold, "confidence_threshold")
-
-  # Check that all relations reference valid entities
-  entity_ids = Set(e.id for e in graph.entities)
-  for relation in graph.relations
-    if !(relation.head in entity_ids)
-      throw(ArgumentError("Relation head '$(relation.head)' not found in entities"))
-    end
-    if !(relation.tail in entity_ids)
-      throw(ArgumentError("Relation tail '$(relation.tail)' not found in entities"))
-    end
-  end
-
-  return true
-end
-
-# ============================================================================
-# Serialization Utilities
-# ============================================================================
-
-"""
-    serialize_knowledge_graph(graph::KnowledgeGraph, format::Symbol = :json)
-
-Serialize a knowledge graph to the specified format.
-"""
-function serialize_knowledge_graph(graph::KnowledgeGraph, format::Symbol=:json)
-  if format == :json
-    return serialize_to_json(graph)
-  elseif format == :binary
-    return serialize_to_binary(graph)
-  else
-    throw(ArgumentError("Unsupported format: $format"))
-  end
-end
-
-"""
-    serialize_to_json(graph::KnowledgeGraph)
-
-Serialize a knowledge graph to JSON format.
-"""
-function serialize_to_json(graph::KnowledgeGraph)
-  graph_dict = Dict{String,Any}(
-    "entities" => [entity_to_dict(e) for e in graph.entities],
-    "relations" => [relation_to_dict(r) for r in graph.relations],
-    "metadata" => metadata_to_dict(graph.metadata),
-    "confidence_threshold" => graph.confidence_threshold,
-    "created_at" => Dates.format(graph.created_at, "yyyy-mm-ddTHH:MM:SS.sssZ"),
-    "model_info" => model_info_to_dict(graph.model_info),
-    "umls_mappings" => graph.umls_mappings,
-    "fact_score" => graph.fact_score,
-    "validity_score" => graph.validity_score
-  )
-
-  return JSON.json(graph_dict, 2)
-end
-
-"""
-    serialize_to_binary(graph::KnowledgeGraph)
-
-Serialize a knowledge graph to binary format.
-"""
-function serialize_to_binary(graph::KnowledgeGraph)
-  # This would use Julia's serialization capabilities
-  # For now, we'll use JSON as a placeholder
-  return serialize_to_json(graph)
-end
-
-"""
-    deserialize_knowledge_graph(data::String, format::Symbol = :json)
-
-Deserialize a knowledge graph from the specified format.
-"""
-function deserialize_knowledge_graph(data::String, format::Symbol=:json)
-  if format == :json
-    return deserialize_from_json(data)
-  elseif format == :binary
-    return deserialize_from_binary(data)
-  else
-    throw(ArgumentError("Unsupported format: $format"))
-  end
-end
-
-"""
-    deserialize_from_json(data::String)
-
-Deserialize a knowledge graph from JSON format.
-"""
-function deserialize_from_json(data::String)
-  graph_dict = JSON.parse(data)
-
-  entities = [dict_to_entity(e) for e in graph_dict["entities"]]
-  relations = [dict_to_relation(r) for r in graph_dict["relations"]]
-  metadata = dict_to_metadata(graph_dict["metadata"])
-  model_info = dict_to_model_info(graph_dict["model_info"])
-
-  return KnowledgeGraph(
-    entities, relations, graph_dict["confidence_threshold"],
-    model_info, graph_dict["umls_mappings"],
-    graph_dict["fact_score"], graph_dict["validity_score"]
-  )
-end
-
-# ============================================================================
-# Dictionary Conversion Utilities
-# ============================================================================
-
-"""
-    entity_to_dict(entity::BiomedicalEntity)
-
-Convert an entity to dictionary format.
-"""
-function entity_to_dict(entity::BiomedicalEntity)
-  return Dict{String,Any}(
-    "id" => entity.id,
-    "text" => entity.text,
-    "label" => entity.label,
-    "confidence" => entity.confidence,
-    "position" => Dict{String,Any}(
-      "start" => entity.position.start,
-      "stop" => entity.position.stop,
-      "line" => entity.position.line,
-      "column" => entity.position.column
-    ),
-    "attributes" => entity.attributes,
-    "created_at" => Dates.format(entity.created_at, "yyyy-mm-ddTHH:MM:SS.sssZ")
-  )
-end
-
-"""
-    relation_to_dict(relation::BiomedicalRelation)
-
-Convert a relation to dictionary format.
-"""
-function relation_to_dict(relation::BiomedicalRelation)
-  return Dict{String,Any}(
-    "head" => relation.head,
-    "tail" => relation.tail,
-    "relation_type" => relation.relation_type,
-    "confidence" => relation.confidence,
-    "attributes" => relation.attributes,
-    "created_at" => Dates.format(relation.created_at, "yyyy-mm-ddTHH:MM:SS.sssZ")
-  )
-end
-
-"""
-    metadata_to_dict(metadata::GraphMetadata)
-
-Convert metadata to dictionary format.
-"""
-function metadata_to_dict(metadata::GraphMetadata)
-  return Dict{String,Any}(
-    "total_entities" => metadata.total_entities,
-    "total_relations" => metadata.total_relations,
-    "entity_types" => metadata.entity_types,
-    "relation_types" => metadata.relation_types,
-    "average_confidence" => metadata.average_confidence,
-    "processing_time" => metadata.processing_time,
-    "model_version" => metadata.model_version,
-    "created_at" => Dates.format(metadata.created_at, "yyyy-mm-ddTHH:MM:SS.sssZ")
-  )
-end
-
-"""
-    model_info_to_dict(model_info::GraphMERTModelInfo)
-
-Convert model info to dictionary format.
-"""
-function model_info_to_dict(model_info::GraphMERTModelInfo)
-  return Dict{String,Any}(
-    "model_name" => model_info.model_name,
-    "model_version" => model_info.model_version,
-    "architecture" => model_info.architecture,
-    "parameters" => model_info.parameters,
-    "training_data" => model_info.training_data,
-    "created_at" => Dates.format(model_info.created_at, "yyyy-mm-ddTHH:MM:SS.sssZ")
-  )
-end
-
-# ============================================================================
-# Performance Monitoring Utilities
-# ============================================================================
-
-"""
-    measure_execution_time(f::Function, args...)
-
-Measure the execution time of a function.
-"""
-function measure_execution_time(f::Function, args...)
-  start_time = time()
-  result = f(args...)
-  end_time = time()
-  return result, end_time - start_time
-end
-
-"""
-    measure_memory_usage(f::Function, args...)
-
-Measure the memory usage of a function.
-"""
-function measure_memory_usage(f::Function, args...)
-  # This is a simplified implementation
-  # In practice, you'd use more sophisticated memory profiling
-  start_memory = get_memory_usage()
-  result = f(args...)
-  end_memory = get_memory_usage()
-  return result, end_memory - start_memory
-end
-
-"""
-    get_memory_usage()
-
-Get current memory usage in bytes.
-"""
-function get_memory_usage()
-  # This is a simplified implementation
-  # In practice, you'd use system-specific memory monitoring
-  return 0
-end
-
-"""
-    get_processing_speed(tokens::Int, duration::Float64)
-
-Calculate processing speed in tokens per second.
-"""
-function get_processing_speed(tokens::Int, duration::Float64)
-  if duration <= 0
-    return 0.0
-  end
-  return tokens / duration
-end
-
-"""
-    check_performance_constraint(actual::Float64, threshold::Float64, constraint::String)
-
-Check if a performance constraint is violated.
-"""
-function check_performance_constraint(actual::Float64, threshold::Float64, constraint::String)
-  if actual > threshold
-    throw(ArgumentError("Performance constraint violated: $constraint (actual: $actual, threshold: $threshold)"))
-  end
-  return true
-end
 
 # ============================================================================
 # Text Processing Utilities
 # ============================================================================
 
 """
-    preprocess_text(text::String, options::ProcessingOptions)
+    preprocess_text(text::String; max_length::Int=512)
 
 Preprocess text for GraphMERT processing.
 """
-function preprocess_text(text::String, options::ProcessingOptions)
-  # Basic text preprocessing
-  text = strip(text)
-  text = replace(text, r"\s+" => " ")  # Normalize whitespace
-
-  # Validate text length
-  validate_text(text, 1, options.memory_limit * 1000)  # Rough character limit
-
-  return text
+function preprocess_text(text::String; max_length::Int=512)
+    # Remove extra whitespace
+    text = strip(text)
+    
+    # Truncate if too long
+    if length(text) > max_length
+        text = text[1:max_length]
+        @warn "Text truncated to $max_length characters"
+    end
+    
+    return text
 end
 
 """
-    tokenize_text(text::String, max_length::Int = 512)
+    tokenize_text(text::String)
 
-Tokenize text for processing.
+Simple tokenization for text processing.
 """
-function tokenize_text(text::String, max_length::Int=512)
-  # Simple tokenization - in practice, you'd use a proper tokenizer
-  tokens = split(text, " ")
-
-  if length(tokens) > max_length
-    tokens = tokens[1:max_length]
-  end
-
-  return tokens
+function tokenize_text(text::String)
+    # Simple word tokenization
+    words = split(text, r"\s+")
+    return filter(word -> !isempty(word), words)
 end
 
 """
-    calculate_text_statistics(text::String)
+    normalize_text(text::String)
 
-Calculate basic text statistics.
+Normalize text for consistent processing.
 """
-function calculate_text_statistics(text::String)
-  return Dict{String,Any}(
-    "length" => length(text),
-    "words" => length(split(text, " ")),
-    "sentences" => length(split(text, r"[.!?]+")),
-    "characters" => length(text),
-    "whitespace" => length(collect(eachmatch(r"\s", text)))
-  )
+function normalize_text(text::String)
+    # Convert to lowercase
+    text = lowercase(text)
+    
+    # Remove special characters but keep alphanumeric and spaces
+    text = replace(text, r"[^\w\s]" => " ")
+    
+    # Remove extra whitespace
+    text = replace(text, r"\s+" => " ")
+    
+    return strip(text)
 end
 
 # ============================================================================
-# Random Utilities
+# Mathematical Utilities
 # ============================================================================
 
 """
-    set_random_seed(seed::Int)
+    softmax(x::Vector{Float64})
 
-Set the random seed for reproducible results.
+Compute softmax function.
 """
-function set_random_seed(seed::Int)
-  Random.seed!(seed)
-  return nothing
+function softmax(x::Vector{Float64})
+    exp_x = exp.(x .- maximum(x))
+    return exp_x ./ sum(exp_x)
 end
 
 """
-    generate_random_id(prefix::String = "entity", length::Int = 8)
+    sigmoid(x::Float64)
 
-Generate a random ID with the specified prefix and length.
+Compute sigmoid function.
 """
-function generate_random_id(prefix::String="entity", length::Int=8)
-  random_part = join(rand('a':'z', length))
-  return "$(prefix)_$(random_part)"
+function sigmoid(x::Float64)
+    return 1.0 / (1.0 + exp(-x))
+end
+
+"""
+    relu(x::Float64)
+
+Compute ReLU function.
+"""
+function relu(x::Float64)
+    return max(0.0, x)
+end
+
+"""
+    cosine_similarity(a::Vector{Float64}, b::Vector{Float64})
+
+Compute cosine similarity between two vectors.
+"""
+function cosine_similarity(a::Vector{Float64}, b::Vector{Float64})
+    if length(a) != length(b)
+        error("Vectors must have the same length")
+    end
+    
+    dot_product = sum(a .* b)
+    norm_a = sqrt(sum(a .^ 2))
+    norm_b = sqrt(sum(b .^ 2))
+    
+    if norm_a == 0.0 || norm_b == 0.0
+        return 0.0
+    end
+    
+    return dot_product / (norm_a * norm_b)
+end
+
+# ============================================================================
+# Data Utilities
+# ============================================================================
+
+"""
+    shuffle_data(data::Vector{T}) where T
+
+Shuffle data randomly.
+"""
+function shuffle_data(data::Vector{T}) where T
+    indices = collect(1:length(data))
+    shuffle!(indices)
+    return data[indices]
+end
+
+"""
+    split_data(data::Vector{T}, train_ratio::Float64=0.8) where T
+
+Split data into train and test sets.
+"""
+function split_data(data::Vector{T}, train_ratio::Float64=0.8) where T
+    @assert 0.0 < train_ratio < 1.0 "train_ratio must be between 0.0 and 1.0"
+    
+    shuffled_data = shuffle_data(data)
+    split_index = round(Int, length(data) * train_ratio)
+    
+    train_data = shuffled_data[1:split_index]
+    test_data = shuffled_data[split_index+1:end]
+    
+    return train_data, test_data
+end
+
+"""
+    batch_data(data::Vector{T}, batch_size::Int) where T
+
+Split data into batches.
+"""
+function batch_data(data::Vector{T}, batch_size::Int) where T
+    batches = Vector{Vector{T}}()
+    
+    for i in 1:batch_size:length(data)
+        end_idx = min(i + batch_size - 1, length(data))
+        push!(batches, data[i:end_idx])
+    end
+    
+    return batches
+end
+
+# ============================================================================
+# Logging Utilities
+# ============================================================================
+
+"""
+    log_info(message::String; context::String="")
+
+Log an info message with optional context.
+"""
+function log_info(message::String; context::String="")
+    if !isempty(context)
+        @info "[$context] $message"
+    else
+        @info message
+    end
+end
+
+"""
+    log_warning(message::String; context::String="")
+
+Log a warning message with optional context.
+"""
+function log_warning(message::String; context::String="")
+    if !isempty(context)
+        @warn "[$context] $message"
+    else
+        @warn message
+    end
+end
+
+"""
+    log_error(message::String; context::String="")
+
+Log an error message with optional context.
+"""
+function log_error(message::String; context::String="")
+    if !isempty(context)
+        @error "[$context] $message"
+    else
+        @error message
+    end
+end
+
+# ============================================================================
+# Validation Utilities
+# ============================================================================
+
+"""
+    validate_not_empty(value::Any, name::String)
+
+Validate that a value is not empty.
+"""
+function validate_not_empty(value::Any, name::String)
+    if isempty(value)
+        error("$name cannot be empty")
+    end
+end
+
+"""
+    validate_positive(value::Number, name::String)
+
+Validate that a numeric value is positive.
+"""
+function validate_positive(value::Number, name::String)
+    if value <= 0
+        error("$name must be positive, got: $value")
+    end
+end
+
+"""
+    validate_range(value::Number, min_val::Number, max_val::Number, name::String)
+
+Validate that a numeric value is within a range.
+"""
+function validate_range(value::Number, min_val::Number, max_val::Number, name::String)
+    if value < min_val || value > max_val
+        error("$name must be between $min_val and $max_val, got: $value")
+    end
 end
 
 # ============================================================================
@@ -396,117 +246,111 @@ end
 # ============================================================================
 
 """
-    ensure_directory_exists(path::String)
+    ensure_directory(path::String)
 
-Ensure that a directory exists, creating it if necessary.
+Ensure that a directory exists.
 """
-function ensure_directory_exists(path::String)
-  if !isdir(path)
-    mkpath(path)
-  end
-  return path
-end
-
-"""
-    safe_file_write(filename::String, data::String)
-
-Safely write data to a file.
-"""
-function safe_file_write(filename::String, data::String)
-  try
-    open(filename, "w") do io
-      write(io, data)
+function ensure_directory(path::String)
+    if !isdir(path)
+        mkpath(path)
+        @info "Created directory: $path"
     end
-    return true
-  catch e
-    throw(ArgumentError("Failed to write file $filename: $e"))
-  end
 end
 
 """
-    safe_file_read(filename::String)
+    safe_filename(filename::String)
 
-Safely read data from a file.
+Make a filename safe for filesystem use.
 """
-function safe_file_read(filename::String)
-  if !isfile(filename)
-    throw(ArgumentError("File not found: $filename"))
-  end
-
-  try
-    return read(filename, String)
-  catch e
-    throw(ArgumentError("Failed to read file $filename: $e"))
-  end
+function safe_filename(filename::String)
+    # Replace invalid characters with underscores
+    safe_name = replace(filename, r"[^\w\-_\.]" => "_")
+    
+    # Remove multiple consecutive underscores
+    safe_name = replace(safe_name, r"_+" => "_")
+    
+    # Remove leading/trailing underscores
+    safe_name = strip(safe_name, '_')
+    
+    return safe_name
 end
 
 # ============================================================================
-# Validation Utilities
+# Performance Utilities
 # ============================================================================
 
 """
-    validate_file_exists(filename::String)
+    time_function(f::Function, args...)
 
-Validate that a file exists.
+Time the execution of a function.
 """
-function validate_file_exists(filename::String)
-  if !isfile(filename)
-    throw(ArgumentError("File not found: $filename"))
-  end
-  return true
+function time_function(f::Function, args...)
+    start_time = time()
+    result = f(args...)
+    end_time = time()
+    
+    execution_time = end_time - start_time
+    return result, execution_time
 end
 
 """
-    validate_directory_exists(dirname::String)
+    memory_usage()
 
-Validate that a directory exists.
+Get current memory usage in MB.
 """
-function validate_directory_exists(dirname::String)
-  if !isdir(dirname)
-    throw(ArgumentError("Directory not found: $dirname"))
-  end
-  return true
+function memory_usage()
+    # This is a simplified version - in practice you'd use proper memory profiling
+    return 100.0  # Placeholder
 end
 
 # ============================================================================
-# Statistics Utilities
+# String Utilities
 # ============================================================================
 
 """
-    calculate_statistics(values::Vector{Float64})
+    truncate_string(s::String, max_length::Int; suffix::String="...")
 
-Calculate basic statistics for a vector of values.
+Truncate a string to a maximum length.
 """
-function calculate_statistics(values::Vector{Float64})
-  if isempty(values)
-    return Dict{String,Any}()
-  end
-
-  return Dict{String,Any}(
-    "count" => length(values),
-    "mean" => mean(values),
-    "median" => median(values),
-    "std" => std(values),
-    "min" => minimum(values),
-    "max" => maximum(values),
-    "sum" => sum(values)
-  )
+function truncate_string(s::String, max_length::Int; suffix::String="...")
+    if length(s) <= max_length
+        return s
+    else
+        return s[1:max_length-length(suffix)] * suffix
+    end
 end
 
 """
-    calculate_percentiles(values::Vector{Float64}, percentiles::Vector{Float64} = [25.0, 50.0, 75.0, 90.0, 95.0, 99.0])
+    join_strings(strings::Vector{String}, separator::String=" ")
 
-Calculate percentiles for a vector of values.
+Join strings with a separator.
 """
-function calculate_percentiles(values::Vector{Float64}, percentiles::Vector{Float64}=[25.0, 50.0, 75.0, 90.0, 95.0, 99.0])
-  if isempty(values)
-    return Dict{String,Float64}()
-  end
+function join_strings(strings::Vector{String}, separator::String=" ")
+    return join(strings, separator)
+end
 
-  result = Dict{String,Float64}()
-  for p in percentiles
-    result["p$(p)"] = quantile(values, p / 100.0)
-  end
+# ============================================================================
+# Type Utilities
+# ============================================================================
 
-  return result
+"""
+    is_type_of(value::Any, expected_type::Type)
+
+Check if a value is of the expected type.
+"""
+function is_type_of(value::Any, expected_type::Type)
+    return isa(value, expected_type)
+end
+
+"""
+    convert_to_type(value::Any, target_type::Type)
+
+Convert a value to the target type if possible.
+"""
+function convert_to_type(value::Any, target_type::Type)
+    try
+        return convert(target_type, value)
+    catch e
+        error("Cannot convert $value to $target_type: $e")
+    end
 end

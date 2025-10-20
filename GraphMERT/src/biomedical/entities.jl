@@ -354,7 +354,7 @@ function extract_entities_from_text(text::String; entity_types::Vector{Biomedica
         for pattern in patterns
             matches = eachmatch(pattern, text, overlap=false)
             for match in matches
-                entity_text = match.match
+                entity_text = String(match.match)
                 confidence = calculate_entity_confidence(entity_text, entity_type)
                 
                 if confidence > 0.3  # Minimum confidence threshold

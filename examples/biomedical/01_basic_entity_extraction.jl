@@ -10,16 +10,19 @@ Based on: GraphMERT paper - Section 3.1 Entity Recognition
 """
 
 using Pkg
-Pkg.activate("../../")
+Pkg.activate(; temp = true)
+Pkg.add(["Revise", "Logging", "Statistics"])
+using Revise
+using Logging, Statistics
 
+# Configure logging level
+global_logger(ConsoleLogger(stderr, Logging.Info))
+
+Pkg.develop(path = "./GraphMERT")
 using GraphMERT
-using Logging
-
-# Configure logging
-Logging.configure(level=Logging.Info)
 
 function main()
-  println("="^60)
+    println("="^60)
     println("GraphMERT Example 1: Basic Entity Extraction")
     println("="^60)
 
@@ -55,7 +58,7 @@ function main()
     println("Supported entity types: $(length(entity_types))")
 
     # Extract entities from text
-    entities = extract_entities_from_text(sample_text; entity_types=entity_types)
+    entities = extract_entities_from_text(sample_text; entity_types = entity_types)
 
     println("\n📊 Extraction Results:")
     println("Found $(length(entities)) entities")
@@ -73,7 +76,7 @@ function main()
         type_counts[type_name] = get(type_counts, type_name, 0) + 1
     end
 
-    for (type_name, count) in sort(collect(type_counts), by=x->x[2], rev=true)
+    for (type_name, count) in sort(collect(type_counts), by = x->x[2], rev = true)
         println("  $type_name: $count entities")
     end
 

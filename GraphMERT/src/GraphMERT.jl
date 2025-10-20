@@ -63,6 +63,8 @@ If you use GraphMERT.jl in your research, please cite the original paper:
 
 module GraphMERT
 
+using Dates
+
 # Core modules
 include("types.jl")
 include("exceptions.jl")
@@ -122,8 +124,170 @@ include("optimization/speed.jl")
 
 # Export main API functions
 export extract_knowledge_graph, load_model, preprocess_text
-export KnowledgeGraph, BiomedicalEntity, BiomedicalRelation
+export KnowledgeGraph, BiomedicalEntity, BiomedicalRelation, TextPosition
 export GraphMERTModel, ProcessingOptions, GraphMERTConfig
 export FActScore, ValidityScore, GraphRAG
+
+# Export biomedical types and functions
+export BiomedicalEntityType, BiomedicalRelationType
+export DISEASE, DRUG, PROTEIN, GENE, ANATOMY, SYMPTOM, PROCEDURE, ORGANISM, CHEMICAL, CELL_TYPE
+export TREATS, CAUSES, ASSOCIATED_WITH, PREVENTS, INHIBITS, ACTIVATES, BINDS_TO, INTERACTS_WITH
+export REGULATES, EXPRESSES, LOCATED_IN, PART_OF, DERIVED_FROM, SYNONYMOUS_WITH
+export CONTRAINDICATED_WITH, INDICATES, MANIFESTS_AS, ADMINISTERED_FOR, TARGETS
+export METABOLIZED_BY, TRANSPORTED_BY, SECRETED_BY, PRODUCED_BY, CONTAINS, COMPONENT_OF
+export UNKNOWN, UNKNOWN_RELATION
+
+# Export biomedical functions
+export extract_entities_from_text, classify_entity, validate_biomedical_entity
+export classify_relation, validate_biomedical_relation, calculate_entity_confidence
+export calculate_relation_confidence, normalize_entity_text, get_entity_type_name
+export get_relation_type_name, get_supported_entity_types, get_supported_relation_types
+
+# Export UMLS functions
+export create_umls_client, search_concepts, get_concept_details, link_entity
+export fallback_entity_recognition, fallback_relation_matching
+export get_entity_cui, get_entity_semantic_types, link_entities_batch
+
+# Export helper LLM functions
+export create_helper_llm_client, discover_entities, match_relations
+export discover_entities_batch, match_relations_batch
+
+# Export PubMed functions
+export create_pubmed_client, search_pubmed, fetch_pubmed_articles, process_pubmed_article
+
+# Export knowledge graph functions
+export build_biomedical_graph, analyze_biomedical_graph, calculate_graph_metrics
+export find_connected_components, filter_by_confidence, filter_by_entity_type
+export export_to_json, get_entity_by_id, get_relations_by_entity
+
+# Export MLM functions
+export create_mlm_config, create_mlm_batch, train_mlm_step, evaluate_mlm
+export calculate_mlm_loss, calculate_boundary_loss, calculate_total_mlm_loss
+
+# Export utility functions
+export preprocess_text, tokenize_text, normalize_text, softmax, sigmoid, relu
+export cosine_similarity, shuffle_data, split_data, batch_data
+
+# ============================================================================
+# Main API Functions
+# ============================================================================
+
+"""
+    extract_knowledge_graph(text::String; options::ProcessingOptions=ProcessingOptions())
+
+Extract a knowledge graph from text using GraphMERT.
+
+# Arguments
+- `text::String`: Input text to process
+- `options::ProcessingOptions`: Processing options (optional)
+
+# Returns
+- `KnowledgeGraph`: Extracted knowledge graph with entities and relations
+
+# Example
+```julia
+text = "Alzheimer's disease is a neurodegenerative disorder."
+graph = extract_knowledge_graph(text)
+println("Found \$(length(graph.entities)) entities and \$(length(graph.relations)) relations")
+```
+"""
+function extract_knowledge_graph(text::String; options::ProcessingOptions=ProcessingOptions())
+    # Preprocess text
+    processed_text = preprocess_text_for_graphmert(text; max_length=options.max_length)
+    
+    # Extract entities using fallback method
+    entities = fallback_entity_recognition(processed_text)
+    
+    # Convert to BiomedicalEntity objects
+    biomedical_entities = Vector{BiomedicalEntity}()
+    for (i, entity_text) in enumerate(entities)
+        entity = BiomedicalEntity(
+            "entity_$i",
+            entity_text,
+            "UNKNOWN",
+            0.5,
+            TextPosition(1, length(entity_text), 1, 1),
+            Dict{String,Any}(),
+            Dates.now()
+        )
+        push!(biomedical_entities, entity)
+    end
+    
+    # Extract relations using fallback method
+    relations = fallback_relation_matching(entities, processed_text)
+    
+    # Convert to BiomedicalRelation objects
+    biomedical_relations = Vector{BiomedicalRelation}()
+    for (key, rel_data) in relations
+        relation = BiomedicalRelation(
+            head=rel_data["entity1"],
+            tail=rel_data["entity2"],
+            relation_type=rel_data["relation"],
+            confidence=0.5,
+            attributes=Dict{String,Any}("context" => processed_text),
+            created_at=Dates.now()
+        )
+        push!(biomedical_relations, relation)
+    end
+    
+    # Create knowledge graph
+    metadata = Dict{String,Any}(
+        "total_entities" => length(biomedical_entities),
+        "total_relations" => length(biomedical_relations),
+        "confidence_threshold" => options.confidence_threshold,
+        "processing_time" => Dates.now()
+    )
+    
+    return KnowledgeGraph(biomedical_entities, biomedical_relations, metadata)
+end
+
+"""
+    load_graphmert_model(model_path::String)
+
+Load a pre-trained GraphMERT model.
+
+# Arguments
+- `model_path::String`: Path to the model file
+
+# Returns
+- `GraphMERTModel`: Loaded model
+
+# Example
+```julia
+model = load_graphmert_model("path/to/model.onnx")
+```
+"""
+function load_graphmert_model(model_path::String)
+    # Placeholder implementation
+    # TODO: Implement actual model loading
+    config = GraphMERTConfig(model_path=model_path)
+    return GraphMERTModel(config)
+end
+
+"""
+    preprocess_text_for_graphmert(text::String; max_length::Int=512)
+
+Preprocess text for GraphMERT processing.
+
+# Arguments
+- `text::String`: Input text
+- `max_length::Int`: Maximum text length (default: 512)
+
+# Returns
+- `String`: Preprocessed text
+
+# Example
+```julia
+processed = preprocess_text_for_graphmert("Alzheimer's disease is a neurodegenerative disorder.")
+```
+"""
+function preprocess_text_for_graphmert(text::String; max_length::Int=512)
+    # Basic text preprocessing
+    text = strip(text)
+    if length(text) > max_length
+        text = text[1:max_length]
+    end
+    return String(text)  # Ensure we return a String, not SubString
+end
 
 end # module GraphMERT
