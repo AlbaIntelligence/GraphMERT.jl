@@ -70,6 +70,7 @@ include("types.jl")
 include("exceptions.jl")
 include("config.jl")
 include("utils.jl")
+include("testing/progressive.jl")
 
 # Architecture components
 include("architectures/roberta.jl")
