@@ -1,114 +1,98 @@
 """
-Example 1: Basic Entity Extraction
-==================================
+Basic Entity Extraction Demo
 
-This example demonstrates basic biomedical entity extraction using GraphMERT,
-following the progression of the original paper. This is the first step in
-the GraphMERT pipeline.
+This example demonstrates the first stage of the GraphMERT knowledge graph
+extraction pipeline: discovering biomedical entities from text.
 
-Based on: GraphMERT paper - Section 3.1 Entity Recognition
+Key concepts demonstrated:
+1. Entity extraction using simple heuristics
+2. Confidence scoring based on term characteristics
+3. Entity position tracking in source text
+4. Basic biomedical term identification
 """
 
-using Pkg
-Pkg.activate(; temp = true)
-Pkg.add(["Revise", "Logging", "Statistics"])
-using Revise
-using Logging, Statistics
-
-# Configure logging level
-global_logger(ConsoleLogger(stderr, Logging.Info))
-
-Pkg.develop(path = "./GraphMERT")
 using GraphMERT
 
-function main()
-    println("="^60)
-    println("GraphMERT Example 1: Basic Entity Extraction")
-    println("="^60)
+println("=== Basic Entity Extraction Demo ===")
 
-    # Sample biomedical text (from a medical abstract)
-    sample_text = """
-    Alzheimer's disease is a neurodegenerative disorder characterized by
-    progressive cognitive decline and memory loss. The disease is associated
-    with the accumulation of beta-amyloid plaques and tau protein tangles
-    in the brain. Current treatments include cholinesterase inhibitors
-    such as donepezil and memantine, which help manage symptoms but do not
-    cure the disease. Research is ongoing to develop new therapeutic
-    approaches targeting the underlying pathological mechanisms.
-    """
+# 1. Sample biomedical text
+text = """
+Diabetes mellitus is a chronic metabolic disorder characterized by
+elevated blood glucose levels. Metformin is commonly used to treat
+type 2 diabetes. Insulin resistance is a key feature of type 2 diabetes.
+Cardiovascular disease is a major complication of diabetes.
+"""
 
-    println("\n📄 Sample Text:")
-    println(sample_text)
+println("Sample text:")
+println(text)
+println()
 
-    # Initialize UMLS client (if available)
-    umls_client = nothing
-    try
-        # In a real scenario, you would provide your UMLS API key
-        # umls_client = create_umls_client("your-api-key-here")
-        println("\n⚠️  UMLS client not configured - using fallback methods")
-    catch e
-        println("\n⚠️  UMLS client initialization failed: $e")
-    end
+# 2. Extract biomedical entities
+println("2. Extracting biomedical entities...")
+entities = discover_head_entities(text)
+println("Found $(length(entities)) biomedical entities:")
 
-    # Extract entities using rule-based approach
-    println("\n🔍 Extracting entities...")
-
-    # Get supported entity types
-    entity_types = get_supported_entity_types()
-    println("Supported entity types: $(length(entity_types))")
-
-    # Extract entities from text
-    entities = extract_entities_from_text(sample_text; entity_types = entity_types)
-
-    println("\n📊 Extraction Results:")
-    println("Found $(length(entities)) entities")
-
-    # Display results
-    for (i, (text, entity_type, confidence)) in enumerate(entities)
-        println("  $i. \"$text\" -> $entity_type (confidence: $(round(confidence, digits=3)))")
-    end
-
-    # Group by entity type
-    println("\n📈 Entity Type Distribution:")
-    type_counts = Dict{String, Int}()
-    for (text, entity_type, confidence) in entities
-        type_name = get_entity_type_name(entity_type)
-        type_counts[type_name] = get(type_counts, type_name, 0) + 1
-    end
-
-    for (type_name, count) in sort(collect(type_counts), by = x->x[2], rev = true)
-        println("  $type_name: $count entities")
-    end
-
-    # Validate entities
-    println("\n✅ Entity Validation:")
-    valid_entities = 0
-    for (text, entity_type, confidence) in entities
-        is_valid = validate_biomedical_entity(text, entity_type)
-        if is_valid
-            valid_entities += 1
-        end
-        println("  \"$text\" ($entity_type): $(is_valid ? "✓" : "✗")")
-    end
-
-    println("\nValid entities: $valid_entities/$(length(entities)) ($(round(100*valid_entities/length(entities), digits=1))%)")
-
-    # Calculate confidence statistics
-    confidences = [conf for (text, entity_type, conf) in entities]
-    avg_confidence = mean(confidences)
-    max_confidence = maximum(confidences)
-    min_confidence = minimum(confidences)
-
-    println("\n📊 Confidence Statistics:")
-    println("  Average: $(round(avg_confidence, digits=3))")
-    println("  Maximum: $(round(max_confidence, digits=3))")
-    println("  Minimum: $(round(min_confidence, digits=3))")
-
-    println("\n" * "="^60)
-    println("✅ Example 1 completed successfully!")
-    println("Next: Run 02_relation_extraction.jl")
-    println("="^60)
+for entity in entities
+  println("  Entity: $(entity.text)")
+  println("    Type: $(entity.entity_type)")
+  println("    CUI: $(entity.cui)")
+  println("    Confidence: $(round(entity.confidence, digits=3))")
+  println("    Position: $(entity.position.start_char)-$(entity.position.end_char)")
+  println()
 end
 
-# Run the example
-main()
+# 3. Demonstrate confidence scoring
+println("3. Entity confidence analysis:")
+for entity in entities
+  confidence_factors = analyze_confidence_factors(entity.text, text)
+  println("  '$(entity.text)' confidence: $(round(entity.confidence, digits=3))")
+  println("    Factors: $confidence_factors")
+end
+
+# 4. Show entity statistics
+println("4. Entity extraction statistics:")
+total_chars = length(text)
+entity_chars = sum(length(e.text) for e in entities)
+coverage = entity_chars / total_chars * 100
+
+println("  Total characters: $total_chars")
+println("  Entity characters: $entity_chars")
+println("  Coverage: $(round(coverage, digits=1))%")
+println("  Average confidence: $(round(mean(e.confidence for e in entities), digits=3))")
+
+# 5. Integration with knowledge graph construction
+println("\n5. Integration with knowledge graph construction:")
+println("These entities form the foundation for:")
+println("• Relation extraction between entity pairs")
+println("• Knowledge graph triple formation")
+println("• Semantic relationship modeling")
+println("• Biomedical ontology alignment")
+
+println("\n✅ Basic entity extraction demo complete!")
+println("\nNext steps:")
+println("• Relation matching between entity pairs")
+println("• Tail entity prediction using GraphMERT model")
+println("• Triple formation and filtering")
+println("• Complete knowledge graph construction")
+
+function analyze_confidence_factors(entity_text::String, full_text::String)
+  factors = String[]
+
+  # Length factor
+  if length(entity_text) > 5
+    push!(factors, "long_term")
+  end
+
+  # Capitalization factor
+  if isuppercase(entity_text[1])
+    push!(factors, "capitalized")
+  end
+
+  # Frequency factor
+  occurrences = length(findall(entity_text, full_text))
+  if occurrences > 1
+    push!(factors, "frequent_$(occurrences)x")
+  end
+
+  return join(factors, ", ")
+end

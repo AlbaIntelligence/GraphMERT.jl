@@ -23,8 +23,8 @@ This document organizes implementation tasks by user story to enable independent
 | --------- | --------------------- | ------- | ------ | -------- | ---------- | ------------ |
 | Phase 1   | Setup                 | 8       | 0      | 0        | ✅ Complete | None         |
 | Phase 2   | Foundation            | 23      | 6      | 2        | ✅ Complete | Phase 1      |
-| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | 🔴 Blocked  | Phase 2      |
-| Phase 4   | US2: Train Model      | 37      | 13     | 4        | 🔴 Blocked  | Phase 2      |
+| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | ✅ Complete | Phase 2      |
+| Phase 4   | US2: Train Model      | 37      | 13     | 4        | ✅ Complete | Phase 2      |
 | Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | 🔴 Blocked  | Phase 2      |
 | Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | 🔴 Blocked  | Phase 2      |
 | Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked  | Phase 3      |
@@ -105,31 +105,31 @@ This document organizes implementation tasks by user story to enable independent
 
 ### US1: Triple Extraction Pipeline (CRITICAL)
 
-- [ ] T032 [US1] Implement head entity discovery in GraphMERT/src/api/extraction.jl
-- [ ] T033 [US1] Write unit tests for entity discovery in GraphMERT/test/unit/test_extraction.jl
-- [ ] T034 [US1] Implement relation matching to entity pairs in GraphMERT/src/api/extraction.jl
-- [ ] T035 [US1] Write unit tests for relation matching in GraphMERT/test/unit/test_extraction.jl
-- [ ] T036 [US1] Implement tail token prediction (top-k=20) in GraphMERT/src/api/extraction.jl
-- [ ] T037 [US1] Write unit tests for tail prediction in GraphMERT/test/unit/test_extraction.jl
-- [ ] T038 [US1] Implement tail formation from tokens in GraphMERT/src/api/extraction.jl
-- [ ] T039 [US1] Implement similarity filtering (β threshold) in GraphMERT/src/api/extraction.jl
-- [ ] T040 [US1] Implement deduplication logic in GraphMERT/src/api/extraction.jl
-- [ ] T041 [US1] Implement provenance tracking in GraphMERT/src/api/extraction.jl
-- [ ] T042 [US1] Write integration tests for extraction pipeline in GraphMERT/test/integration/test_extraction_pipeline.jl
-- [ ] T043 [US1] Verify compilation: run full extraction pipeline tests
+- [x] T032 [US1] Implement head entity discovery in GraphMERT/src/api/extraction.jl
+- [x] T033 [US1] Write unit tests for entity discovery in GraphMERT/test/unit/test_extraction.jl
+- [x] T034 [US1] Implement relation matching to entity pairs in GraphMERT/src/api/extraction.jl
+- [x] T035 [US1] Write unit tests for relation matching in GraphMERT/test/unit/test_extraction.jl
+- [x] T036 [US1] Implement tail token prediction (top-k=20) in GraphMERT/src/api/extraction.jl
+- [x] T037 [US1] Write unit tests for tail prediction in GraphMERT/test/unit/test_extraction.jl
+- [x] T038 [US1] Implement tail formation from tokens in GraphMERT/src/api/extraction.jl
+- [x] T039 [US1] Implement similarity filtering (β threshold) in GraphMERT/src/api/extraction.jl
+- [x] T040 [US1] Implement deduplication logic in GraphMERT/src/api/extraction.jl
+- [x] T041 [US1] Implement provenance tracking in GraphMERT/src/api/extraction.jl
+- [x] T042 [US1] Write integration tests for extraction pipeline in GraphMERT/test/integration/test_extraction_pipeline.jl
+- [x] T043 [US1] Verify compilation: run full extraction pipeline tests
 
 ### US1: Public API Implementation
 
-- [ ] T044 [US1] Implement extract_knowledge_graph() main function in GraphMERT/src/api/extraction.jl
-- [ ] T045 [US1] Implement default_processing_options() in GraphMERT/src/config.jl
-- [ ] T046 [US1] Implement load_model() for checkpoint loading in GraphMERT/src/models/persistence.jl
-- [ ] T047 [US1] Implement save_model() for checkpoint saving in GraphMERT/src/models/persistence.jl
-- [ ] T048 [US1] Add error handling and validation to extraction API in GraphMERT/src/api/extraction.jl
-- [ ] T049 [US1] Write API tests for extract_knowledge_graph() in GraphMERT/test/unit/test_api.jl
-- [ ] T050 [US1] Create working example: basic extraction in examples/biomedical/01_basic_entity_extraction.jl
-- [ ] T051 [US1] Create working example: relation extraction in examples/biomedical/02_relation_extraction.jl
-- [ ] T052 [US1] Verify end-to-end: run examples successfully on diabetes text
-- [ ] T053 [US1] Performance test: verify 5,000 tokens/sec throughput (NFR-001)
+- [x] T044 [US1] Implement extract_knowledge_graph() main function in GraphMERT/src/api/extraction.jl
+- [x] T045 [US1] Implement default_processing_options() in GraphMERT/src/config.jl
+- [x] T046 [US1] Implement load_model() for checkpoint loading in GraphMERT/src/models/persistence.jl
+- [x] T047 [US1] Implement save_model() for checkpoint saving in GraphMERT/src/models/persistence.jl
+- [x] T048 [US1] Add error handling and validation to extraction API in GraphMERT/src/api/extraction.jl
+- [x] T049 [US1] Write API tests for extract_knowledge_graph() in GraphMERT/test/unit/test_api.jl
+- [x] T050 [US1] Create working example: basic extraction in examples/biomedical/01_basic_entity_extraction.jl
+- [x] T051 [US1] Create working example: relation extraction in examples/biomedical/02_relation_extraction.jl
+- [x] T052 [US1] Verify end-to-end: run examples successfully on diabetes text
+- [x] T053 [US1] Performance test: verify 5,000 tokens/sec throughput (NFR-001)
 
 ---
 

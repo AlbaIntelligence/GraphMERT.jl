@@ -291,4 +291,36 @@ function preprocess_text_for_graphmert(text::String; max_length::Int=512)
     return String(text)  # Ensure we return a String, not SubString
 end
 
+# ============================================================================
+# Export Additional Functions from Submodules
+# ============================================================================
+
+# Export from API module
+export extract_knowledge_graph, discover_head_entities, match_relations_for_entities,
+       predict_tail_tokens, form_tail_from_tokens, filter_and_deduplicate_triples
+
+# Export from Config module
+export default_processing_options
+
+# Export from Training.MNM module
+export select_leaves_to_mask, apply_mnm_masks, calculate_mnm_loss, create_mnm_batch,
+       train_mnm_step, evaluate_mnm
+
+# Export from Training.SeedInjection module
+export link_entity_sapbert, select_triples_for_entity, inject_seed_kg,
+       select_triples_for_injection, bucket_by_score, bucket_by_relation_frequency,
+       validate_injected_triples
+
+# Export from Training.Pipeline module
+export train_graphmert, prepare_training_data, create_training_configurations, load_training_data
+
+# Export from Graphs module
+export default_chain_graph_config, create_empty_chain_graph, build_adjacency_matrix,
+       floyd_warshall, inject_triple!, graph_to_sequence, create_attention_mask,
+       create_leafy_chain_from_text
+
+# Export from Types module (additional types)
+export ChainGraphNode, ChainGraphConfig, LeafyChainGraph, MNMConfig, MNMBatch,
+       SeedInjectionConfig, EntityLinkingResult, SemanticTriple
+
 end # module GraphMERT
