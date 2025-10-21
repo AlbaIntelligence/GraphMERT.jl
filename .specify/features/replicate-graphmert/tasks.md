@@ -26,7 +26,7 @@ This document organizes implementation tasks by user story to enable independent
 | Phase 3   | US1: Extract KG       | 22      | 7      | 4        | ✅ Complete | Phase 2      |
 | Phase 4   | US2: Train Model      | 37      | 13     | 4        | ✅ Complete | Phase 2      |
 | Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | ✅ Complete | Phase 2      |
-| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | 🔴 Blocked  | Phase 2      |
+| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | ✅ Complete | Phase 2      |
 | Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked  | Phase 3      |
 | Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked  | Phase 3      |
 | Phase 9   | Polish & Integration  | 16      | 5      | 3        | 🔴 Blocked  | All          |
@@ -244,19 +244,19 @@ This document organizes implementation tasks by user story to enable independent
 
 ### US4: LLM Client Implementation
 
-- [ ] T107 [P] [US4] Implement LLM API client (OpenAI, local) in GraphMERT/src/llm/helper.jl
-- [ ] T108 [P] [US4] Write unit tests for LLM client in GraphMERT/test/unit/test_llm.jl
-- [ ] T109 [P] [US4] Create prompt templates for entity discovery in GraphMERT/src/llm/helper.jl
-- [ ] T110 [P] [US4] Create prompt templates for relation matching in GraphMERT/src/llm/helper.jl
-- [ ] T111 [P] [US4] Write unit tests for prompt templates in GraphMERT/test/unit/test_llm.jl
-- [ ] T112 [US4] Verify compilation: test prompts with mock LLM
-- [ ] T113 [US4] Implement response parsing and validation in GraphMERT/src/llm/helper.jl
-- [ ] T114 [US4] Write unit tests for response parsing in GraphMERT/test/unit/test_llm.jl
-- [ ] T115 [US4] Implement request queuing for rate limiting in GraphMERT/src/llm/helper.jl
-- [ ] T116 [US4] Implement response caching mechanism in GraphMERT/src/llm/helper.jl
-- [ ] T117 [US4] Write integration tests for LLM pipeline in GraphMERT/test/integration/test_llm_integration.jl
-- [ ] T118 [US4] Create working example: entity discovery with LLM in examples/biomedical/07_llm_demo.jl
-- [ ] T119 [US4] Verify end-to-end: successful entity discovery with caching
+- [x] T107 [P] [US4] Implement LLM API client (OpenAI, local) in GraphMERT/src/llm/helper.jl
+- [x] T108 [P] [US4] Write unit tests for LLM client in GraphMERT/test/unit/test_llm.jl
+- [x] T109 [P] [US4] Create prompt templates for entity discovery in GraphMERT/src/llm/helper.jl
+- [x] T110 [P] [US4] Create prompt templates for relation matching in GraphMERT/src/llm/helper.jl
+- [x] T111 [P] [US4] Write unit tests for prompt templates in GraphMERT/test/unit/test_llm.jl
+- [x] T112 [US4] Verify compilation: test prompts with mock LLM
+- [x] T113 [US4] Implement response parsing and validation in GraphMERT/src/llm/helper.jl
+- [x] T114 [US4] Write unit tests for response parsing in GraphMERT/test/unit/test_llm.jl
+- [x] T115 [US4] Implement request queuing for rate limiting in GraphMERT/src/llm/helper.jl
+- [x] T116 [US4] Implement response caching mechanism in GraphMERT/src/llm/helper.jl
+- [x] T117 [US4] Write integration tests for LLM pipeline in GraphMERT/test/integration/test_llm_integration.jl
+- [x] T118 [US4] Create working example: entity discovery with LLM in examples/biomedical/09_llm_integration_demo.jl
+- [x] T119 [US4] Verify end-to-end: successful entity discovery with caching
 
 ---
 

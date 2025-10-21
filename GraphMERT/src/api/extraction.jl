@@ -238,13 +238,13 @@ function extract_knowledge_graph(text::String, model::GraphMERT.GraphMERTModel;
   # Simplified implementation for demo - full version would use trained model
   @info "Starting knowledge graph extraction from text of length $(length(text))"
 
-  # Stage 1: Head Discovery (simplified)
-  head_entities = discover_head_entities(text, options.umls_client)
-  @info "Discovered $(length(head_entities)) head entities"
+    # Stage 1: Head Discovery with LLM enhancement
+    head_entities = discover_head_entities_enhanced(text, options.umls_client, options.llm_client)
+    @info "Discovered $(length(head_entities)) head entities"
 
-  # Stage 2: Relation Matching (simplified)
-  entity_relations = match_relations_for_entities(head_entities, text, options.llm_client)
-  @info "Matched $(length(entity_relations)) relations"
+    # Stage 2: Relation Matching with LLM enhancement
+    entity_relations = match_relations_for_entities_enhanced(head_entities, text, options.llm_client)
+    @info "Matched $(length(entity_relations)) relations"
 
   # For demo, create a simple knowledge graph with discovered entities
   entities = head_entities
@@ -274,5 +274,120 @@ function extract_knowledge_graph(text::String, model::GraphMERT.GraphMERTModel;
       "source_text" => text,
       "demo_mode" => true
     )
-  )
+end
+
+"""
+    discover_head_entities_enhanced(text::String, umls_client::Union{Any, Nothing}=nothing,
+                                   llm_client::Union{Any, Nothing}=nothing)
+
+Enhanced head entity discovery using both UMLS and LLM.
+
+# Arguments
+- `text::String`: Text to analyze
+- `umls_client::Union{Any, Nothing}`: Optional UMLS client
+- `llm_client::Union{Any, Nothing}`: Optional LLM client
+
+# Returns
+- `Vector{BiomedicalEntity}`: Enhanced entity discovery results
+"""
+function discover_head_entities_enhanced(text::String, umls_client::Union{Any, Nothing}=nothing,
+                                       llm_client::Union{Any, Nothing}=nothing)
+    entities = Vector{GraphMERT.BiomedicalEntity}()
+
+    # First, try LLM-based discovery if available
+    if llm_client !== nothing
+        try
+            llm_entities = GraphMERT.discover_entities(llm_client, text)
+            for entity_text in llm_entities
+                # Link to UMLS if available
+                cui = nothing
+                semantic_types = String[]
+                if umls_client !== nothing
+                    linking_result = GraphMERT.link_entity_to_umls(entity_text, umls_client)
+                    if linking_result !== nothing
+                        cui = linking_result.cui
+                        semantic_types = linking_result.semantic_types
+                    end
+                end
+
+                entity = GraphMERT.BiomedicalEntity(
+                    entity_text,
+                    entity_text,
+                    "UNKNOWN",
+                    cui,
+                    semantic_types,
+                    GraphMERT.TextPosition(0, length(entity_text), 0, 0),
+                    0.9,  # High confidence from LLM
+                    text
+                )
+                push!(entities, entity)
+            end
+        catch e
+            @warn "LLM entity discovery failed: $e"
+        end
+    end
+
+    # Fallback to simple extraction if LLM fails or unavailable
+    if isempty(entities) || llm_client === nothing
+        simple_entities = discover_head_entities(text, umls_client)
+        append!(entities, simple_entities)
+    end
+
+    return entities
+end
+
+"""
+    match_relations_for_entities_enhanced(entities::Vector{BiomedicalEntity}, text::String,
+                                        llm_client::Union{Any, Nothing}=nothing)
+
+Enhanced relation matching using LLM for better relation detection.
+
+# Arguments
+- `entities::Vector{BiomedicalEntity}`: Discovered entities
+- `text::String`: Original text
+- `llm_client::Union{Any, Nothing}`: Optional LLM client
+
+# Returns
+- `Vector{Tuple{Int, Int, String, Float64}}`: Enhanced relation results
+"""
+function match_relations_for_entities_enhanced(entities::Vector{GraphMERT.BiomedicalEntity}, text::String,
+                                             llm_client::Union{Any, Nothing}=nothing)
+    relations = Vector{Tuple{Int, Int, String, Float64}}()
+
+    # Try LLM-based relation matching first
+    if llm_client !== nothing && length(entities) > 1
+        try
+            entity_texts = [e.text for e in entities]
+            llm_relations = GraphMERT.match_relations(llm_client, entity_texts, text)
+
+            for (entity1, relation_data) in llm_relations
+                entity2 = relation_data["entity2"]
+                relation_type = relation_data["relation"]
+
+                # Find entity indices
+                idx1 = findfirst(e -> e.text == entity1, entities)
+                idx2 = findfirst(e -> e.text == entity2, entities)
+
+                if idx1 !== nothing && idx2 !== nothing && idx1 != idx2
+                    push!(relations, (idx1, idx2, relation_type, 0.9))  # High confidence from LLM
+                end
+            end
+        catch e
+            @warn "LLM relation matching failed: $e"
+        end
+    end
+
+    # Fallback to simple relation matching
+    if length(relations) == 0
+        simple_relations = match_relations_for_entities(entities, text, llm_client)
+        append!(relations, simple_relations)
+    end
+
+    return relations
+end
+
+# Export functions for external use
+export discover_head_entities, match_relations_for_entities, predict_tail_tokens,
+       form_tail_from_tokens, filter_and_deduplicate_triples, extract_knowledge_graph,
+       discover_head_entities_enhanced, match_relations_for_entities_enhanced
 end
