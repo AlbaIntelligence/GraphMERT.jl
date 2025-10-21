@@ -19,18 +19,18 @@ This document organizes implementation tasks by user story to enable independent
 
 ## Task Summary
 
-| Phase     | User Story            | Tasks   | Tests  | Examples | Status    | Dependencies |
-| --------- | --------------------- | ------- | ------ | -------- | --------- | ------------ |
-| Phase 1   | Setup                 | 8       | 0      | 0        | 🟡 Partial | None         |
-| Phase 2   | Foundation            | 23      | 6      | 2        | 🟡 Partial | Phase 1      |
-| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | 🔴 Blocked | Phase 2      |
-| Phase 4   | US2: Train Model      | 37      | 13     | 4        | 🔴 Blocked | Phase 2      |
-| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | 🔴 Blocked | Phase 2      |
-| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | 🔴 Blocked | Phase 2      |
-| Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked | Phase 3      |
-| Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked | Phase 3      |
-| Phase 9   | Polish & Integration  | 16      | 5      | 3        | 🔴 Blocked | All          |
-| **Total** |                       | **161** | **50** | **21**   |           |              |
+| Phase     | User Story            | Tasks   | Tests  | Examples | Status     | Dependencies |
+| --------- | --------------------- | ------- | ------ | -------- | ---------- | ------------ |
+| Phase 1   | Setup                 | 8       | 0      | 0        | ✅ Complete | None         |
+| Phase 2   | Foundation            | 23      | 6      | 2        | ✅ Complete | Phase 1      |
+| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | 🔴 Blocked  | Phase 2      |
+| Phase 4   | US2: Train Model      | 37      | 13     | 4        | 🔴 Blocked  | Phase 2      |
+| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | 🔴 Blocked  | Phase 2      |
+| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | 🔴 Blocked  | Phase 2      |
+| Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked  | Phase 3      |
+| Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked  | Phase 3      |
+| Phase 9   | Polish & Integration  | 16      | 5      | 3        | 🔴 Blocked  | All          |
+| **Total** |                       | **161** | **50** | **21**   |            |              |
 
 ---
 
