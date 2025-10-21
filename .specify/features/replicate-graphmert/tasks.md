@@ -42,14 +42,14 @@ This document organizes implementation tasks by user story to enable independent
 
 ### Dependencies Setup
 
-- [ ] T001 [P] Verify Julia 1.10+ installation and environment
-- [ ] T002 [P] Install Flux.jl for ML framework
-- [ ] T003 [P] Install Transformers.jl for RoBERTa support
-- [ ] T004 [P] Install LightGraphs.jl and MetaGraphs.jl for graph processing
-- [ ] T005 [P] Install HTTP.jl and JSON3.jl for API integration
-- [ ] T006 [P] Install DataFrames.jl and CSV.jl for data manipulation
-- [ ] T007 [P] Install TextAnalysis.jl for biomedical text processing
-- [ ] T008 Configure development environment with Revise.jl for hot reloading
+- [x] T001 [P] Verify Julia 1.10+ installation and environment
+- [x] T002 [P] Install Flux.jl for ML framework
+- [x] T003 [P] Install Transformers.jl for RoBERTa support
+- [x] T004 [P] Install LightGraphs.jl and MetaGraphs.jl for graph processing
+- [x] T005 [P] Install HTTP.jl and JSON3.jl for API integration
+- [x] T006 [P] Install DataFrames.jl and CSV.jl for data manipulation
+- [x] T007 [P] Install TextAnalysis.jl for biomedical text processing
+- [x] T008 Configure development environment with Revise.jl for hot reloading
 
 ---
 
@@ -61,32 +61,32 @@ This document organizes implementation tasks by user story to enable independent
 
 ### Type System Extensions
 
-- [ ] T009 [P] Extend GraphMERT/src/types.jl with ChainGraphNode type from data-model.md
-- [ ] T010 [P] Add ChainGraphConfig type to GraphMERT/src/types.jl
-- [ ] T011 [P] Add LeafyChainGraph type to GraphMERT/src/types.jl
-- [ ] T012 [P] Add MNMConfig complete definition to GraphMERT/src/types.jl
-- [ ] T013 [P] Add SemanticTriple type to GraphMERT/src/types.jl
-- [ ] T014 [P] Add SeedInjectionConfig type to GraphMERT/src/types.jl
-- [ ] T015 [P] Add LLMRequest and LLMResponse types to GraphMERT/src/types.jl
-- [ ] T016 Add type validation constructors for all new types in GraphMERT/src/types.jl
+- [x] T009 [P] Extend GraphMERT/src/types.jl with ChainGraphNode type from data-model.md
+- [x] T010 [P] Add ChainGraphConfig type to GraphMERT/src/types.jl
+- [x] T011 [P] Add LeafyChainGraph type to GraphMERT/src/types.jl
+- [x] T012 [P] Add MNMConfig complete definition to GraphMERT/src/types.jl
+- [x] T013 [P] Add SemanticTriple type to GraphMERT/src/types.jl
+- [x] T014 [P] Add SeedInjectionConfig type to GraphMERT/src/types.jl
+- [x] T015 [P] Add LLMRequest and LLMResponse types to GraphMERT/src/types.jl
+- [x] T016 Add type validation constructors for all new types in GraphMERT/src/types.jl
 
 ### Leafy Chain Graph Implementation (CRITICAL - P0)
 
-- [ ] T017 Implement default_chain_graph_config() constructor in GraphMERT/src/graphs/leafy_chain.jl
-- [ ] T018 Implement create_empty_chain_graph() in GraphMERT/src/graphs/leafy_chain.jl
-- [ ] T019 Verify compilation: julia --project=GraphMERT -e 'using GraphMERT; create_empty_chain_graph()'
-- [ ] T020 Write unit tests for graph creation in GraphMERT/test/unit/test_leafy_chain.jl
-- [ ] T021 Implement build_adjacency_matrix() for graph connectivity in GraphMERT/src/graphs/leafy_chain.jl
-- [ ] T022 Implement floyd_warshall() for shortest paths in GraphMERT/src/graphs/leafy_chain.jl
-- [ ] T023 Write unit tests for shortest path computation in GraphMERT/test/unit/test_leafy_chain.jl
-- [ ] T024 Verify compilation: run test suite for graph connectivity
-- [ ] T025 Implement inject_triple!() to add semantic triples in GraphMERT/src/graphs/leafy_chain.jl
-- [ ] T026 Write unit tests for triple injection in GraphMERT/test/unit/test_leafy_chain.jl
-- [ ] T027 Implement graph_to_sequence() for sequential encoding in GraphMERT/src/graphs/leafy_chain.jl
-- [ ] T028 Implement create_attention_mask() for graph-aware attention in GraphMERT/src/graphs/leafy_chain.jl
-- [ ] T029 Write comprehensive tests for full graph pipeline in GraphMERT/test/unit/test_leafy_chain.jl
-- [ ] T030 Create working example: simple graph construction in examples/biomedical/00_leafy_chain_demo.jl
-- [ ] T031 Verify end-to-end: compile and run example successfully
+- [x] T017 Implement default_chain_graph_config() constructor in GraphMERT/src/graphs/leafy_chain.jl
+- [x] T018 Implement create_empty_chain_graph() in GraphMERT/src/graphs/leafy_chain.jl
+- [x] T019 Verify compilation: julia --project=GraphMERT -e 'using GraphMERT; create_empty_chain_graph()'
+- [x] T020 Write unit tests for graph creation in GraphMERT/test/unit/test_leafy_chain.jl
+- [x] T021 Implement build_adjacency_matrix() for graph connectivity in GraphMERT/src/graphs/leafy_chain.jl
+- [x] T022 Implement floyd_warshall() for shortest paths in GraphMERT/src/graphs/leafy_chain.jl
+- [x] T023 Write unit tests for shortest path computation in GraphMERT/test/unit/test_leafy_chain.jl
+- [x] T024 Verify compilation: run test suite for graph connectivity
+- [x] T025 Implement inject_triple!() to add semantic triples in GraphMERT/src/graphs/leafy_chain.jl
+- [x] T026 Write unit tests for triple injection in GraphMERT/test/unit/test_leafy_chain.jl
+- [x] T027 Implement graph_to_sequence() for sequential encoding in GraphMERT/src/graphs/leafy_chain.jl
+- [x] T028 Implement create_attention_mask() for graph-aware attention in GraphMERT/src/graphs/leafy_chain.jl
+- [x] T029 Write comprehensive tests for full graph pipeline in GraphMERT/test/unit/test_leafy_chain.jl
+- [x] T030 Create working example: simple graph construction in examples/biomedical/00_leafy_chain_demo.jl
+- [x] T031 Verify end-to-end: compile and run example successfully
 
 ---
 
