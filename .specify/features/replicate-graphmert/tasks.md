@@ -25,7 +25,7 @@ This document organizes implementation tasks by user story to enable independent
 | Phase 2   | Foundation            | 23      | 6      | 2        | ✅ Complete | Phase 1      |
 | Phase 3   | US1: Extract KG       | 22      | 7      | 4        | ✅ Complete | Phase 2      |
 | Phase 4   | US2: Train Model      | 37      | 13     | 4        | ✅ Complete | Phase 2      |
-| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | 🔴 Blocked  | Phase 2      |
+| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | ✅ Complete | Phase 2      |
 | Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | 🔴 Blocked  | Phase 2      |
 | Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked  | Phase 3      |
 | Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked  | Phase 3      |
@@ -210,22 +210,22 @@ This document organizes implementation tasks by user story to enable independent
 
 ### US3: UMLS Client Implementation
 
-- [ ] T091 [P] [US3] Implement UMLSClient authentication in GraphMERT/src/biomedical/umls.jl
-- [ ] T092 [P] [US3] Write unit tests for authentication in GraphMERT/test/unit/test_umls.jl
-- [ ] T093 [P] [US3] Implement rate limiting (100 req/min) with exponential backoff in GraphMERT/src/biomedical/umls.jl
-- [ ] T094 [P] [US3] Write unit tests for rate limiting in GraphMERT/test/unit/test_umls.jl
-- [ ] T095 [US3] Verify compilation: test rate limiting with mock API
-- [ ] T096 [US3] Implement CUI lookup by entity text in GraphMERT/src/biomedical/umls.jl
-- [ ] T097 [US3] Implement semantic type classification retrieval in GraphMERT/src/biomedical/umls.jl
-- [ ] T098 [US3] Implement relation retrieval from UMLS in GraphMERT/src/biomedical/umls.jl
-- [ ] T099 [US3] Write unit tests for UMLS queries in GraphMERT/test/unit/test_umls.jl
-- [ ] T100 [US3] Implement local caching (SQLite) for UMLS responses in GraphMERT/src/biomedical/umls.jl
-- [ ] T101 [US3] Write unit tests for caching mechanism in GraphMERT/test/unit/test_umls.jl
-- [ ] T102 [US3] Implement error handling with fallback to local recognition in GraphMERT/src/biomedical/umls.jl
-- [ ] T103 [US3] Implement create_umls_client() API function in GraphMERT/src/biomedical/umls.jl
-- [ ] T104 [US3] Write integration tests for full UMLS pipeline in GraphMERT/test/integration/test_umls_integration.jl
-- [ ] T105 [US3] Create working example: UMLS entity linking in examples/biomedical/06_umls_demo.jl
-- [ ] T106 [US3] Verify end-to-end: link entities to UMLS successfully
+- [x] T091 [P] [US3] Implement UMLSClient authentication in GraphMERT/src/biomedical/umls.jl
+- [x] T092 [P] [US3] Write unit tests for authentication in GraphMERT/test/unit/test_umls.jl
+- [x] T093 [P] [US3] Implement rate limiting (100 req/min) with exponential backoff in GraphMERT/src/biomedical/umls.jl
+- [x] T094 [P] [US3] Write unit tests for rate limiting in GraphMERT/test/unit/test_umls.jl
+- [x] T095 [US3] Verify compilation: test rate limiting with mock API
+- [x] T096 [US3] Implement CUI lookup by entity text in GraphMERT/src/biomedical/umls.jl
+- [x] T097 [US3] Implement semantic type classification retrieval in GraphMERT/src/biomedical/umls.jl
+- [x] T098 [US3] Implement relation retrieval from UMLS in GraphMERT/src/biomedical/umls.jl
+- [x] T099 [US3] Write unit tests for UMLS queries in GraphMERT/test/unit/test_umls.jl
+- [x] T100 [US3] Implement local caching (SQLite) for UMLS responses in GraphMERT/src/biomedical/umls.jl
+- [x] T101 [US3] Write unit tests for caching mechanism in GraphMERT/test/unit/test_umls.jl
+- [x] T102 [US3] Implement error handling with fallback to local recognition in GraphMERT/src/biomedical/umls.jl
+- [x] T103 [US3] Implement create_umls_client() API function in GraphMERT/src/biomedical/umls.jl
+- [x] T104 [US3] Write integration tests for full UMLS pipeline in GraphMERT/test/integration/test_umls_integration.jl
+- [x] T105 [US3] Create working example: UMLS entity linking in examples/biomedical/08_simple_umls_demo.jl
+- [x] T106 [US3] Verify end-to-end: link entities to UMLS successfully
 
 ---
 
