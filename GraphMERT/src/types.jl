@@ -402,27 +402,31 @@ Configuration for Masked Node Modeling training objective.
 - `relation_dropout::Float64`: Dropout on relation embeddings (default: 0.3)
 - `loss_weight::Float64`: Weight in joint loss (μ parameter, default: 1.0)
 - `mask_entire_leaf_span::Bool`: Whether to mask all leaves of a root together (default: true)
+- `mask_token_id::Int`: Token ID for masking (default: 103)
 """
 struct MNMConfig
-  vocab_size::Int
-  hidden_size::Int
-  num_leaves::Int
-  mask_probability::Float64
-  relation_dropout::Float64
-  loss_weight::Float64
-  mask_entire_leaf_span::Bool
+    vocab_size::Int
+    hidden_size::Int
+    num_leaves::Int
+    mask_probability::Float64
+    relation_dropout::Float64
+    loss_weight::Float64
+    mask_entire_leaf_span::Bool
+    mask_token_id::Int
 
-  function MNMConfig(vocab_size::Int=30522, hidden_size::Int=512, num_leaves::Int=7,
-    mask_probability::Float64=0.15, relation_dropout::Float64=0.3,
-    loss_weight::Float64=1.0, mask_entire_leaf_span::Bool=true)
-    @assert vocab_size > 0 "vocab_size must be positive"
-    @assert hidden_size > 0 "hidden_size must be positive"
-    @assert num_leaves > 0 "num_leaves must be positive"
-    @assert 0 < mask_probability < 1 "mask_probability must be between 0 and 1"
-    @assert 0 ≤ relation_dropout ≤ 1 "relation_dropout must be between 0 and 1"
-    @assert loss_weight > 0 "loss_weight must be positive"
-    new(vocab_size, hidden_size, num_leaves, mask_probability, relation_dropout, loss_weight, mask_entire_leaf_span)
-  end
+    function MNMConfig(vocab_size::Int=30522, hidden_size::Int=512, num_leaves::Int=7,
+                     mask_probability::Float64=0.15, relation_dropout::Float64=0.3,
+                     loss_weight::Float64=1.0, mask_entire_leaf_span::Bool=true,
+                     mask_token_id::Int=103)
+        @assert vocab_size > 0 "vocab_size must be positive"
+        @assert hidden_size > 0 "hidden_size must be positive"
+        @assert num_leaves > 0 "num_leaves must be positive"
+        @assert 0 < mask_probability < 1 "mask_probability must be between 0 and 1"
+        @assert 0 ≤ relation_dropout ≤ 1 "relation_dropout must be between 0 and 1"
+        @assert loss_weight > 0 "loss_weight must be positive"
+        @assert mask_token_id ≥ 0 "mask_token_id must be non-negative"
+        new(vocab_size, hidden_size, num_leaves, mask_probability, relation_dropout, loss_weight, mask_entire_leaf_span, mask_token_id)
+    end
 end
 
 """
@@ -557,4 +561,35 @@ struct LLMResponse
     @assert !isempty(raw_response) "raw_response cannot be empty"
     new(raw_response, parsed_result, success, error_message, metadata)
   end
+end
+
+"""
+    MNMBatch
+
+Batch data for MNM training.
+
+# Fields
+- `graph_sequence::Matrix{Int}`: Graph as sequence (batch_size × seq_len)
+- `attention_mask::Array{Bool, 3}`: 3D attention mask (batch_size × seq_len × seq_len)
+- `masked_leaf_spans::Vector{Vector{Tuple{Int,Int}}}`: (root_idx, leaf_idx) of masked leaves
+- `original_leaf_tokens::Vector{Vector{Int}}`: Original leaf tokens before masking
+- `relation_ids::Matrix{Int}`: Relation IDs for H-GAT (batch_size × num_leaves)
+"""
+struct MNMBatch
+    graph_sequence::Matrix{Int}
+    attention_mask::Array{Bool, 3}
+    masked_leaf_spans::Vector{Vector{Tuple{Int,Int}}}
+    original_leaf_tokens::Vector{Vector{Int}}
+    relation_ids::Matrix{Int}
+
+    function MNMBatch(graph_sequence::Matrix{Int}, attention_mask::Array{Bool, 3},
+                     masked_leaf_spans::Vector{Vector{Tuple{Int,Int}}},
+                     original_leaf_tokens::Vector{Vector{Int}},
+                     relation_ids::Matrix{Int})
+        @assert size(graph_sequence, 1) == size(attention_mask, 1) "batch dimensions must match"
+        @assert size(graph_sequence, 2) == size(attention_mask, 2) == size(attention_mask, 3) "sequence length must match"
+        @assert length(masked_leaf_spans) == length(original_leaf_tokens) "masked_leaf_spans and original_leaf_tokens must have same length"
+        @assert size(relation_ids, 1) == size(graph_sequence, 1) "relation_ids batch dimension must match graph_sequence"
+        new(graph_sequence, attention_mask, masked_leaf_spans, original_leaf_tokens, relation_ids)
+    end
 end
