@@ -564,6 +564,38 @@ struct LLMResponse
 end
 
 """
+    EntityLinkingResult
+
+Result of entity linking to UMLS.
+
+# Fields
+- `entity_text::String`: Original entity mention
+- `cui::String`: UMLS CUI (Concept Unique Identifier)
+- `preferred_name::String`: UMLS preferred name
+- `semantic_types::Vector{String}`: UMLS semantic types
+- `similarity_score::Float64`: Linking confidence
+- `source::String`: Method used ("sapbert", "exact_match", "fuzzy")
+"""
+struct EntityLinkingResult
+    entity_text::String
+    cui::String
+    preferred_name::String
+    semantic_types::Vector{String}
+    similarity_score::Float64
+    source::String
+
+    function EntityLinkingResult(entity_text::String, cui::String, preferred_name::String,
+                               semantic_types::Vector{String}, similarity_score::Float64, source::String)
+        @assert !isempty(entity_text) "entity_text cannot be empty"
+        @assert !isempty(cui) "cui cannot be empty"
+        @assert !isempty(preferred_name) "preferred_name cannot be empty"
+        @assert 0 ≤ similarity_score ≤ 1 "similarity_score must be between 0 and 1"
+        @assert !isempty(source) "source cannot be empty"
+        new(entity_text, cui, preferred_name, semantic_types, similarity_score, source)
+    end
+end
+
+"""
     MNMBatch
 
 Batch data for MNM training.
