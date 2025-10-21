@@ -234,45 +234,45 @@ Extracts structured knowledge from biomedical text using a trained GraphMERT mod
 - `KnowledgeGraph`: Extracted knowledge graph with entities and relations
 """
 function extract_knowledge_graph(text::String, model::GraphMERT.GraphMERTModel;
-                               options::GraphMERT.ProcessingOptions=GraphMERT.default_processing_options())::GraphMERT.KnowledgeGraph
-    # Simplified implementation for demo - full version would use trained model
-    @info "Starting knowledge graph extraction from text of length $(length(text))"
+  options::GraphMERT.ProcessingOptions=GraphMERT.default_processing_options())::GraphMERT.KnowledgeGraph
+  # Simplified implementation for demo - full version would use trained model
+  @info "Starting knowledge graph extraction from text of length $(length(text))"
 
-    # Stage 1: Head Discovery (simplified)
-    head_entities = discover_head_entities(text, options.umls_client)
-    @info "Discovered $(length(head_entities)) head entities"
+  # Stage 1: Head Discovery (simplified)
+  head_entities = discover_head_entities(text, options.umls_client)
+  @info "Discovered $(length(head_entities)) head entities"
 
-    # Stage 2: Relation Matching (simplified)
-    entity_relations = match_relations_for_entities(head_entities, text, options.llm_client)
-    @info "Matched $(length(entity_relations)) relations"
+  # Stage 2: Relation Matching (simplified)
+  entity_relations = match_relations_for_entities(head_entities, text, options.llm_client)
+  @info "Matched $(length(entity_relations)) relations"
 
-    # For demo, create a simple knowledge graph with discovered entities
-    entities = head_entities
-    relations = Vector{GraphMERT.BiomedicalRelation}()
+  # For demo, create a simple knowledge graph with discovered entities
+  entities = head_entities
+  relations = Vector{GraphMERT.BiomedicalRelation}()
 
-    # Create simple relations between entities
-    for i in 1:min(length(entities), 3)
-        for j in (i+1):min(length(entities), i+2)
-            if i != j
-                relation = GraphMERT.BiomedicalRelation(
-                    i, j, "ASSOCIATED_WITH", nothing, 0.7, text, text
-                )
-                push!(relations, relation)
-            end
-        end
-    end
-
-    return GraphMERT.KnowledgeGraph(
-        entities,
-        relations,
-        Dict(
-            "extraction_time" => string(now()),
-            "model_version" => "GraphMERT-v0.1",
-            "num_entities" => length(entities),
-            "num_relations" => length(relations),
-            "num_triples" => length(relations),  # Triples = relations
-            "source_text" => text,
-            "demo_mode" => true
+  # Create simple relations between entities
+  for i in 1:min(length(entities), 3)
+    for j in (i+1):min(length(entities), i + 2)
+      if i != j
+        relation = GraphMERT.BiomedicalRelation(
+          i, j, "ASSOCIATED_WITH", nothing, 0.7, text, text
         )
+        push!(relations, relation)
+      end
+    end
+  end
+
+  return GraphMERT.KnowledgeGraph(
+    entities,
+    relations,
+    Dict(
+      "extraction_time" => string(now()),
+      "model_version" => "GraphMERT-v0.1",
+      "num_entities" => length(entities),
+      "num_relations" => length(relations),
+      "num_triples" => length(relations),  # Triples = relations
+      "source_text" => text,
+      "demo_mode" => true
     )
+  )
 end
