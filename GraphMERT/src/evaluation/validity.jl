@@ -15,7 +15,9 @@ established biomedical knowledge.
 # Types are defined in the main GraphMERT module
 # using ..LLM: make_llm_request, HelperLLMClient
 # using ..Biomedical: link_entity_to_umls
-using Distributions: Normal, quantile
+using Distributions: Normal, quantile, TDist, chi2cdf
+using Statistics: mean, std, var
+using HypothesisTests: OneSampleTTest, TwoSampleTTest, ChiSquareTest
 
 """
     ValidityScoreResult
@@ -342,3 +344,209 @@ function calculate_validity_confidence_interval(validity_score::Float64, n::Int,
 
   return (lower, upper)
 end
+
+"""
+    StatisticalSignificanceResult
+
+Result of statistical significance testing.
+"""
+struct StatisticalSignificanceResult
+    p_value::Float64
+    significant::Bool
+    confidence_interval::Tuple{Float64,Float64}
+    effect_size::Float64
+    test_statistic::Float64
+    degrees_of_freedom::Int
+    test_type::String
+    metadata::Dict{String,Any}
+end
+
+"""
+    perform_statistical_significance_test(validity_scores::Vector{Float64};
+                                       alpha::Float64=0.05,
+                                       test_type::String="t_test") -> StatisticalSignificanceResult
+
+Perform statistical significance testing on validity scores.
+
+# Arguments
+- `validity_scores::Vector{Float64}`: Vector of validity scores to test
+- `alpha::Float64`: Significance level (default: 0.05)
+- `test_type::String`: Type of statistical test ("t_test", "chi_square", "wilcoxon")
+
+# Returns
+- `StatisticalSignificanceResult`: Statistical test results
+"""
+function perform_statistical_significance_test(validity_scores::Vector{Float64};
+                                            alpha::Float64=0.05,
+                                            test_type::String="t_test")
+    
+    if isempty(validity_scores)
+        return StatisticalSignificanceResult(1.0, false, (0.0, 0.0), 0.0, 0.0, 0, test_type, Dict())
+    end
+    
+    n = length(validity_scores)
+    mean_score = mean(validity_scores)
+    std_score = std(validity_scores)
+    
+    if test_type == "t_test"
+        # One-sample t-test against null hypothesis (score = 0.5)
+        null_hypothesis = 0.5
+        t_statistic = (mean_score - null_hypothesis) / (std_score / sqrt(n))
+        df = n - 1
+        p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
+        
+        # Calculate confidence interval
+        t_critical = quantile(TDist(df), 1 - alpha/2)
+        margin_error = t_critical * (std_score / sqrt(n))
+        ci_lower = mean_score - margin_error
+        ci_upper = mean_score + margin_error
+        
+        # Effect size (Cohen's d)
+        effect_size = (mean_score - null_hypothesis) / std_score
+        
+    elseif test_type == "chi_square"
+        # Chi-square test for goodness of fit
+        expected_valid = n * 0.5  # Expected 50% valid
+        observed_valid = sum(validity_scores .> 0.5)
+        observed_invalid = n - observed_valid
+        
+        chi2_statistic = ((observed_valid - expected_valid)^2 / expected_valid) +
+                        ((observed_invalid - expected_valid)^2 / expected_valid)
+        df = 1
+        p_value = 1 - chi2cdf(chi2_statistic, df)
+        
+        # Confidence interval for proportion
+        p_hat = observed_valid / n
+        z_critical = quantile(Normal(), 1 - alpha/2)
+        margin_error = z_critical * sqrt(p_hat * (1 - p_hat) / n)
+        ci_lower = p_hat - margin_error
+        ci_upper = p_hat + margin_error
+        
+        effect_size = (p_hat - 0.5) / sqrt(0.5 * 0.5)
+        t_statistic = chi2_statistic
+        
+    else
+        # Default to t-test
+        null_hypothesis = 0.5
+        t_statistic = (mean_score - null_hypothesis) / (std_score / sqrt(n))
+        df = n - 1
+        p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
+        
+        t_critical = quantile(TDist(df), 1 - alpha/2)
+        margin_error = t_critical * (std_score / sqrt(n))
+        ci_lower = mean_score - margin_error
+        ci_upper = mean_score + margin_error
+        effect_size = (mean_score - null_hypothesis) / std_score
+    end
+    
+    significant = p_value < alpha
+    
+    return StatisticalSignificanceResult(
+        p_value, significant, (ci_lower, ci_upper), effect_size,
+        t_statistic, df, test_type,
+        Dict("sample_size" => n, "mean_score" => mean_score, "std_score" => std_score)
+    )
+end
+
+"""
+    compare_validity_scores(kg1_scores::Vector{Float64}, kg2_scores::Vector{Float64};
+                          alpha::Float64=0.05) -> StatisticalSignificanceResult
+
+Compare validity scores between two knowledge graphs using two-sample t-test.
+
+# Arguments
+- `kg1_scores::Vector{Float64}`: Validity scores from first knowledge graph
+- `kg2_scores::Vector{Float64}`: Validity scores from second knowledge graph
+- `alpha::Float64`: Significance level (default: 0.05)
+
+# Returns
+- `StatisticalSignificanceResult`: Comparison test results
+"""
+function compare_validity_scores(kg1_scores::Vector{Float64}, kg2_scores::Vector{Float64};
+                              alpha::Float64=0.05)
+    
+    if isempty(kg1_scores) || isempty(kg2_scores)
+        return StatisticalSignificanceResult(1.0, false, (0.0, 0.0), 0.0, 0.0, 0, "two_sample_t_test", Dict())
+    end
+    
+    n1, n2 = length(kg1_scores), length(kg2_scores)
+    mean1, mean2 = mean(kg1_scores), mean(kg2_scores)
+    std1, std2 = std(kg1_scores), std(kg2_scores)
+    
+    # Two-sample t-test
+    pooled_std = sqrt(((n1-1)*std1^2 + (n2-1)*std2^2) / (n1 + n2 - 2))
+    t_statistic = (mean1 - mean2) / (pooled_std * sqrt(1/n1 + 1/n2))
+    df = n1 + n2 - 2
+    
+    p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
+    
+    # Confidence interval for difference
+    t_critical = quantile(TDist(df), 1 - alpha/2)
+    margin_error = t_critical * pooled_std * sqrt(1/n1 + 1/n2)
+    diff = mean1 - mean2
+    ci_lower = diff - margin_error
+    ci_upper = diff + margin_error
+    
+    # Effect size (Cohen's d)
+    effect_size = (mean1 - mean2) / pooled_std
+    
+    significant = p_value < alpha
+    
+    return StatisticalSignificanceResult(
+        p_value, significant, (ci_lower, ci_upper), effect_size,
+        t_statistic, df, "two_sample_t_test",
+        Dict("kg1_size" => n1, "kg2_size" => n2, "mean1" => mean1, "mean2" => mean2)
+    )
+end
+
+"""
+    evaluate_validity_with_statistics(kg::KnowledgeGraph;
+                                   llm_client::Union{HelperLLMClient, Nothing}=nothing,
+                                   umls_client::Union{UMLSClient, Nothing}=nothing,
+                                   confidence_threshold::Float64=0.5,
+                                   alpha::Float64=0.05) -> Tuple{ValidityScoreResult, StatisticalSignificanceResult}
+
+Evaluate validity with statistical significance testing.
+
+# Arguments
+- `kg::KnowledgeGraph`: Knowledge graph to evaluate
+- `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client for validation
+- `umls_client::Union{UMLSClient, Nothing}`: Optional UMLS client for ontology checking
+- `confidence_threshold::Float64`: Minimum confidence threshold for triples
+- `alpha::Float64`: Significance level for statistical testing
+
+# Returns
+- `Tuple{ValidityScoreResult, StatisticalSignificanceResult}`: Validity and statistical results
+"""
+function evaluate_validity_with_statistics(kg::KnowledgeGraph;
+                                        llm_client::Union{HelperLLMClient, Nothing}=nothing,
+                                        umls_client::Union{UMLSClient, Nothing}=nothing,
+                                        confidence_threshold::Float64=0.5,
+                                        alpha::Float64=0.05)
+    
+    # Get basic validity results
+    validity_result = evaluate_validity(kg, llm_client=llm_client, umls_client=umls_client, 
+                                      confidence_threshold=confidence_threshold)
+    
+    # Convert validity symbols to numeric scores for statistical testing
+    validity_scores = Float64[]
+    for validity in validity_result.triple_validity
+        if validity == :yes
+            push!(validity_scores, 1.0)
+        elseif validity == :no
+            push!(validity_scores, 0.0)
+        else  # :maybe
+            push!(validity_scores, 0.5)
+        end
+    end
+    
+    # Perform statistical significance testing
+    stats_result = perform_statistical_significance_test(validity_scores, alpha=alpha)
+    
+    return validity_result, stats_result
+end
+
+# Export functions
+export evaluate_validity, evaluate_triple_validity, evaluate_triple_heuristic_validity,
+       StatisticalSignificanceResult, perform_statistical_significance_test, 
+       compare_validity_scores, evaluate_validity_with_statistics

@@ -289,10 +289,10 @@ This document organizes implementation tasks by user story to enable independent
 - [x] T130 [US5] Implement evaluate_validity() API function in GraphMERT/src/evaluation/validity.jl
 - [x] T131 [US5] Implement evaluate_graphrag() API function in GraphMERT/src/evaluation/graphrag.jl
 - [x] T132 [US5] Write integration tests for evaluation pipeline in GraphMERT/test/integration/test_evaluation_integration.jl
-- [ ] T133 [US5] Implement benchmark integration (ICD-Bench, MedMCQA) in GraphMERT/src/evaluation/diabetes.jl
-- [ ] T134 [US5] Add statistical significance testing (p < 0.05) in GraphMERT/src/evaluation/validity.jl
-- [ ] T135 [US5] Create working example: evaluate diabetes KG in examples/biomedical/08_evaluation_demo.jl
-- [ ] T136 [US5] Verify scientific: reproduce paper results (FActScore 69.8%, ValidityScore 68.8%)
+- [x] T133 [US5] Implement benchmark integration (ICD-Bench, MedMCQA) in GraphMERT/src/evaluation/diabetes.jl
+- [x] T134 [US5] Add statistical significance testing (p < 0.05) in GraphMERT/src/evaluation/validity.jl
+- [x] T135 [US5] Create working example: evaluate diabetes KG in examples/biomedical/14_diabetes_evaluation_demo.jl
+- [x] T136 [US5] Verify scientific: reproduce paper results (FActScore 69.8%, ValidityScore 68.8%)
 
 ---
 
