@@ -12,6 +12,7 @@ Key concepts demonstrated:
 """
 
 using GraphMERT
+using Statistics: mean
 
 println("=== Basic Entity Extraction Demo ===")
 
@@ -34,19 +35,29 @@ println("Found $(length(entities)) biomedical entities:")
 
 for entity in entities
   println("  Entity: $(entity.text)")
-  println("    Type: $(entity.entity_type)")
-  println("    CUI: $(entity.cui)")
+  println("    Type: $(entity.label)")
+  println("    CUI: $(get(entity.attributes, "cui", "N/A"))")
   println("    Confidence: $(round(entity.confidence, digits=3))")
-  println("    Position: $(entity.position.start_char)-$(entity.position.end_char)")
+  println("    Position: $(entity.position.start)-$(entity.position.stop)")
   println()
 end
 
 # 3. Demonstrate confidence scoring
 println("3. Entity confidence analysis:")
 for entity in entities
-  confidence_factors = analyze_confidence_factors(entity.text, text)
   println("  '$(entity.text)' confidence: $(round(entity.confidence, digits=3))")
-  println("    Factors: $confidence_factors")
+  # Simple confidence factors analysis
+  factors = String[]
+  if length(entity.text) > 10
+    push!(factors, "long_term")
+  end
+  if isuppercase(entity.text[1])
+    push!(factors, "capitalized")
+  end
+  if count(isspace, entity.text) > 0
+    push!(factors, "multi_word")
+  end
+  println("    Factors: $(isempty(factors) ? "basic" : join(factors, ", "))")
 end
 
 # 4. Show entity statistics
@@ -71,7 +82,8 @@ println("• Biomedical ontology alignment")
 println("\n✅ Basic entity extraction demo complete!")
 println("\nNext steps:")
 println("• Relation matching between entity pairs")
-println("• Tail entity prediction using GraphMERT model")
+println("• Tail entity prediction using GraphMERT
+using Statistics: mean model")
 println("• Triple formation and filtering")
 println("• Complete knowledge graph construction")
 

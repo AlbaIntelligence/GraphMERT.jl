@@ -365,6 +365,7 @@ This document organizes implementation tasks by user story to enable independent
 - [ ] T164 Performance benchmark: verify all NFRs met
 - [ ] T165 Create comprehensive integration test for full pipeline in GraphMERT/test/integration/test_full_pipeline.jl
 - [ ] T166 Verify end-to-end: diabetes dataset extraction with paper result replication
+- [ ] T167 Re-run all tests, demos, and examples on final version of the code
 
 ---
 

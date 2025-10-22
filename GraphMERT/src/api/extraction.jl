@@ -16,6 +16,107 @@ The extraction pipeline follows the 5-stage process from the paper:
 # using ..Types: KnowledgeGraph, BiomedicalEntity, BiomedicalRelation, TextPosition
 
 """
+    extract_biomedical_terms(text::String)
+
+Extract biomedical terms from text with their positions.
+
+# Arguments
+- `text::String`: Input text
+
+# Returns
+- `Vector{Tuple{String,Int}}`: List of (term, position) tuples
+
+# Example
+```julia
+terms = extract_biomedical_terms("Diabetes is a chronic condition.")
+```
+"""
+function extract_biomedical_terms(text::String)
+  terms = Vector{Tuple{String,Int}}()
+  
+  # Simple pattern matching for biomedical terms
+  # This is a basic implementation - in practice would use more sophisticated NLP
+  biomedical_patterns = [
+    r"\bdiabetes\b"i,
+    r"\bmetformin\b"i,
+    r"\binsulin\b"i,
+    r"\bglucose\b"i,
+    r"\bblood\s+sugar\b"i,
+    r"\btype\s+2\s+diabetes\b"i,
+    r"\btype\s+1\s+diabetes\b"i,
+    r"\bcardiovascular\b"i,
+    r"\bheart\s+disease\b"i,
+    r"\bhypertension\b"i,
+    r"\bcholesterol\b"i,
+    r"\bobesity\b"i,
+    r"\bmetabolic\b"i,
+    r"\bchronic\b"i,
+    r"\bdisorder\b"i,
+    r"\bcondition\b"i,
+    r"\bdisease\b"i,
+    r"\bsyndrome\b"i,
+    r"\btherapy\b"i,
+    r"\btreatment\b"i,
+    r"\bmedication\b"i,
+    r"\bdrug\b"i,
+    r"\bpatient\b"i,
+    r"\bclinical\b"i,
+    r"\bmedical\b"i
+  ]
+  
+  for pattern in biomedical_patterns
+    for match in eachmatch(pattern, text)
+      term = match.match
+      position = match.offset
+      push!(terms, (term, position))
+    end
+  end
+  
+  # Remove duplicates and sort by position
+  unique_terms = unique(terms)
+  sort!(unique_terms, by=x -> x[2])
+  
+  return unique_terms
+end
+
+"""
+    calculate_entity_confidence(term::String, text::String)
+
+Calculate confidence score for an entity based on term characteristics.
+
+# Arguments
+- `term::String`: The entity term
+- `text::String`: The full text context
+
+# Returns
+- `Float64`: Confidence score between 0.0 and 1.0
+"""
+function calculate_entity_confidence(term::String, text::String)
+  # Simple confidence calculation based on term characteristics
+  confidence = 0.5  # Base confidence
+  
+  # Increase confidence for longer terms (more specific)
+  if length(term) > 10
+    confidence += 0.2
+  elseif length(term) > 5
+    confidence += 0.1
+  end
+  
+  # Increase confidence for capitalized terms (proper nouns)
+  if isuppercase(term[1])
+    confidence += 0.1
+  end
+  
+  # Increase confidence for terms with multiple words
+  if count(isspace, term) > 0
+    confidence += 0.1
+  end
+  
+  # Cap at 1.0
+  return min(confidence, 1.0)
+end
+
+"""
     discover_head_entities(text::String, umls_client::Union{UMLSClient, Nothing}=nothing)
 
 Stage 1: Head Discovery - Extract entities from text.
@@ -49,15 +150,26 @@ function discover_head_entities(text::String, umls_client::Union{Any,Nothing}=no
       end
     end
 
+    # Create TextPosition
+    text_position = GraphMERT.TextPosition(position, position + length(term) - 1, 1, 1)
+    
+    # Create attributes dictionary
+    attributes = Dict{String,Any}()
+    if cui !== nothing
+      attributes["cui"] = cui
+    end
+    if !isempty(semantic_types)
+      attributes["semantic_types"] = semantic_types
+    end
+    attributes["provenance"] = text
+    
     entity = GraphMERT.BiomedicalEntity(
-      term,
-      term,  # normalized_text
-      "UNKNOWN",  # entity_type (would be determined by UMLS)
-      cui,
-      semantic_types,
-      position,
+      term,  # id
+      term,  # text
+      "UNKNOWN",  # label (entity type)
       confidence,
-      text  # provenance
+      text_position,
+      attributes
     )
     push!(entities, entity)
   end

@@ -16,48 +16,29 @@ include("test_utils.jl")
 
 # Unit tests
 @testset "Unit Tests" begin
-  include("unit/types.jl")
-  include("unit/exceptions.jl")
-  include("unit/config.jl")
-  include("unit/utils.jl")
-  include("unit/architectures.jl")
-  include("unit/graphs.jl")
-  include("unit/models.jl")
-  include("unit/biomedical.jl")
-  include("unit/training.jl")
-  include("unit/evaluation.jl")
-  include("unit/api.jl")
+  include("unit/test_api.jl")
+  include("unit/test_batch.jl")
+  include("unit/test_evaluation.jl")
+  include("unit/test_extraction.jl")
+  include("unit/test_leafy_chain.jl")
+  include("unit/test_llm.jl")
+  include("unit/test_mnm.jl")
+  include("unit/test_persistence.jl")
+  include("unit/test_seed_injection.jl")
+  include("unit/test_umls.jl")
 end
 
 # Integration tests
 @testset "Integration Tests" begin
-  include("integration/end_to_end.jl")
-  include("integration/umls_integration.jl")
-  include("integration/helper_llm.jl")
-  include("integration/training_pipeline.jl")
+  include("integration/test_extraction_pipeline.jl")
+  include("integration/test_llm_integration.jl")
+  include("integration/test_training_pipeline.jl")
 end
 
 # Performance tests
 @testset "Performance Tests" begin
-  include("performance/benchmarks.jl")
-  include("performance/memory_usage.jl")
-  include("performance/speed_tests.jl")
-end
-
-# Scientific validation tests
-@testset "Scientific Validation Tests" begin
-  include("scientific/factscore_validation.jl")
-  include("scientific/validity_validation.jl")
-  include("scientific/graphrag_validation.jl")
-  include("scientific/reproducibility.jl")
-end
-
-# Biomedical domain tests
-@testset "Biomedical Domain Tests" begin
-  include("biomedical/entity_extraction.jl")
-  include("biomedical/relation_extraction.jl")
-  include("biomedical/umls_mapping.jl")
-  include("biomedical/pubmed_processing.jl")
+  include("performance/test_extraction_performance.jl")
+  include("performance/test_batch_performance.jl")
 end
 
 # Coverage reporting
