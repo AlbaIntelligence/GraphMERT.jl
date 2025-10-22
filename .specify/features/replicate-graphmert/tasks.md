@@ -19,18 +19,19 @@ This document organizes implementation tasks by user story to enable independent
 
 ## Task Summary
 
-| Phase     | User Story            | Tasks   | Tests  | Examples | Status     | Dependencies |
-| --------- | --------------------- | ------- | ------ | -------- | ---------- | ------------ |
-| Phase 1   | Setup                 | 8       | 0      | 0        | ✅ Complete | None         |
-| Phase 2   | Foundation            | 23      | 6      | 2        | ✅ Complete | Phase 1      |
-| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | ✅ Complete | Phase 2      |
-| Phase 4   | US2: Train Model      | 37      | 13     | 4        | ✅ Complete | Phase 2      |
-| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | ✅ Complete | Phase 2      |
-| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | ✅ Complete | Phase 2      |
-| Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked  | Phase 3      |
-| Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked  | Phase 3      |
-| Phase 9   | Polish & Integration  | 16      | 5      | 3        | 🔴 Blocked  | All          |
-| **Total** |                       | **161** | **50** | **21**   |            |              |
+| Phase     | User Story            | Tasks   | Tests  | Examples | Status        | Dependencies |
+| --------- | --------------------- | ------- | ------ | -------- | ------------- | ------------ |
+| Phase 1   | Setup                 | 8       | 0      | 0        | ✅ Complete    | None         |
+| Phase 2   | Foundation            | 23      | 6      | 2        | ✅ Complete    | Phase 1      |
+| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | ✅ Complete    | Phase 2      |
+| Phase 4   | US2: Train Model      | 37      | 13     | 4        | ✅ Complete    | Phase 2      |
+| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | ✅ Complete    | Phase 2      |
+| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | ✅ Complete    | Phase 2      |
+| Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked     | Phase 3      |
+| Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked     | Phase 3      |
+| Phase 9   | Project Management    | 5       | 0      | 0        | 🔴 Not Started | All          |
+| Phase 10  | Polish & Integration  | 16      | 5      | 3        | 🔴 Blocked     | All          |
+| **Total** |                       | **166** | **50** | **21**   |               |              |
 
 ---
 
@@ -323,34 +324,47 @@ This document organizes implementation tasks by user story to enable independent
 
 ## Phase 9: Polish & Cross-Cutting Concerns (Week 12+)
 
-**Goal**: Final integration, documentation, and quality assurance
+**Goal**: Final integration, documentation, quality assurance, and project management processes
 
 **Status**: 🔴 Not Started
 
+**New Requirements from Clarification Session**:
+- REQ-029: Specification analysis schedule (post-milestone, weekly, pre-planning)
+- REQ-030: Progress tracking mechanism (task updates, alignment reviews, dashboards)
+- REQ-031: Specification maintenance process (milestone-based batch updates)
+
+### Project Management Processes
+
+- [ ] T146 Implement specification analysis schedule (REQ-029) in .specify/scripts/project-management/
+- [ ] T147 [P] Create progress tracking mechanism (REQ-030) for task status updates and alignment reviews
+- [ ] T148 Implement progress dashboard generation (REQ-030) in .specify/scripts/project-management/
+- [ ] T149 [P] Create specification maintenance process (REQ-031) for milestone-based batch updates
+- [ ] T150 Write documentation for project management processes in docs/project-management.md
+
 ### Utility Functions
 
-- [ ] T146 [P] Implement merge_knowledge_graphs() in GraphMERT/src/utils.jl
-- [ ] T147 [P] Write unit tests for merge function in GraphMERT/test/unit/test_utils.jl
-- [ ] T148 [P] Implement filter_knowledge_graph() in GraphMERT/src/utils.jl
-- [ ] T149 [P] Write unit tests for filter function in GraphMERT/test/unit/test_utils.jl
-- [ ] T150 [P] Implement export_knowledge_graph() with multiple formats in GraphMERT/src/api/serialization.jl
-- [ ] T151 [P] Write unit tests for export formats in GraphMERT/test/unit/test_serialization.jl
-- [ ] T152 Verify compilation: test all utility functions
+- [ ] T151 [P] Implement merge_knowledge_graphs() in GraphMERT/src/utils.jl
+- [ ] T152 [P] Write unit tests for merge function in GraphMERT/test/unit/test_utils.jl
+- [ ] T153 [P] Implement filter_knowledge_graph() in GraphMERT/src/utils.jl
+- [ ] T154 [P] Write unit tests for filter function in GraphMERT/test/unit/test_utils.jl
+- [ ] T155 [P] Implement export_knowledge_graph() with multiple formats in GraphMERT/src/api/serialization.jl
+- [ ] T156 [P] Write unit tests for export formats in GraphMERT/test/unit/test_serialization.jl
+- [ ] T157 Verify compilation: test all utility functions
 
 ### Documentation & Examples
 
-- [ ] T153 [P] Create comprehensive API documentation with examples in GraphMERT/docs/api/
-- [ ] T154 [P] Create tutorial notebooks in examples/
-- [ ] T155 [P] Create quickstart guide validation: verify examples in 30 minutes
-- [ ] T156 Verify documentation completeness: all public functions documented
+- [ ] T158 [P] Create comprehensive API documentation with examples in GraphMERT/docs/api/
+- [ ] T159 [P] Create tutorial notebooks in examples/
+- [ ] T160 [P] Create quickstart guide validation: verify examples in 30 minutes
+- [ ] T161 Verify documentation completeness: all public functions documented
 
 ### Final Integration & Validation
 
-- [ ] T157 Run full test suite and verify >80% coverage (constitution requirement)
-- [ ] T158 Run linter and fix all issues (REQ-023g)
-- [ ] T159 Performance benchmark: verify all NFRs met
-- [ ] T160 Create comprehensive integration test for full pipeline in GraphMERT/test/integration/test_full_pipeline.jl
-- [ ] T161 Verify end-to-end: diabetes dataset extraction with paper result replication
+- [ ] T162 Run full test suite and verify >80% coverage (constitution requirement)
+- [ ] T163 Run linter and fix all issues (REQ-023g)
+- [ ] T164 Performance benchmark: verify all NFRs met
+- [ ] T165 Create comprehensive integration test for full pipeline in GraphMERT/test/integration/test_full_pipeline.jl
+- [ ] T166 Verify end-to-end: diabetes dataset extraction with paper result replication
 
 ---
 

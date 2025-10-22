@@ -299,6 +299,10 @@ end
 export extract_knowledge_graph, discover_head_entities, match_relations_for_entities,
   predict_tail_tokens, form_tail_from_tokens, filter_and_deduplicate_triples
 
+# Export from Evaluation modules
+export evaluate_factscore, evaluate_validity, evaluate_graphrag,
+  calculate_factscore_confidence_interval, calculate_validity_confidence_interval
+
 # Export from Config module
 export default_processing_options
 

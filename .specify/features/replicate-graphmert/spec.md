@@ -75,19 +75,22 @@
 
 ### Code Elegance
 
-- **REQ-023:** Implement extremely elegant, idiomatic Julia code that serves as a reference implementation
+- **REQ-023:** Implement readable, idiomatic Julia code that serves as a reference implementation for domain experts while following Julia community standards
   - **REQ-023a:** Maintain cyclomatic complexity ≤ 10 for all functions
   - **REQ-023b:** Keep function length ≤ 50 lines with single responsibility
   - **REQ-023c:** Achieve 100% type coverage for all public APIs
   - **REQ-023d:** Use descriptive function names following Julia naming conventions
   - **REQ-023e:** Implement comprehensive docstrings with examples for all exported functions
-  - **REQ-023f:** Maintain ≥80% test coverage for all public APIs (constitution compliance)
+  - **REQ-023f:** Maintain 90%+ test coverage for core algorithms, 80% for utilities, 95% for APIs (constitution compliance)
   - **REQ-023g:** Ensure all code passes Julia's built-in linting and formatting standards
 - **REQ-024:** Use Julia's multiple dispatch system effectively for clean, extensible design
 - **REQ-025:** Leverage Julia's type system for type-safe, performant code
 - **REQ-026:** Write self-documenting code with clear, expressive function and variable names
 - **REQ-027:** Follow functional programming principles where appropriate
 - **REQ-028:** Use Julia's broadcasting and vectorization capabilities for elegant numerical operations
+- **REQ-029:** Perform specification analysis after each major feature completion, weekly during active development, and before each planning session to maintain alignment between implementation and requirements
+- **REQ-030:** Implement progress tracking by updating task completion status in tasks.md after each implementation, conducting regular specification-to-implementation alignment reviews, and maintaining progress dashboards showing spec vs implementation status
+- **REQ-031:** Maintain specifications through batch updates at major milestones to ensure they remain accurate reflections of the implementation while balancing development efficiency
 
 ## Non-Functional Requirements
 
@@ -108,13 +111,13 @@
 ### Usability
 
 - **NFR-009:** API should be intuitive for Julia users familiar with scientific computing
-- **NFR-010:** Documentation should include complete examples and tutorials
+- **NFR-010:** Documentation should include Julia ecosystem integration guides, contribution guidelines, benchmarking documentation, scientific background, mathematical foundations, performance guides, 100% API coverage with examples for all functions, tutorial notebooks, user-focused tutorials, API reference, and troubleshooting guides
 - **NFR-011:** Error messages should be informative and actionable
 - **NFR-012:** ONNX model integration should be transparent to end users
 
 ### Code Quality
 
-- **NFR-013:** Code must be extremely elegant and serve as a reference implementation for Julia scientific computing
+- **NFR-013:** Code must be readable by domain experts and serve as a reference implementation for Julia scientific computing while following community standards
 - **NFR-014:** All functions must have clear, single responsibilities following the single responsibility principle
 - **NFR-015:** Use Julia's type system to create expressive, type-safe interfaces
 - **NFR-016:** Implement clean abstractions that hide complexity while remaining extensible
@@ -128,7 +131,7 @@
 - **SC-001:** Achieve F1 score within 5% of original paper results on the most commonly cited dataset using identical evaluation methodology with statistical significance testing (p < 0.05)
 - **SC-002:** Processing speed improvement of at least 20% over Python reference implementation (benchmarked on Intel i7-10750H, 16GB RAM)
 - **SC-003:** Memory efficiency improvement of at least 30% over reference implementation
-- **SC-004:** Test coverage of at least 90% for all public APIs
+- **SC-004:** Test coverage of 90%+ for core algorithms, 80% for utilities, 95% for APIs
 - **SC-005:** Laptop deployment successful on systems with 8GB RAM or less
 - **SC-006:** ONNX model loading and inference works across Julia 1.8+ versions
 
@@ -140,6 +143,7 @@
 - **SC-010:** Scientific reproducibility verified by independent researchers
 - **SC-011:** Code elegance recognized by Julia community as exemplary implementation
 - **SC-012:** Code serves as educational reference for Julia scientific computing best practices
+- **SC-013:** Specification analysis performed regularly with no drift between implementation and documented requirements
 
 ## Key Entities
 
@@ -201,12 +205,27 @@
 - **C-002:** Implementation must be scientifically accurate to original GraphMERT algorithm
 - **C-003:** Code must follow Julia package development best practices
 - **C-004:** Performance must be competitive with or exceed original implementation
-- **C-005:** Documentation must be comprehensive and accessible to researchers
+- **C-005:** Documentation must include Julia ecosystem integration, contribution guidelines, benchmarking, scientific background, mathematical foundations, performance guides, 100% API coverage with examples, tutorials, and troubleshooting guides while remaining accessible to researchers
 - **C-006:** Must be deployable on laptop hardware with 80M parameter model
 - **C-007:** Must complete within 3-month timeline
 - **C-008:** Biomedical domain focus must be maintained for scientific accuracy
-- **C-009:** Code must achieve extremely elegant design that serves as a reference implementation
+- **C-009:** Code must achieve readable design that serves as a reference implementation while following Julia community standards
 - **C-010:** UMLS integration must be stable and well-documented
+- **C-011:** Branch management must include checking existing branches before creating new ones and documenting active branches with their purposes to maintain development continuity
+
+## Clarifications
+
+### Session 2025-01-20
+
+- Q: Which specific requirements are most critical to map to tasks first? → A: Map core algorithm requirements (REQ-001, REQ-002, REQ-007, REQ-008) first as they form the foundation for all other features
+- Q: What are the specific, measurable criteria for "elegant code"? → A: Focus on readability by domain experts with clear naming and minimal dependencies, while maintaining Julia community standards, linting compliance, and documentation quality
+- Q: What are the specific criteria for "comprehensive documentation"? → A: Prioritize Julia ecosystem integration, contribution guidelines, and benchmarking; include scientific background, mathematical foundations, and performance guides; ensure 100% API coverage with examples for all functions and tutorial notebooks; provide user-focused tutorials, API reference, and troubleshooting guides
+- Q: What should be the target test coverage strategy for different components? → A: 90%+ for core algorithms, 80% for utilities, 95% for APIs to focus testing effort on critical and user-facing components
+- Q: Which specific unmapped requirements need the most urgent task mapping? → A: Prioritize validation requirements (REQ-015, REQ-016, SC-001, SC-002, SC-003) for scientific reproducibility; then code quality requirements (REQ-023a-g, NFR-013, NFR-017, NFR-018) for maintainability; followed by integration requirements (REQ-003a-f, REQ-006a-f, REQ-020, REQ-021) for external dependencies; and performance requirements (REQ-011, REQ-012, REQ-014, NFR-001, NFR-002) for optimization
+- Q: How frequently should specification analysis be performed to maintain alignment? → A: After each major feature completion, weekly during active development, and before each planning session to ensure regular alignment without disrupting development flow
+- Q: What branch management practices should be implemented to prevent this issue? → A: Always check existing branches before creating new ones to prevent duplication and maintain continuity; document active branches and their purposes to provide clear visibility into current work streams
+- Q: What mechanism should be used to track implementation progress against specifications? → A: Update task completion status in tasks.md after each implementation; conduct regular specification-to-implementation alignment reviews; maintain progress dashboards showing spec vs implementation status for comprehensive tracking
+- Q: How should specifications be maintained as code evolves? → A: Batch updates at major milestones to balance accuracy with development efficiency
 
 ## Implementation Notes
 
