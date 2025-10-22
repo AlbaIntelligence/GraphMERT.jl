@@ -276,19 +276,19 @@ This document organizes implementation tasks by user story to enable independent
 
 ### US5: Evaluation Implementation
 
-- [ ] T120 [P] [US5] Implement FActScore* calculation in GraphMERT/src/evaluation/factscore.jl
-- [ ] T121 [P] [US5] Write unit tests for FActScore in GraphMERT/test/unit/test_evaluation.jl
-- [ ] T122 [P] [US5] Implement ValidityScore calculation in GraphMERT/src/evaluation/validity.jl
-- [ ] T123 [P] [US5] Write unit tests for ValidityScore in GraphMERT/test/unit/test_evaluation.jl
-- [ ] T124 [P] [US5] Implement GraphRAG local search in GraphMERT/src/evaluation/graphrag.jl
-- [ ] T125 [P] [US5] Write unit tests for GraphRAG in GraphMERT/test/unit/test_evaluation.jl
-- [ ] T126 [US5] Verify compilation: test metrics on toy knowledge graphs
-- [ ] T127 [US5] Implement triple-context pairing for FActScore in GraphMERT/src/evaluation/factscore.jl
-- [ ] T128 [US5] Implement LLM-based validation for metrics in GraphMERT/src/evaluation/factscore.jl
-- [ ] T129 [US5] Implement evaluate_factscore() API function in GraphMERT/src/evaluation/factscore.jl
-- [ ] T130 [US5] Implement evaluate_validity() API function in GraphMERT/src/evaluation/validity.jl
-- [ ] T131 [US5] Implement evaluate_graphrag() API function in GraphMERT/src/evaluation/graphrag.jl
-- [ ] T132 [US5] Write integration tests for evaluation pipeline in GraphMERT/test/integration/test_evaluation_integration.jl
+- [x] T120 [P] [US5] Implement FActScore* calculation in GraphMERT/src/evaluation/factscore.jl
+- [x] T121 [P] [US5] Write unit tests for FActScore in GraphMERT/test/unit/test_evaluation.jl
+- [x] T122 [P] [US5] Implement ValidityScore calculation in GraphMERT/src/evaluation/validity.jl
+- [x] T123 [P] [US5] Write unit tests for ValidityScore in GraphMERT/test/unit/test_evaluation.jl
+- [x] T124 [P] [US5] Implement GraphRAG local search in GraphMERT/src/evaluation/graphrag.jl
+- [x] T125 [P] [US5] Write unit tests for GraphRAG in GraphMERT/test/unit/test_evaluation.jl
+- [x] T126 [US5] Verify compilation: test metrics on toy knowledge graphs
+- [x] T127 [US5] Implement triple-context pairing for FActScore in GraphMERT/src/evaluation/factscore.jl
+- [x] T128 [US5] Implement LLM-based validation for metrics in GraphMERT/src/evaluation/factscore.jl
+- [x] T129 [US5] Implement evaluate_factscore() API function in GraphMERT/src/evaluation/factscore.jl
+- [x] T130 [US5] Implement evaluate_validity() API function in GraphMERT/src/evaluation/validity.jl
+- [x] T131 [US5] Implement evaluate_graphrag() API function in GraphMERT/src/evaluation/graphrag.jl
+- [x] T132 [US5] Write integration tests for evaluation pipeline in GraphMERT/test/integration/test_evaluation_integration.jl
 - [ ] T133 [US5] Implement benchmark integration (ICD-Bench, MedMCQA) in GraphMERT/src/evaluation/diabetes.jl
 - [ ] T134 [US5] Add statistical significance testing (p < 0.05) in GraphMERT/src/evaluation/validity.jl
 - [ ] T135 [US5] Create working example: evaluate diabetes KG in examples/biomedical/08_evaluation_demo.jl

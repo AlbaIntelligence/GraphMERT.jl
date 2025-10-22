@@ -13,10 +13,24 @@ where f(τ) = 𝟙[τ is supported by C(τ)]
 and C(τ) is the set of context sentences containing head and tail entities.
 """
 
-using ..Types: KnowledgeGraph, BiomedicalEntity, BiomedicalRelation
-using ..LLM: make_llm_request, HelperLLMClient
-using ..Biomedical: link_entity_to_umls
+# Types are defined in the main GraphMERT module
+# using ..LLM: make_llm_request, HelperLLMClient
+# using ..Biomedical: link_entity_to_umls
 using Distributions: Normal, quantile
+
+"""
+    FActScoreResult
+
+Result of FActScore* evaluation containing detailed metrics.
+"""
+struct FActScoreResult
+  triple_scores::Vector{Bool}
+  triple_contexts::Vector{String}
+  factscore::Float64
+  supported_triples::Int
+  total_triples::Int
+  metadata::Dict{String,Any}
+end
 
 """
     evaluate_factscore(kg::KnowledgeGraph, text::String;
@@ -49,54 +63,54 @@ where:
 - C(τ) is the set of context sentences containing head and tail entities
 """
 function evaluate_factscore(kg::KnowledgeGraph, text::String;
-                           llm_client::Union{HelperLLMClient, Nothing}=nothing,
-                           confidence_threshold::Float64=0.5,
-                           max_context_sentences::Int=5)
-    @info "Starting FActScore* evaluation for $(length(kg.triples)) triples"
+  llm_client::Union{HelperLLMClient,Nothing}=nothing,
+  confidence_threshold::Float64=0.5,
+  max_context_sentences::Int=5)
+  @info "Starting FActScore* evaluation for $(length(kg.entities)) entities and $(length(kg.relations)) relations"
 
-    # Filter triples by confidence threshold
-    high_confidence_triples = filter_triples_by_confidence(kg, confidence_threshold)
+  # Filter triples by confidence threshold
+  high_confidence_triples = filter_triples_by_confidence(kg, confidence_threshold)
 
-    @info "Evaluating $(length(high_confidence_triples)) high-confidence triples"
+  @info "Evaluating $(length(high_confidence_triples)) high-confidence triples"
 
-    # Evaluate each triple
-    triple_scores = Vector{Bool}()
-    triple_contexts = Vector{String}()
+  # Evaluate each triple
+  triple_scores = Vector{Bool}()
+  triple_contexts = Vector{String}()
 
-    for (head_idx, rel_idx, tail_idx) in high_confidence_triples
-        head_entity = kg.entities[head_idx]
-        tail_entity = kg.entities[tail_idx]
-        relation = kg.relations[rel_idx]
+  for (head_idx, rel_idx, tail_idx) in high_confidence_triples
+    head_entity = kg.entities[head_idx]
+    tail_entity = kg.entities[tail_idx]
+    relation = kg.relations[rel_idx]
 
-        # Get context sentences containing both entities
-        context = get_triple_context(text, head_entity, tail_entity, max_context_sentences)
+    # Get context sentences containing both entities
+    context = get_triple_context(text, head_entity, tail_entity, max_context_sentences)
 
-        # Evaluate factuality using LLM or simple heuristic
-        is_supported = evaluate_triple_support(head_entity, relation, tail_entity, context, llm_client)
+    # Evaluate factuality using LLM or simple heuristic
+    is_supported = evaluate_triple_support(head_entity, relation, tail_entity, context, llm_client)
 
-        push!(triple_scores, is_supported)
-        push!(triple_contexts, join(context, " "))
-    end
+    push!(triple_scores, is_supported)
+    push!(triple_contexts, join(context, " "))
+  end
 
-    # Calculate overall FActScore*
-    total_triples = length(triple_scores)
-    supported_triples = sum(triple_scores)
-    factscore = total_triples > 0 ? supported_triples / total_triples : 0.0
+  # Calculate overall FActScore*
+  total_triples = length(triple_scores)
+  supported_triples = sum(triple_scores)
+  factscore = total_triples > 0 ? supported_triples / total_triples : 0.0
 
-    @info "FActScore* = $(round(factscore, digits=4)) ($supported_triples/$total_triples supported)"
+  @info "FActScore* = $(round(factscore, digits=4)) ($supported_triples/$total_triples supported)"
 
-    return FActScoreResult(
-        triple_scores,
-        triple_contexts,
-        factscore,
-        supported_triples,
-        total_triples,
-        Dict(
-            "confidence_threshold" => confidence_threshold,
-            "max_context_sentences" => max_context_sentences,
-            "evaluation_method" => llm_client !== nothing ? "llm" : "heuristic"
-        )
+  return FActScoreResult(
+    triple_scores,
+    triple_contexts,
+    factscore,
+    supported_triples,
+    total_triples,
+    Dict(
+      "confidence_threshold" => confidence_threshold,
+      "max_context_sentences" => max_context_sentences,
+      "evaluation_method" => llm_client !== nothing ? "llm" : "heuristic"
     )
+  )
 end
 
 """
@@ -112,16 +126,20 @@ Filter triples by minimum confidence threshold.
 - `Vector{Tuple{Int, Int, Int}}`: Filtered triples (head_idx, rel_idx, tail_idx)
 """
 function filter_triples_by_confidence(kg::KnowledgeGraph, threshold::Float64)
-    filtered_triples = Vector{Tuple{Int, Int, Int}}()
+  filtered_triples = Vector{Tuple{Int,Int,Int}}()
 
-    for (head_idx, rel_idx, tail_idx) in kg.triples
-        relation = kg.relations[rel_idx]
-        if relation.confidence >= threshold
-            push!(filtered_triples, (head_idx, rel_idx, tail_idx))
+  # Create all possible entity-relation-entity combinations
+  for (head_idx, head_entity) in enumerate(kg.entities)
+    for (rel_idx, relation) in enumerate(kg.relations)
+      for (tail_idx, tail_entity) in enumerate(kg.entities)
+        if head_idx != tail_idx && relation.confidence >= threshold
+          push!(filtered_triples, (head_idx, rel_idx, tail_idx))
         end
+      end
     end
+  end
 
-    return filtered_triples
+  return filtered_triples
 end
 
 """
@@ -140,23 +158,46 @@ Extract context sentences containing both head and tail entities.
 - `Vector{String}`: Context sentences containing both entities
 """
 function get_triple_context(text::String, head_entity::BiomedicalEntity,
-                          tail_entity::BiomedicalEntity, max_sentences::Int)
-    sentences = split(text, r"[\.\!\?]+")
-    context_sentences = Vector{String}()
+  tail_entity::BiomedicalEntity, max_sentences::Int)
+  sentences = split(text, r"[\.\!\?]+")
+  context_sentences = Vector{String}()
 
-    for sentence in sentences
-        sentence = strip(sentence)
-        if !isempty(sentence) &&
-           (occursin(lowercase(head_entity.text), lowercase(sentence)) ||
-            occursin(lowercase(tail_entity.text), lowercase(sentence)))
-            push!(context_sentences, sentence)
-            if length(context_sentences) >= max_sentences
-                break
-            end
+  for sentence in sentences
+    sentence = strip(sentence)
+    if !isempty(sentence)
+      # Check if sentence contains both entities
+      head_found = occursin(lowercase(head_entity.text), lowercase(sentence)) ||
+                   occursin(lowercase(head_entity.label), lowercase(sentence))
+      tail_found = occursin(lowercase(tail_entity.text), lowercase(sentence)) ||
+                   occursin(lowercase(tail_entity.label), lowercase(sentence))
+
+      if head_found && tail_found
+        push!(context_sentences, sentence)
+        if length(context_sentences) >= max_sentences
+          break
         end
+      end
     end
+  end
 
-    return context_sentences
+  # If no sentences contain both entities, fall back to sentences with either entity
+  if isempty(context_sentences)
+    for sentence in sentences
+      sentence = strip(sentence)
+      if !isempty(sentence) &&
+         (occursin(lowercase(head_entity.text), lowercase(sentence)) ||
+          occursin(lowercase(tail_entity.text), lowercase(sentence)) ||
+          occursin(lowercase(head_entity.label), lowercase(sentence)) ||
+          occursin(lowercase(tail_entity.label), lowercase(sentence)))
+        push!(context_sentences, sentence)
+        if length(context_sentences) >= max_sentences
+          break
+        end
+      end
+    end
+  end
+
+  return context_sentences
 end
 
 """
@@ -177,14 +218,14 @@ Evaluate whether a triple is supported by its context.
 - `Bool`: True if triple is supported by context
 """
 function evaluate_triple_support(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                                tail_entity::BiomedicalEntity, context::Vector{String},
-                                llm_client::Union{HelperLLMClient, Nothing})
-    # Simple heuristic evaluation (would use LLM in practice)
-    if llm_client !== nothing
-        return evaluate_triple_with_llm(head_entity, relation, tail_entity, context, llm_client)
-    else
-        return evaluate_triple_heuristic(head_entity, relation, tail_entity, context)
-    end
+  tail_entity::BiomedicalEntity, context::Vector{String},
+  llm_client::Union{HelperLLMClient,Nothing})
+  # Simple heuristic evaluation (would use LLM in practice)
+  if llm_client !== nothing
+    return evaluate_triple_with_llm(head_entity, relation, tail_entity, context, llm_client)
+  else
+    return evaluate_triple_heuristic(head_entity, relation, tail_entity, context)
+  end
 end
 
 """
@@ -205,33 +246,33 @@ Evaluate triple support using LLM.
 - `Bool`: LLM evaluation result
 """
 function evaluate_triple_with_llm(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                                 tail_entity::BiomedicalEntity, context::Vector{String},
-                                 llm_client::HelperLLMClient)
-    # Create evaluation prompt
-    context_text = join(context, " ")
-    prompt = """
-    Evaluate if the following biomedical relationship is supported by the context:
+  tail_entity::BiomedicalEntity, context::Vector{String},
+  llm_client::HelperLLMClient)
+  # Create evaluation prompt
+  context_text = join(context, " ")
+  prompt = """
+  Evaluate if the following biomedical relationship is supported by the context:
 
-    Relationship: $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text)
+  Relationship: $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text)
 
-    Context: $context_text
+  Context: $context_text
 
-    Is this relationship factually supported by the context?
-    Answer YES or NO only:
-    """
+  Is this relationship factually supported by the context?
+  Answer YES or NO only:
+  """
 
-    try
-        response = make_llm_request(llm_client, prompt)
-        if response.success
-            answer = strip(lowercase(response.content))
-            return startswith(answer, "yes")
-        end
-    catch e
-        @warn "LLM evaluation failed: $e"
+  try
+    response = make_llm_request(llm_client, prompt)
+    if response.success
+      answer = strip(lowercase(response.content))
+      return startswith(answer, "yes")
     end
+  catch e
+    @warn "LLM evaluation failed: $e"
+  end
 
-    # Fallback to heuristic
-    return evaluate_triple_heuristic(head_entity, relation, tail_entity, context)
+  # Fallback to heuristic
+  return evaluate_triple_heuristic(head_entity, relation, tail_entity, context)
 end
 
 """
@@ -250,17 +291,17 @@ Simple heuristic evaluation of triple support.
 - `Bool`: Heuristic evaluation result
 """
 function evaluate_triple_heuristic(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                                  tail_entity::BiomedicalEntity, context::Vector{String})
-    # Simple heuristic: check if both entities appear in the same context
-    head_in_context = any(occursin(lowercase(head_entity.text), lowercase(sentence)) for sentence in context)
-    tail_in_context = any(occursin(lowercase(tail_entity.text), lowercase(sentence)) for sentence in context)
+  tail_entity::BiomedicalEntity, context::Vector{String})
+  # Simple heuristic: check if both entities appear in the same context
+  head_in_context = any(occursin(lowercase(head_entity.text), lowercase(sentence)) for sentence in context)
+  tail_in_context = any(occursin(lowercase(tail_entity.text), lowercase(sentence)) for sentence in context)
 
-    # Check if relation keywords appear in context
-    relation_keywords = get_relation_keywords(relation.relation_type)
-    relation_in_context = any(occursin(lowercase(keyword), lowercase(join(context, " "))) for keyword in relation_keywords)
+  # Check if relation keywords appear in context
+  relation_keywords = get_relation_keywords(relation.relation_type)
+  relation_in_context = any(occursin(lowercase(keyword), lowercase(join(context, " "))) for keyword in relation_keywords)
 
-    # Basic support: both entities in context and relation makes sense
-    return head_in_context && tail_in_context && relation_in_context
+  # Basic support: both entities in context and relation makes sense
+  return head_in_context && tail_in_context && relation_in_context
 end
 
 """
@@ -275,16 +316,16 @@ Get keywords associated with a relation type for heuristic evaluation.
 - `Vector{String}`: Associated keywords
 """
 function get_relation_keywords(relation_type::String)
-    relation_keywords = Dict(
-        "TREATS" => ["treat", "treatment", "therapy", "medication", "drug"],
-        "CAUSES" => ["cause", "lead to", "result in", "induce", "produce"],
-        "ASSOCIATED_WITH" => ["associated", "related", "linked", "connected", "correlated"],
-        "INDICATES" => ["indicate", "suggest", "show", "demonstrate", "reveal"],
-        "PREVENTS" => ["prevent", "protect", "block", "inhibit", "reduce"],
-        "COMPLICATES" => ["complicate", "worsen", "exacerbate", "aggravate", "complicate"]
-    )
+  relation_keywords = Dict(
+    "TREATS" => ["treat", "treatment", "therapy", "medication", "drug"],
+    "CAUSES" => ["cause", "lead to", "result in", "induce", "produce"],
+    "ASSOCIATED_WITH" => ["associated", "related", "linked", "connected", "correlated"],
+    "INDICATES" => ["indicate", "suggest", "show", "demonstrate", "reveal"],
+    "PREVENTS" => ["prevent", "protect", "block", "inhibit", "reduce"],
+    "COMPLICATES" => ["complicate", "worsen", "exacerbate", "aggravate", "complicate"]
+  )
 
-    return get(relation_keywords, relation_type, [lowercase(relation_type)])
+  return get(relation_keywords, relation_type, [lowercase(relation_type)])
 end
 
 """
@@ -301,20 +342,20 @@ Calculate confidence interval for FActScore* using Wilson score interval.
 - `Tuple{Float64, Float64}`: (lower_bound, upper_bound)
 """
 function calculate_factscore_confidence_interval(factscore::Float64, n::Int, confidence_level::Float64=0.95)
-    if n == 0
-        return (0.0, 0.0)
-    end
+  if n == 0
+    return (0.0, 0.0)
+  end
 
-    # Wilson score interval for binomial proportion
-    z = quantile(Normal(), (1 + confidence_level) / 2)
-    p = factscore
-    n = Float64(n)
+  # Wilson score interval for binomial proportion
+  z = quantile(Normal(), (1 + confidence_level) / 2)
+  p = factscore
+  n = Float64(n)
 
-    center = (p + z^2/(2*n)) / (1 + z^2/n)
-    margin = z * sqrt(p*(1-p)/n + z^2/(4*n^2)) / (1 + z^2/n)
+  center = (p + z^2 / (2 * n)) / (1 + z^2 / n)
+  margin = z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / (1 + z^2 / n)
 
-    lower = max(0.0, center - margin)
-    upper = min(1.0, center + margin)
+  lower = max(0.0, center - margin)
+  upper = min(1.0, center + margin)
 
-    return (lower, upper)
+  return (lower, upper)
 end

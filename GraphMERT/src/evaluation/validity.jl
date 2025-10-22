@@ -12,10 +12,26 @@ where "yes" indicates that a triple is ontologically valid according to
 established biomedical knowledge.
 """
 
-using ..Types: KnowledgeGraph, BiomedicalEntity, BiomedicalRelation
-using ..LLM: make_llm_request, HelperLLMClient
-using ..Biomedical: link_entity_to_umls
+# Types are defined in the main GraphMERT module
+# using ..LLM: make_llm_request, HelperLLMClient
+# using ..Biomedical: link_entity_to_umls
 using Distributions: Normal, quantile
+
+"""
+    ValidityScoreResult
+
+Result of ValidityScore evaluation containing detailed metrics.
+"""
+struct ValidityScoreResult
+  triple_validity::Vector{Symbol}
+  justifications::Vector{String}
+  validity_score::Float64
+  valid_triples::Int
+  total_triples::Int
+  metadata::Dict{String,Any}
+end
+
+# Use filter_triples_by_confidence from factscore.jl
 
 """
     evaluate_validity(kg::KnowledgeGraph;
@@ -46,7 +62,7 @@ function evaluate_validity(kg::GraphMERT.KnowledgeGraph;
   llm_client::Union{HelperLLMClient,Nothing}=nothing,
   umls_client::Union{UMLSClient,Nothing}=nothing,
   confidence_threshold::Float64=0.5)
-  @info "Starting ValidityScore evaluation for $(length(kg.triples)) triples"
+  @info "Starting ValidityScore evaluation for $(length(kg.entities)) entities and $(length(kg.relations)) relations"
 
   # Filter triples by confidence threshold
   high_confidence_triples = filter_triples_by_confidence(kg, confidence_threshold)
@@ -67,7 +83,7 @@ function evaluate_validity(kg::GraphMERT.KnowledgeGraph;
       head_entity, relation, tail_entity, llm_client, umls_client
     )
 
-    push!(triple_validity, is_valid ? :yes : :no)
+    push!(triple_validity, is_valid)
     push!(justifications, justification)
   end
 
@@ -78,13 +94,18 @@ function evaluate_validity(kg::GraphMERT.KnowledgeGraph;
 
   @info "ValidityScore = $(round(validity_score, digits=4)) ($valid_triples/$total_triples valid)"
 
-  return GraphMERT.ValidityScoreResult(
+  return ValidityScoreResult(
     triple_validity,
+    justifications,
     validity_score,
-    count(v -> v == :yes, triple_validity),
-    count(v -> v == :maybe, triple_validity),
-    count(v -> v == :no, triple_validity),
-    justifications
+    valid_triples,
+    total_triples,
+    Dict(
+      "confidence_threshold" => confidence_threshold,
+      "valid_count" => valid_triples,
+      "maybe_count" => count(v -> v == :maybe, triple_validity),
+      "no_count" => count(v -> v == :no, triple_validity)
+    )
   )
 end
 
@@ -274,8 +295,8 @@ Simple heuristic evaluation of triple validity.
 function evaluate_triple_heuristic_validity(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
   tail_entity::BiomedicalEntity)
   # Simple heuristic based on entity and relation types
-  head_type = lowercase(head_entity.entity_type)
-  tail_type = lowercase(tail_entity.entity_type)
+  head_type = lowercase(head_entity.label)
+  tail_type = lowercase(tail_entity.label)
   relation_type = lowercase(relation.relation_type)
 
   # Basic validity rules

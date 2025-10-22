@@ -5,6 +5,9 @@ This module provides a complete UMLS API client with authentication, rate limiti
 caching, and error handling for biomedical entity linking and validation.
 """
 
+# HTTP and JSON3 dependencies for UMLS API (commented out for now)
+# using HTTP
+# using JSON3
 using Dates
 
 # EntityLinkingResult is defined in the main GraphMERT module
@@ -71,53 +74,27 @@ end
     create_umls_client(api_key::String; kwargs...)
 
 Create a new UMLS client with authentication and rate limiting.
+
+# Arguments
+- `api_key::String`: UMLS API key from NLM UTS
+- `base_url::String`: UMLS REST API base URL (default: "https://uts-ws.nlm.nih.gov/rest")
+- `timeout::Int`: Request timeout in seconds (default: 30)
+- `max_retries::Int`: Maximum retry attempts (default: 3)
+- `semantic_networks::Vector{String}`: Semantic networks to search (default: ["SNOMEDCT_US", "MSH", "RXNORM"])
+- `rate_limit::Int`: Requests per minute limit (default: 100)
+- `cache_ttl::Int`: Cache TTL in seconds (default: 3600)
+
+# Returns
+- `UMLSClient`: Configured UMLS client
+
+# Example
+# ```julia
+# client = create_umls_client(ENV["UMLS_API_KEY"])
+# linking_result = link_entity_to_umls("diabetes mellitus", client)
+# if linking_result !== nothing
+#     println("CUI: $(linking_result.cui), Confidence: $(linking_result.similarity_score)")
+# end
+# ```
 """
 function create_umls_client(api_key::String;
   base_url::String="https://uts-ws.nlm.nih.gov/rest",
-  timeout::Int=30,
-  max_retries::Int=3,
-  semantic_networks::Vector{String}=["SNOMEDCT_US", "MSH", "RXNORM"],
-  rate_limit::Int=100,
-  cache_ttl::Int=3600)
-  config = UMLSConfig(api_key, base_url, timeout, max_retries, semantic_networks, rate_limit)
-  cache = UMLSCache(1000, cache_ttl)
-  return UMLSClient(config, cache, 0.0, 0, time())
-end
-
-"""
-    link_entity_to_umls(entity_text::String, client::UMLSClient)
-
-Link a biomedical entity to UMLS concepts.
-"""
-function link_entity_to_umls(entity_text::String, client::UMLSClient)
-  # Simplified implementation for now
-  return nothing
-end
-
-"""
-    get_entity_cui(client::UMLSClient, entity_text::String)
-
-Get the CUI for an entity.
-"""
-function get_entity_cui(client::UMLSClient, entity_text::String)
-  linking_result = link_entity_to_umls(entity_text, client)
-  return linking_result !== nothing ? linking_result.cui : nothing
-end
-
-"""
-    link_entities_batch(client::UMLSClient, entities::Vector{String})
-
-Link multiple entities to UMLS concepts.
-"""
-function link_entities_batch(client::UMLSClient, entities::Vector{String})
-  results = Dict{String,EntityLinkingResult}()
-
-  for entity in entities
-    linking_result = link_entity_to_umls(entity, client)
-    if linking_result !== nothing
-      results[entity] = linking_result
-    end
-  end
-
-  return results
-end
