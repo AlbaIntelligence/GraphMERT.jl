@@ -17,7 +17,6 @@ established biomedical knowledge.
 # using ..Biomedical: link_entity_to_umls
 using Distributions: Normal, quantile, TDist, chi2cdf
 using Statistics: mean, std, var
-using HypothesisTests: OneSampleTTest, TwoSampleTTest, ChiSquareTest
 
 """
     ValidityScoreResult

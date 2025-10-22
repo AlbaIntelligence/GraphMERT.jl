@@ -3,7 +3,7 @@ Diabetes Knowledge Graph Evaluation Demo
 
 This example demonstrates comprehensive evaluation of diabetes knowledge graphs using:
 1. ICD-Bench benchmark integration
-2. MedMCQA benchmark evaluation  
+2. MedMCQA benchmark evaluation
 3. Statistical significance testing (p < 0.05)
 4. FActScore* and ValidityScore metrics
 5. GraphRAG evaluation methodology
@@ -13,9 +13,9 @@ standard benchmarks and reproduce paper results.
 """
 
 using GraphMERT
-using GraphMERT: run_diabetes_benchmark_evaluation, evaluate_factscore, 
-                 evaluate_validity_with_statistics, evaluate_graphrag,
-                 ICDBenchResult, MedMCQAResult, StatisticalSignificanceResult
+using GraphMERT: run_diabetes_benchmark_evaluation, evaluate_factscore,
+  evaluate_validity_with_statistics, evaluate_graphrag,
+  ICDBenchResult, MedMCQAResult, StatisticalSignificanceResult
 
 println("=== Diabetes Knowledge Graph Evaluation Demo ===")
 
@@ -24,35 +24,35 @@ println("\n1. Creating sample diabetes knowledge graph...")
 
 # Create sample entities
 entities = [
-    GraphMERT.BiomedicalEntity("diabetes mellitus", "C0011849", "Disease", 0.95, 
-                              GraphMERT.TextPosition(1, 20, 1, 1), 
-                              Dict("icd_code" => "E11", "semantic_type" => "Disease"), now()),
-    GraphMERT.BiomedicalEntity("metformin", "C0025595", "Drug", 0.92,
-                              GraphMERT.TextPosition(25, 35, 1, 1),
-                              Dict("drug_class" => "biguanide", "semantic_type" => "Drug"), now()),
-    GraphMERT.BiomedicalEntity("insulin", "C0021641", "Drug", 0.98,
-                              GraphMERT.TextPosition(40, 47, 1, 1),
-                              Dict("drug_class" => "hormone", "semantic_type" => "Drug"), now()),
-    GraphMERT.BiomedicalEntity("glucose", "C0017725", "Chemical", 0.89,
-                              GraphMERT.TextPosition(50, 57, 1, 1),
-                              Dict("chemical_type" => "sugar", "semantic_type" => "Chemical"), now())
+  GraphMERT.BiomedicalEntity("diabetes mellitus", "C0011849", "Disease", 0.95,
+    GraphMERT.TextPosition(1, 20, 1, 1),
+    Dict("icd_code" => "E11", "semantic_type" => "Disease"), now()),
+  GraphMERT.BiomedicalEntity("metformin", "C0025595", "Drug", 0.92,
+    GraphMERT.TextPosition(25, 35, 1, 1),
+    Dict("drug_class" => "biguanide", "semantic_type" => "Drug"), now()),
+  GraphMERT.BiomedicalEntity("insulin", "C0021641", "Drug", 0.98,
+    GraphMERT.TextPosition(40, 47, 1, 1),
+    Dict("drug_class" => "hormone", "semantic_type" => "Drug"), now()),
+  GraphMERT.BiomedicalEntity("glucose", "C0017725", "Chemical", 0.89,
+    GraphMERT.TextPosition(50, 57, 1, 1),
+    Dict("chemical_type" => "sugar", "semantic_type" => "Chemical"), now())
 ]
 
 # Create sample relations
 relations = [
-    GraphMERT.BiomedicalRelation("diabetes mellitus", "metformin", "treats", 0.88, 
-                                Dict("evidence_level" => "high", "source" => "clinical_trial"), now()),
-    GraphMERT.BiomedicalRelation("diabetes mellitus", "insulin", "treats", 0.94,
-                                Dict("evidence_level" => "high", "source" => "clinical_guideline"), now()),
-    GraphMERT.BiomedicalRelation("diabetes mellitus", "glucose", "affects", 0.91,
-                                Dict("evidence_level" => "high", "source" => "pathophysiology"), now()),
-    GraphMERT.BiomedicalRelation("metformin", "glucose", "reduces", 0.87,
-                                Dict("evidence_level" => "high", "source" => "mechanism"), now())
+  GraphMERT.BiomedicalRelation("diabetes mellitus", "metformin", "treats", 0.88,
+    Dict("evidence_level" => "high", "source" => "clinical_trial"), now()),
+  GraphMERT.BiomedicalRelation("diabetes mellitus", "insulin", "treats", 0.94,
+    Dict("evidence_level" => "high", "source" => "clinical_guideline"), now()),
+  GraphMERT.BiomedicalRelation("diabetes mellitus", "glucose", "affects", 0.91,
+    Dict("evidence_level" => "high", "source" => "pathophysiology"), now()),
+  GraphMERT.BiomedicalRelation("metformin", "glucose", "reduces", 0.87,
+    Dict("evidence_level" => "high", "source" => "mechanism"), now())
 ]
 
 # Create knowledge graph
-kg = GraphMERT.KnowledgeGraph(entities, relations, 
-                             Dict("domain" => "diabetes", "source" => "demo", "version" => "1.0"), now())
+kg = GraphMERT.KnowledgeGraph(entities, relations,
+  Dict("domain" => "diabetes", "source" => "demo", "version" => "1.0"), now())
 
 println("✓ Created knowledge graph with $(length(kg.entities)) entities and $(length(kg.relations)) relations")
 
@@ -61,9 +61,9 @@ println("\n2. Running ICD-Bench evaluation...")
 
 # Create mock ICD-Bench data
 icd_data = DataFrame(
-    icd_code = ["E11", "E10", "E12", "E13", "E14"],
-    description = ["Type 2 diabetes", "Type 1 diabetes", "Other diabetes", "Unspecified diabetes", "Gestational diabetes"],
-    severity = ["moderate", "severe", "mild", "moderate", "mild"]
+  icd_code=["E11", "E10", "E12", "E13", "E14"],
+  description=["Type 2 diabetes", "Type 1 diabetes", "Other diabetes", "Unspecified diabetes", "Gestational diabetes"],
+  severity=["moderate", "severe", "mild", "moderate", "mild"]
 )
 
 # Save mock data
@@ -84,19 +84,19 @@ println("\n3. Running MedMCQA evaluation...")
 
 # Create mock MedMCQA data
 medmcqa_data = DataFrame(
-    question = [
-        "What is the first-line treatment for type 2 diabetes?",
-        "Which drug class does metformin belong to?",
-        "What is the primary mechanism of insulin?",
-        "How does glucose affect diabetes?"
-    ],
-    answer = [
-        "metformin",
-        "biguanide", 
-        "glucose regulation",
-        "elevated levels cause complications"
-    ],
-    question_type = ["treatment", "classification", "mechanism", "pathophysiology"]
+  question=[
+    "What is the first-line treatment for type 2 diabetes?",
+    "Which drug class does metformin belong to?",
+    "What is the primary mechanism of insulin?",
+    "How does glucose affect diabetes?"
+  ],
+  answer=[
+    "metformin",
+    "biguanide",
+    "glucose regulation",
+    "elevated levels cause complications"
+  ],
+  question_type=["treatment", "classification", "mechanism", "pathophysiology"]
 )
 
 # Save mock data
@@ -113,9 +113,9 @@ println("  • Correct Answers: $(medmcqa_results.correct_answers)/$(medmcqa_res
 # 4. Run comprehensive benchmark evaluation
 println("\n4. Running comprehensive benchmark evaluation...")
 
-benchmark_results = GraphMERT.run_diabetes_benchmark_evaluation(kg, 
-                                                               icd_data_path="data/icd_bench.csv",
-                                                               medmcqa_data_path="data/medmcqa.csv")
+benchmark_results = GraphMERT.run_diabetes_benchmark_evaluation(kg,
+  icd_data_path="data/icd_bench.csv",
+  medmcqa_data_path="data/medmcqa.csv")
 
 println("✓ Comprehensive Benchmark Results:")
 println("  • Overall Accuracy: $(round(benchmark_results["overall_accuracy"], digits=3))")
@@ -150,16 +150,16 @@ println("\n7. Running GraphRAG evaluation...")
 
 # Create sample questions for GraphRAG
 questions = [
-    "What drugs are used to treat diabetes?",
-    "How does metformin work?",
-    "What is the relationship between glucose and diabetes?"
+  "What drugs are used to treat diabetes?",
+  "How does metformin work?",
+  "What is the relationship between glucose and diabetes?"
 ]
 
 graphrag_results = GraphMERT.evaluate_graphrag(kg, questions)
 println("✓ GraphRAG Results:")
 println("  • Questions Answered: $(length(graphrag_results))")
 for (i, result) in enumerate(graphrag_results)
-    println("  • Question $i: $(round(result["relevance_score"], digits=3)) relevance")
+  println("  • Question $i: $(round(result["relevance_score"], digits=3)) relevance")
 end
 
 # 8. Compare with paper results
