@@ -150,27 +150,27 @@ This document organizes implementation tasks by user story to enable independent
 
 ### US2: MNM Training Implementation (CRITICAL)
 
-- [ ] T054 [US2] Implement select_leaves_to_mask() in GraphMERT/src/training/mnm.jl
-- [ ] T055 [US2] Write unit tests for leaf masking in GraphMERT/test/unit/test_mnm.jl
-- [ ] T056 [US2] Implement apply_mnm_masks() with mask strategies in GraphMERT/src/training/mnm.jl
-- [ ] T057 [US2] Implement calculate_mnm_loss() for leaf prediction in GraphMERT/src/training/mnm.jl
-- [ ] T058 [US2] Write unit tests for MNM loss calculation in GraphMERT/test/unit/test_mnm.jl
-- [ ] T059 [US2] Verify compilation: test MNM loss on toy data
-- [ ] T060 [US2] Implement relation_embedding_dropout (0.3) in GraphMERT/src/training/mnm.jl
-- [ ] T061 [US2] Implement gradient flow validation through H-GAT in GraphMERT/src/training/mnm.jl
-- [ ] T062 [US2] Write tests for gradient flow validation in GraphMERT/test/unit/test_mnm.jl
-- [ ] T063 [US2] Implement train_joint_mlm_mnm_step() combining both losses in GraphMERT/src/training/mnm.jl
-- [ ] T064 [US2] Implement create_mnm_batch() for batch preparation in GraphMERT/src/training/mnm.jl
-- [ ] T065 [US2] Write integration tests for joint training in GraphMERT/test/integration/test_training_pipeline.jl
-- [ ] T066 [US2] Create working example: MNM training on small dataset in examples/biomedical/03_mnm_training_demo.jl
+- [x] T054 [US2] Implement select_leaves_to_mask() in GraphMERT/src/training/mnm.jl
+- [x] T055 [US2] Write unit tests for leaf masking in GraphMERT/test/unit/test_mnm.jl
+- [x] T056 [US2] Implement apply_mnm_masks() with mask strategies in GraphMERT/src/training/mnm.jl
+- [x] T057 [US2] Implement calculate_mnm_loss() for leaf prediction in GraphMERT/src/training/mnm.jl
+- [x] T058 [US2] Write unit tests for MNM loss calculation in GraphMERT/test/unit/test_mnm.jl
+- [x] T059 [US2] Verify compilation: test MNM loss on toy data
+- [x] T060 [US2] Implement relation_embedding_dropout (0.3) in GraphMERT/src/training/mnm.jl
+- [x] T061 [US2] Implement gradient flow validation through H-GAT in GraphMERT/src/training/mnm.jl
+- [x] T062 [US2] Write tests for gradient flow validation in GraphMERT/test/unit/test_mnm.jl
+- [x] T063 [US2] Implement train_joint_mlm_mnm_step() combining both losses in GraphMERT/src/training/mnm.jl
+- [x] T064 [US2] Implement create_mnm_batch() for batch preparation in GraphMERT/src/training/mnm.jl
+- [x] T065 [US2] Write integration tests for joint training in GraphMERT/test/integration/test_training_pipeline.jl
+- [x] T066 [US2] Create working example: MNM training on small dataset in examples/biomedical/03_mnm_training_demo.jl
 
 ### US2: Seed KG Injection Implementation (CRITICAL)
 
-- [ ] T067 [US2] Implement SapBERT embedding-based candidate retrieval in GraphMERT/src/training/seed_injection.jl
-- [ ] T068 [US2] Write unit tests for entity linking in GraphMERT/test/unit/test_seed_injection.jl
-- [ ] T069 [US2] Implement character 3-gram Jaccard similarity filtering in GraphMERT/src/training/seed_injection.jl
-- [ ] T070 [US2] Write unit tests for string matching in GraphMERT/test/unit/test_seed_injection.jl
-- [ ] T071 [US2] Verify compilation: test entity linking pipeline
+- [x] T067 [US2] Implement SapBERT embedding-based candidate retrieval in GraphMERT/src/training/seed_injection.jl
+- [x] T068 [US2] Write unit tests for entity linking in GraphMERT/test/unit/test_seed_injection.jl
+- [x] T069 [US2] Implement character 3-gram Jaccard similarity filtering in GraphMERT/src/training/seed_injection.jl
+- [x] T070 [US2] Write unit tests for string matching in GraphMERT/test/unit/test_seed_injection.jl
+- [x] T071 [US2] Verify compilation: test entity linking pipeline
 - [ ] T072 [US2] Implement contextual triple selection (top-40) in GraphMERT/src/training/seed_injection.jl
 - [ ] T073 [US2] Implement score bucketing algorithm in GraphMERT/src/training/seed_injection.jl
 - [ ] T074 [US2] Implement relation bucketing for diversity in GraphMERT/src/training/seed_injection.jl
