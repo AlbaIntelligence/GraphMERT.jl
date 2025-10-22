@@ -188,11 +188,11 @@ This document organizes implementation tasks by user story to enable independent
 - [x] T083 [US2] Implement training loop with checkpoint saving in GraphMERT/src/training/pipeline.jl
 - [x] T084 [US2] Write unit tests for checkpoint persistence in GraphMERT/test/unit/test_persistence.jl
 - [x] T085 [US2] Implement training monitoring and logging in GraphMERT/src/monitoring/performance.jl
-- [ ] T086 [US2] Add random seed management for reproducibility in GraphMERT/src/training/pipeline.jl
-- [ ] T087 [US2] Write integration tests for full training pipeline in GraphMERT/test/integration/test_training_pipeline.jl
-- [ ] T088 [US2] Create working example: train on small diabetes subset in examples/biomedical/05_training_demo.jl
-- [ ] T089 [US2] Verify end-to-end: train model, save, load, and verify reproducibility
-- [ ] T090 [US2] Performance test: verify training memory < 4GB (NFR-002)
+- [x] T086 [US2] Add random seed management for reproducibility in GraphMERT/src/training/pipeline.jl
+- [x] T087 [US2] Write integration tests for full training pipeline in GraphMERT/test/integration/test_training_pipeline.jl
+- [x] T088 [US2] Create working example: train on small diabetes subset in examples/biomedical/05_training_demo.jl
+- [x] T089 [US2] Verify end-to-end: train model, save, load, and verify reproducibility
+- [x] T090 [US2] Performance test: verify training memory < 4GB (NFR-002)
 
 ---
 

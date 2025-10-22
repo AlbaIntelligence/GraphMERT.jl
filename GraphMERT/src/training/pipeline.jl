@@ -11,6 +11,41 @@ The pipeline follows the paper's methodology for training GraphMERT models
 with both syntactic and semantic objectives.
 """
 
+"""
+    set_reproducible_seed(seed::Int=42)
+
+Set random seed for reproducibility across Julia, Flux, and other libraries.
+
+# Arguments
+- `seed::Int`: Random seed value (default: 42)
+"""
+function set_reproducible_seed(seed::Int=42)
+    # Set Julia's global random seed
+    Random.seed!(seed)
+    
+    # Set Flux's random seed if available
+    if isdefined(Main, :Flux)
+        try
+            Flux.gpu(false)  # Ensure CPU mode for reproducibility
+            # Flux doesn't have a global seed function, but we can set it per operation
+        catch
+            # Flux not available or error, continue
+        end
+    end
+    
+    # Set CUDA seed if available
+    if isdefined(Main, :CUDA)
+        try
+            CUDA.seed!(seed)
+        catch
+            # CUDA not available or error, continue
+        end
+    end
+    
+    # Log the seed for debugging
+    @info "Random seed set to $seed for reproducibility"
+end
+
 # Types and functions will be available from main module after all includes
 
 # Import missing functions (will be implemented)
@@ -173,7 +208,10 @@ function train_graphmert(train_texts::Vector{String}, config::GraphMERTConfig;
   mnm_config::MNMConfig=default_mnm_config(),
   injection_config::Union{SeedInjectionConfig,Nothing}=nothing,
   num_epochs::Int=10, learning_rate::Float64=1e-4,
-  checkpoint_dir::String="checkpoints")::GraphMERTModel
+  checkpoint_dir::String="checkpoints", random_seed::Int=42)::GraphMERTModel
+
+  # Set random seed for reproducibility
+  set_reproducible_seed(random_seed)
 
   # Initialize model
   model = GraphMERTModel(config)
@@ -401,4 +439,5 @@ end
 
 # Export functions for external use
 export train_graphmert, prepare_training_data, create_training_configurations, load_training_data,
-  save_training_checkpoint, log_training_step
+       save_training_checkpoint, log_training_step, set_reproducible_seed
+
