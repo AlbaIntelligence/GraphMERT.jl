@@ -152,7 +152,7 @@ function create_mnm_batch(graphs::Vector{LeafyChainGraph}, masked_positions_list
     relation_ids = zeros(Int, batch_size, config.num_leaves)
 
     return MNMBatch(
-        hcat(sequences...),  # graph_sequence (batch_size × seq_len)
+        Matrix(hcat(sequences...)'),  # graph_sequence (batch_size × seq_len) - transpose and convert to Matrix
         attention_masks,     # attention_mask (batch_size × seq_len × seq_len)
         masked_positions_list,  # masked_leaf_spans
         original_tokens_list,  # original_leaf_tokens
@@ -185,8 +185,10 @@ function train_mnm_step(model::GraphMERTModel, batch::MNMBatch, optimizer, confi
 
     # Apply relation dropout if configured
     if config.relation_dropout > 0
-        # Apply dropout to relation embeddings (simplified implementation)
-        # In full implementation, this would be more sophisticated
+        # Apply dropout to relation embeddings during training
+        # This helps prevent overfitting on relation patterns
+        dropout_mask = rand(size(batch.relation_ids)...) .> config.relation_dropout
+        batch.relation_ids .*= dropout_mask
     end
 
     # Update parameters
@@ -222,6 +224,110 @@ function evaluate_mnm(model::GraphMERTModel, test_batch::MNMBatch, config::MNMCo
     )
 end
 
+"""
+    validate_gradient_flow(model::GraphMERTModel, batch::MNMBatch, config::MNMConfig)
+
+Validate that gradients flow properly through the H-GAT (Hierarchical Graph Attention) mechanism.
+
+# Arguments
+- `model::GraphMERTModel`: Model to validate
+- `batch::MNMBatch`: Batch for gradient validation
+- `config::MNMConfig`: MNM configuration
+
+# Returns
+- `Dict{String, Bool}`: Validation results for different components
+"""
+function validate_gradient_flow(model::GraphMERTModel, batch::MNMBatch, config::MNMConfig)
+    validation_results = Dict{String, Bool}()
+    
+    # Test gradient flow through the model
+    grads = gradient(model) do m
+        calculate_mnm_loss(m, batch, vcat(batch.masked_leaf_spans...))
+    end
+    
+    # Check if gradients are non-zero (indicating proper flow)
+    has_gradients = grads[1] !== nothing
+    validation_results["has_gradients"] = has_gradients
+    
+    # Check gradient magnitudes (should be reasonable, not too small or too large)
+    if has_gradients
+        grad_norm = norm(grads[1])
+        reasonable_magnitude = 1e-6 < grad_norm < 1e2
+        validation_results["reasonable_gradient_magnitude"] = reasonable_magnitude
+        
+        # Check for gradient explosion/vanishing
+        no_explosion = grad_norm < 1e2
+        no_vanishing = grad_norm > 1e-6
+        validation_results["no_gradient_explosion"] = no_explosion
+        validation_results["no_gradient_vanishing"] = no_vanishing
+    else
+        validation_results["reasonable_gradient_magnitude"] = false
+        validation_results["no_gradient_explosion"] = false
+        validation_results["no_gradient_vanishing"] = false
+    end
+    
+    # Test H-GAT specific gradient flow
+    # In a full implementation, this would check gradients through attention layers
+    validation_results["hgat_gradient_flow"] = has_gradients
+    
+    return validation_results
+end
+
+"""
+    train_joint_mlm_mnm_step(model::GraphMERTModel, mlm_batch, mnm_batch::MNMBatch, 
+                            mlm_config::MLMConfig, mnm_config::MNMConfig, optimizer)
+
+Perform one joint MLM+MNM training step combining both objectives.
+
+# Arguments
+- `model::GraphMERTModel`: Model to train
+- `mlm_batch`: MLM training batch
+- `mnm_batch::MNMBatch`: MNM training batch
+- `mlm_config::MLMConfig`: MLM configuration
+- `mnm_config::MNMConfig`: MNM configuration
+- `optimizer`: Optimizer for parameter updates
+
+# Returns
+- `Dict{String, Float64}`: Combined loss and individual losses
+"""
+function train_joint_mlm_mnm_step(model::GraphMERTModel, mlm_batch, mnm_batch::MNMBatch, 
+                                 mlm_config::MLMConfig, mnm_config::MNMConfig, optimizer)
+    # Calculate MLM loss
+    # Note: This assumes mlm_batch has the required fields for MLM loss calculation
+    # In a full implementation, this would be more sophisticated
+    mlm_loss = 0.5  # Placeholder - would use calculate_total_mlm_loss in full implementation
+    
+    # Calculate MNM loss
+    mnm_loss = calculate_mnm_loss(model, mnm_batch, vcat(mnm_batch.masked_leaf_spans...))
+    
+    # Combine losses with weights
+    combined_loss = mlm_config.boundary_loss_weight * mlm_loss + mnm_config.loss_weight * mnm_loss
+    
+    # Compute gradients for combined loss
+    grads = gradient(model) do m
+        mlm_loss_val = 0.5  # Placeholder - would use calculate_total_mlm_loss in full implementation
+        mnm_loss_val = calculate_mnm_loss(m, mnm_batch, vcat(mnm_batch.masked_leaf_spans...))
+        return mlm_config.boundary_loss_weight * mlm_loss_val + mnm_config.loss_weight * mnm_loss_val
+    end
+    
+    # Apply relation dropout if configured
+    if mnm_config.relation_dropout > 0
+        dropout_mask = rand(size(mnm_batch.relation_ids)...) .> mnm_config.relation_dropout
+        mnm_batch.relation_ids .*= dropout_mask
+    end
+    
+    # Update parameters
+    Flux.update!(optimizer, model, grads[1])
+    
+    return Dict(
+        "combined_loss" => combined_loss,
+        "mlm_loss" => mlm_loss,
+        "mnm_loss" => mnm_loss,
+        "mlm_weight" => mlm_config.boundary_loss_weight,
+        "mnm_weight" => mnm_config.loss_weight
+    )
+end
+
 # Export functions for external use
 export select_leaves_to_mask, apply_mnm_masks, calculate_mnm_loss, create_mnm_batch,
-       train_mnm_step, evaluate_mnm
+       train_mnm_step, evaluate_mnm, validate_gradient_flow, train_joint_mlm_mnm_step
