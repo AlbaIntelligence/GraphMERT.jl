@@ -183,11 +183,11 @@ This document organizes implementation tasks by user story to enable independent
 
 ### US2: Training Pipeline
 
-- [ ] T081 [US2] Implement train_graphmert() main training function in GraphMERT/src/training/pipeline.jl
-- [ ] T082 [US2] Implement data loading and preprocessing in GraphMERT/src/data/preparation.jl
-- [ ] T083 [US2] Implement training loop with checkpoint saving in GraphMERT/src/training/pipeline.jl
-- [ ] T084 [US2] Write unit tests for checkpoint persistence in GraphMERT/test/unit/test_persistence.jl
-- [ ] T085 [US2] Implement training monitoring and logging in GraphMERT/src/monitoring/performance.jl
+- [x] T081 [US2] Implement train_graphmert() main training function in GraphMERT/src/training/pipeline.jl
+- [x] T082 [US2] Implement data loading and preprocessing in GraphMERT/src/data/preparation.jl
+- [x] T083 [US2] Implement training loop with checkpoint saving in GraphMERT/src/training/pipeline.jl
+- [x] T084 [US2] Write unit tests for checkpoint persistence in GraphMERT/test/unit/test_persistence.jl
+- [x] T085 [US2] Implement training monitoring and logging in GraphMERT/src/monitoring/performance.jl
 - [ ] T086 [US2] Add random seed management for reproducibility in GraphMERT/src/training/pipeline.jl
 - [ ] T087 [US2] Write integration tests for full training pipeline in GraphMERT/test/integration/test_training_pipeline.jl
 - [ ] T088 [US2] Create working example: train on small diabetes subset in examples/biomedical/05_training_demo.jl

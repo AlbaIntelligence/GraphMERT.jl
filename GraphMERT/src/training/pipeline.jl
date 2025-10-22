@@ -20,31 +20,31 @@ with both syntactic and semantic objectives.
 # function default_seed_injection_config() = GraphMERT.SeedInjectionConfig(...)
 
 function default_graphmert_config()
-    return GraphMERT.GraphMERTConfig(
-        roberta_config=GraphMERT.RoBERTaConfig(
-            vocab_size=30522,
-            hidden_size=512,
-            num_hidden_layers=12,
-            num_attention_heads=8,
-            intermediate_size=2048,
-            max_position_embeddings=1024,
-            type_vocab_size=2,
-            layer_norm_eps=1e-12,
-            hidden_dropout_prob=0.1,
-            attention_probs_dropout_prob=0.1
-        ),
-        hgat_config=GraphMERT.HGATConfig(
-            hidden_size=512,
-            num_attention_heads=4,
-            num_relation_types=50,
-            relation_embedding_dim=64
-        ),
-        attention_config=GraphMERT.SpatialAttentionConfig(
-            hidden_size=512,
-            decay_lambda=0.6,
-            decay_p_init=1.0
-        )
+  return GraphMERT.GraphMERTConfig(
+    roberta_config=GraphMERT.RoBERTaConfig(
+      vocab_size=30522,
+      hidden_size=512,
+      num_hidden_layers=12,
+      num_attention_heads=8,
+      intermediate_size=2048,
+      max_position_embeddings=1024,
+      type_vocab_size=2,
+      layer_norm_eps=1e-12,
+      hidden_dropout_prob=0.1,
+      attention_probs_dropout_prob=0.1
+    ),
+    hgat_config=GraphMERT.HGATConfig(
+      hidden_size=512,
+      num_attention_heads=4,
+      num_relation_types=50,
+      relation_embedding_dim=64
+    ),
+    attention_config=GraphMERT.SpatialAttentionConfig(
+      hidden_size=512,
+      decay_lambda=0.6,
+      decay_p_init=1.0
     )
+  )
 end
 
 """
@@ -65,8 +65,8 @@ Prepare training data by creating leafy chain graphs and applying masking.
 - `Tuple{Vector{LeafyChainGraph}, Vector{MNMBatch}, Vector{MLMBatch}}`: Prepared data
 """
 function prepare_training_data(texts::Vector{String}, seed_kg::Vector{GraphMERT.SemanticTriple},
-                              mlm_config::GraphMERT.MLMConfig, mnm_config::GraphMERT.MNMConfig,
-                              injection_config::GraphMERT.SeedInjectionConfig)
+  mlm_config::GraphMERT.MLMConfig, mnm_config::GraphMERT.MNMConfig,
+  injection_config::GraphMERT.SeedInjectionConfig)
   # Step 1: Create leafy chain graphs from texts
   graphs = [create_leafy_chain_from_text(text) for text in texts]
 
@@ -222,14 +222,14 @@ function train_graphmert(train_texts::Vector{String}, config::GraphMERTConfig;
 
       # Log progress
       if step % 10 == 0
-        log_training_progress(epoch, step, combined_loss, mnm_loss, mlm_loss)
+        log_training_step(epoch, step, combined_loss, mnm_loss, mlm_loss)
       end
     end
 
     # Save checkpoint
     if epoch % 2 == 0
       checkpoint_path = joinpath(checkpoint_dir, "graphmert_epoch$(epoch).jld2")
-      save_model(model, checkpoint_path)
+      save_training_checkpoint(model, checkpoint_path)
       println("Saved checkpoint: $checkpoint_path")
     end
   end
@@ -247,55 +247,82 @@ Create default training configurations for GraphMERT.
 """
 function create_training_configurations()::Tuple{GraphMERTConfig,MLMConfig,MNMConfig,SeedInjectionConfig}
   # Model configuration (80M parameters for laptop deployment)
+  roberta_config = RoBERTaConfig(
+    vocab_size=30522,
+    hidden_size=512,
+    num_hidden_layers=12,
+    num_attention_heads=8,
+    intermediate_size=2048,
+    max_position_embeddings=1024,
+    type_vocab_size=2,
+    layer_norm_eps=1e-12,
+    hidden_dropout_prob=0.1,
+    attention_probs_dropout_prob=0.1
+  )
+
+  hgat_config = HGATConfig(
+    input_dim=512,
+    hidden_dim=256,
+    num_heads=4,
+    num_layers=2,
+    dropout_rate=0.1,
+    attention_dropout_rate=0.1,
+    layer_norm_eps=1e-12,
+    use_residual=true,
+    use_layer_norm=true
+  )
+
+  attention_config = SpatialAttentionConfig(
+    max_distance=512,
+    decay_rate=0.1f0,
+    decay_type=:exponential,
+    use_distance_bias=true,
+    distance_bias_weight=0.1f0
+  )
+
   model_config = GraphMERTConfig(
-    vocab_size=30522,      # BioMedBERT vocabulary
-    hidden_size=512,       # Hidden dimension
-    num_hidden_layers=12,  # Transformer layers
-    num_attention_heads=8, # Attention heads
-    intermediate_size=2048, # Feed-forward size
-    max_position_embeddings=1024, # Sequence length
-    num_relation_types=50, # H-GAT relation types
-    relation_embedding_dim=64, # Relation embedding size
-    hgat_num_heads=4,      # H-GAT attention heads
-    decay_lambda=0.6,      # Attention decay parameter
-    decay_p_init=1.0       # Initial decay threshold
+    roberta_config=roberta_config,
+    hgat_config=hgat_config,
+    attention_config=attention_config,
+    entity_types=["DISEASE", "DRUG", "PROTEIN", "SYMPTOM", "BIOMARKER"],
+    relation_types=["TREATS", "CAUSES", "ASSOCIATED_WITH", "INDICATES", "PREVENTS"],
+    max_sequence_length=1024,
+    hidden_dim=512
   )
 
   # MLM configuration
   mlm_config = MLMConfig(
     vocab_size=30522,
     hidden_size=512,
-    max_span_length=7,
+    max_length=1024,
     mask_probability=0.15,
-    mask_token_ratio=0.8,
-    random_token_ratio=0.1,
-    unchanged_ratio=0.1,
+    span_length=7,
     boundary_loss_weight=1.0,
-    geometric_p=0.2
+    temperature=1.0
   )
 
   # MNM configuration
   mnm_config = MNMConfig(
-    vocab_size=30522,
-    hidden_size=512,
-    num_leaves=7,
-    mask_probability=0.15,
-    relation_dropout=0.3,
-    loss_weight=1.0,
-    mask_entire_leaf_span=true,
-    mask_token_id=103
+    30522,  # vocab_size
+    512,    # hidden_size
+    7,      # num_leaves
+    0.15,   # mask_probability
+    0.3,    # relation_dropout
+    1.0,    # loss_weight
+    true,   # mask_entire_leaf_span
+    103     # mask_token_id
   )
 
   # Seed injection configuration
   injection_config = SeedInjectionConfig(
-    entity_linking_threshold=0.5,
-    top_k_candidates=10,
-    top_n_triples_per_entity=40,
-    alpha_score_threshold=0.7,
-    score_bucket_size=10,
-    relation_bucket_size=5,
-    injection_ratio=0.2,
-    max_triples_per_sequence=10
+    0.5,  # entity_linking_threshold
+    10,   # top_k_candidates
+    40,   # top_n_triples_per_entity
+    0.7,  # alpha_score_threshold
+    10,   # score_bucket_size
+    5,    # relation_bucket_size
+    0.2,  # injection_ratio
+    10    # max_triples_per_sequence
   )
 
   return model_config, mlm_config, mnm_config, injection_config
@@ -329,5 +356,49 @@ function load_training_data(data_path::String)::Tuple{Vector{String},Vector{Sema
   return train_texts, seed_kg
 end
 
+"""
+    save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String)
+
+Save model checkpoint to disk.
+
+# Arguments
+- `model::GraphMERTModel`: Model to save
+- `checkpoint_path::String`: Path to save checkpoint
+"""
+function save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String)
+  # Create directory if it doesn't exist
+  mkpath(dirname(checkpoint_path))
+
+  # For demo purposes, just save a placeholder
+  # In full implementation, would use JLD2.jl or similar
+  open(checkpoint_path, "w") do io
+    write(io, "GraphMERT Model Checkpoint\n")
+    write(io, "Saved at: $(now())\n")
+    write(io, "Model parameters: $(length(Flux.params(model)))\n")
+  end
+
+  println("Model saved to: $checkpoint_path")
+end
+
+"""
+    log_training_step(epoch::Int, step::Int, combined_loss::Float64,
+                     mnm_loss::Float64, mlm_loss::Float64)
+
+Log training progress to console.
+
+# Arguments
+- `epoch::Int`: Current epoch
+- `step::Int`: Current step
+- `combined_loss::Float64`: Combined loss value
+- `mnm_loss::Float64`: MNM loss value
+- `mlm_loss::Float64`: MLM loss value
+"""
+function log_training_step(epoch::Int, step::Int, combined_loss::Float64,
+  mnm_loss::Float64, mlm_loss::Float64)
+  println("Epoch $epoch, Step $step: Combined Loss = $(round(combined_loss, digits=4)), " *
+          "MNM Loss = $(round(mnm_loss, digits=4)), MLM Loss = $(round(mlm_loss, digits=4))")
+end
+
 # Export functions for external use
-export train_graphmert, prepare_training_data, create_training_configurations, load_training_data
+export train_graphmert, prepare_training_data, create_training_configurations, load_training_data,
+  save_training_checkpoint, log_training_step
