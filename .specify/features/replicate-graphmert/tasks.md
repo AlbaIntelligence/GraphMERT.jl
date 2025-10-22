@@ -171,15 +171,15 @@ This document organizes implementation tasks by user story to enable independent
 - [x] T069 [US2] Implement character 3-gram Jaccard similarity filtering in GraphMERT/src/training/seed_injection.jl
 - [x] T070 [US2] Write unit tests for string matching in GraphMERT/test/unit/test_seed_injection.jl
 - [x] T071 [US2] Verify compilation: test entity linking pipeline
-- [ ] T072 [US2] Implement contextual triple selection (top-40) in GraphMERT/src/training/seed_injection.jl
-- [ ] T073 [US2] Implement score bucketing algorithm in GraphMERT/src/training/seed_injection.jl
-- [ ] T074 [US2] Implement relation bucketing for diversity in GraphMERT/src/training/seed_injection.jl
-- [ ] T075 [US2] Write unit tests for bucketing algorithms in GraphMERT/test/unit/test_seed_injection.jl
-- [ ] T076 [US2] Implement injection algorithm (Paper Appendix B) in GraphMERT/src/training/seed_injection.jl
-- [ ] T077 [US2] Implement injection validation and consistency checks in GraphMERT/src/training/seed_injection.jl
-- [ ] T078 [US2] Write comprehensive tests for seed injection in GraphMERT/test/unit/test_seed_injection.jl
-- [ ] T079 [US2] Verify compilation: test full injection pipeline
-- [ ] T080 [US2] Create working example: seed injection demo in examples/biomedical/04_seed_injection_demo.jl
+- [x] T072 [US2] Implement contextual triple selection (top-40) in GraphMERT/src/training/seed_injection.jl
+- [x] T073 [US2] Implement score bucketing algorithm in GraphMERT/src/training/seed_injection.jl
+- [x] T074 [US2] Implement relation bucketing for diversity in GraphMERT/src/training/seed_injection.jl
+- [x] T075 [US2] Write unit tests for bucketing algorithms in GraphMERT/test/unit/test_seed_injection.jl
+- [x] T076 [US2] Implement injection algorithm (Paper Appendix B) in GraphMERT/src/training/seed_injection.jl
+- [x] T077 [US2] Implement injection validation and consistency checks in GraphMERT/src/training/seed_injection.jl
+- [x] T078 [US2] Write comprehensive tests for seed injection in GraphMERT/test/unit/test_seed_injection.jl
+- [x] T079 [US2] Verify compilation: test full injection pipeline
+- [x] T080 [US2] Create working example: seed injection demo in examples/biomedical/04_seed_injection_demo.jl
 
 ### US2: Training Pipeline
 

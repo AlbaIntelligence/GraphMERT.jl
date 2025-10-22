@@ -1,202 +1,239 @@
 """
-Seed KG Injection Algorithm Demo
+Seed KG Injection Demo for GraphMERT.jl
 
-This example demonstrates the seed KG injection algorithm used in GraphMERT.
-The algorithm injects relevant knowledge graph triples into training data to enable
-vocabulary transfer from semantic space to syntactic space.
+This demo showcases the complete seed knowledge graph injection pipeline,
+demonstrating how biomedical knowledge is injected into training sequences
+to enable vocabulary transfer and semantic grounding.
 
-Key concepts demonstrated:
-1. Entity linking using SapBERT-style similarity matching
-2. Triple selection from seed knowledge graph
-3. Injection algorithm with score and relation diversity bucketing
-4. Semantic consistency validation
-5. Integration with the leafy chain graph structure
+Features demonstrated:
+- Entity linking with SapBERT embeddings
+- Character 3-gram Jaccard similarity filtering
+- Contextual triple selection (top-40)
+- Score and relation bucketing for diversity
+- Injection algorithm (Paper Appendix B)
+- Validation and consistency checks
 """
 
 using GraphMERT
-using GraphMERT: SeedInjectionConfig, SemanticTriple, EntityLinkingResult, link_entity_sapbert, select_triples_for_entity,
-  inject_seed_kg, select_triples_for_injection, bucket_by_score, bucket_by_relation_frequency,
-  validate_injected_triples
+using GraphMERT: SeedInjectionConfig, SemanticTriple, EntityLinkingResult,
+  link_entity_sapbert, select_triples_for_entity, inject_seed_kg,
+  select_triples_for_injection, validate_injected_triples,
+  get_entity_name_from_cui, bucket_by_score, bucket_by_relation_frequency
 
-println("=== Seed KG Injection Demo ===")
-
-# 1. Create injection configuration
-println("\n1. Creating injection configuration...")
-config = SeedInjectionConfig(
-  0.5,     # entity_linking_threshold: Jaccard similarity threshold
-  10,      # top_k_candidates: Number of candidates from SapBERT
-  40,      # top_n_triples_per_entity: Number of triples per entity
-  0.7,     # alpha_score_threshold: Minimum similarity score
-  10,      # score_bucket_size: Number of buckets by score
-  5,       # relation_bucket_size: Number of buckets by relation frequency
-  0.2,     # injection_ratio: Percentage of sequences to inject
-  10       # max_triples_per_sequence: Maximum triples injected per sequence
-)
-println("Config: threshold=$(config.entity_linking_threshold), top_k=$(config.top_k_candidates)")
-
-# 2. Create seed knowledge graph
-println("\n2. Creating seed knowledge graph...")
-seed_kg = [
-  SemanticTriple("diabetes", "C0011849", "treats", "metformin", [2156, 23421], 0.95, "UMLS"),
-  SemanticTriple("diabetes", "C0011849", "complicates", "pregnancy", [11234, 15678], 0.87, "UMLS"),
-  SemanticTriple("metformin", "C0025598", "inhibits", "diabetes", [23421, 2156], 0.92, "UMLS"),
-  SemanticTriple("metformin", "C0025598", "metabolized_by", "liver", [23421, 18901], 0.78, "UMLS"),
-  SemanticTriple("diabetes", "C0011849", "increases_risk", "cardiovascular_disease", [2156, 26789], 0.89, "UMLS"),
-]
-println("Created seed KG with $(length(seed_kg)) triples")
-
-# 3. Demonstrate entity linking
-println("\n3. Demonstrating entity linking...")
-test_entities = ["diabetes", "metformin", "pregnancy", "cardiovascular"]
-
-for entity in test_entities
-  linked = link_entity_sapbert(entity, config)
-  println("Entity '$entity' linked to:")
-  for result in linked
-    println("  - CUI: $(result.cui), Name: $(result.preferred_name), Score: $(round(result.similarity_score, digits=3))")
-  end
-  println()
-end
-
-# 4. Demonstrate triple selection
-println("\n4. Demonstrating triple selection...")
-cui = "C0011849"  # Diabetes Mellitus
-selected_triples = select_triples_for_entity(cui, config)
-println("Selected $(length(selected_triples)) triples for entity $cui:")
-for triple in selected_triples
-  println("  - $(triple.head) --[$(triple.relation)]--> $(triple.tail) (score: $(round(triple.score, digits=3)))")
-end
-
-# 5. Demonstrate injection algorithm
-println("\n5. Demonstrating injection algorithm...")
-sequences = [
-  "Diabetes mellitus is a chronic metabolic disorder characterized by elevated blood glucose levels.",
-  "Metformin is commonly prescribed for the treatment of type 2 diabetes.",
-  "Pregnancy can be complicated by gestational diabetes.",
-  "Cardiovascular disease is a major complication of diabetes.",
-  "The liver plays a key role in glucose metabolism."
-]
-
-# Mock entity extraction (would be implemented in text module)
-function mock_extract_entities(text::String)
-  # Simple entity extraction for demo
-  entities = String[]
-  if occursin("diabetes", lowercase(text))
-    push!(entities, "diabetes")
-  end
-  if occursin("metformin", lowercase(text))
-    push!(entities, "metformin")
-  end
-  if occursin("pregnancy", lowercase(text))
-    push!(entities, "pregnancy")
-  end
-  if occursin("cardiovascular", lowercase(text))
-    push!(entities, "cardiovascular")
-  end
-  return entities
-end
-
-# Inject seed KG into sequences
-injected_sequences = Vector{Tuple{String,Vector{SemanticTriple}}}()
-for sequence in sequences
-  entities = mock_extract_entities(sequence)
-  if !isempty(entities)
-    # Link entities
-    linked_entities = Vector{GraphMERT.EntityLinkingResult}()
-    for entity in entities
-      linked = link_entity_sapbert(entity, config)
-      append!(linked_entities, linked)
+function main()
+    println("🧬 GraphMERT Seed KG Injection Demo")
+    println("=" ^ 50)
+    
+    # Create configuration
+    config = SeedInjectionConfig(
+        0.3,  # entity_linking_threshold
+        10,   # top_k_candidates
+        40,   # top_n_triples_per_entity
+        0.6,  # alpha_score_threshold
+        5,    # score_bucket_size
+        3,    # relation_bucket_size
+        0.5,  # injection_ratio
+        8     # max_triples_per_sequence
+    )
+    
+    println("📋 Configuration:")
+    println("  • Entity linking threshold: $(config.entity_linking_threshold)")
+    println("  • Top-K candidates: $(config.top_k_candidates)")
+    println("  • Top-N triples per entity: $(config.top_n_triples_per_entity)")
+    println("  • Alpha score threshold: $(config.alpha_score_threshold)")
+    println("  • Injection ratio: $(config.injection_ratio)")
+    println("  • Max triples per sequence: $(config.max_triples_per_sequence)")
+    println()
+    
+    # Create comprehensive seed knowledge graph
+    seed_kg = create_sample_seed_kg()
+    println("🗂️  Seed Knowledge Graph:")
+    println("  • Total triples: $(length(seed_kg))")
+    println("  • Relations: $(length(unique([t.relation for t in seed_kg])))")
+    println("  • Entities: $(length(unique([t.head for t in seed_kg])))")
+    println()
+    
+    # Create diverse training sequences
+    sequences = create_sample_sequences()
+    println("📝 Training Sequences:")
+    for (i, seq) in enumerate(sequences)
+        println("  $i. $(seq)")
     end
-
-    # Select triples
-    selected_triples = select_triples_for_injection(linked_entities, seed_kg, config)
-
-    # Limit to max_triples_per_sequence
-    if length(selected_triples) > config.max_triples_per_sequence
-      selected_triples = selected_triples[1:config.max_triples_per_sequence]
+    println()
+    
+    # Demonstrate entity linking
+    println("🔗 Entity Linking Demo:")
+    demo_entity_linking(config)
+    println()
+    
+    # Demonstrate triple selection
+    println("🎯 Triple Selection Demo:")
+    demo_triple_selection(config, seed_kg)
+    println()
+    
+    # Demonstrate full injection pipeline
+    println("💉 Full Injection Pipeline:")
+    injected_sequences = inject_seed_kg(sequences, seed_kg, config)
+    
+    for (i, (sequence, injected_triples)) in enumerate(injected_sequences)
+        println("  Sequence $i: \"$(sequence)\"")
+        println("    • Injected triples: $(length(injected_triples))")
+        
+        if !isempty(injected_triples)
+            # Validate injected triples
+            validation_results = validate_injected_triples(sequence, injected_triples)
+            valid_count = sum(values(validation_results))
+            println("    • Valid triples: $valid_count/$(length(injected_triples))")
+            
+            # Show sample injected triples
+            println("    • Sample triples:")
+            for (j, triple) in enumerate(injected_triples[1:min(3, length(injected_triples))])
+                validity = validation_results[triple] ? "✓" : "✗"
+                println("      $j. $validity $(triple.head) --[$(triple.relation)]--> $(triple.tail) (score: $(triple.score))")
+            end
+        end
+        println()
     end
-
-    push!(injected_sequences, (sequence, selected_triples))
-  else
-    push!(injected_sequences, (sequence, Vector{SemanticTriple}()))
-  end
+    
+    # Demonstrate bucketing algorithms
+    println("🪣 Bucketing Algorithms Demo:")
+    demo_bucketing_algorithms(seed_kg, config)
+    println()
+    
+    # Summary statistics
+    println("📊 Summary Statistics:")
+    total_injected = sum(length(triples) for (_, triples) in injected_sequences)
+    total_valid = sum(sum(values(validate_injected_triples(seq, triples))) 
+                     for (seq, triples) in injected_sequences)
+    
+    println("  • Total sequences processed: $(length(sequences))")
+    println("  • Sequences with injections: $(count(!isempty, [triples for (_, triples) in injected_sequences]))")
+    println("  • Total triples injected: $total_injected")
+    println("  • Valid triples: $total_valid")
+    println("  • Validation rate: $(total_injected > 0 ? round(total_valid/total_injected*100, digits=1) : 0)%")
+    println()
+    
+    println("✅ Seed KG Injection Demo completed successfully!")
 end
 
-println("Injection results:")
-for (i, (sequence, triples)) in enumerate(injected_sequences)
-  println("Sequence $i: $(length(triples)) triples injected")
-  for triple in triples
-    println("  - $(triple.head) --[$(triple.relation)]--> $(triple.tail)")
-  end
+function create_sample_seed_kg()
+    """Create a comprehensive sample seed knowledge graph."""
+    return [
+        # Diabetes-related triples
+        SemanticTriple("diabetes", "C0011849", "treats", "metformin", [100, 150], 0.95, "UMLS"),
+        SemanticTriple("diabetes", "C0011849", "causes", "complications", [200, 250], 0.88, "UMLS"),
+        SemanticTriple("diabetes", "C0011849", "prevents", "exercise", [300, 350], 0.82, "UMLS"),
+        SemanticTriple("diabetes", "C0011849", "monitored_by", "glucose", [400, 450], 0.90, "UMLS"),
+        SemanticTriple("diabetes", "C0011849", "complicates", "pregnancy", [500, 550], 0.85, "UMLS"),
+        
+        # Metformin-related triples
+        SemanticTriple("metformin", "C0025598", "treats", "diabetes", [600, 650], 0.92, "UMLS"),
+        SemanticTriple("metformin", "C0025598", "inhibits", "glucose", [700, 750], 0.87, "UMLS"),
+        SemanticTriple("metformin", "C0025598", "metabolized_by", "liver", [800, 850], 0.83, "UMLS"),
+        SemanticTriple("metformin", "C0025598", "causes", "nausea", [900, 950], 0.75, "UMLS"),
+        
+        # Pregnancy-related triples
+        SemanticTriple("pregnancy", "C0032961", "complicates", "diabetes", [1000, 1050], 0.89, "UMLS"),
+        SemanticTriple("pregnancy", "C0032961", "requires", "monitoring", [1100, 1150], 0.91, "UMLS"),
+        SemanticTriple("pregnancy", "C0032961", "increases", "risk", [1200, 1250], 0.86, "UMLS"),
+        SemanticTriple("pregnancy", "C0032961", "affects", "metabolism", [1300, 1350], 0.84, "UMLS"),
+        
+        # Hypertension-related triples
+        SemanticTriple("hypertension", "C0020538", "causes", "stroke", [1400, 1450], 0.93, "UMLS"),
+        SemanticTriple("hypertension", "C0020538", "treats", "medication", [1500, 1550], 0.88, "UMLS"),
+        SemanticTriple("hypertension", "C0020538", "monitored_by", "pressure", [1600, 1650], 0.90, "UMLS"),
+        SemanticTriple("hypertension", "C0020538", "prevents", "diet", [1700, 1750], 0.81, "UMLS"),
+        
+        # Additional diverse triples
+        SemanticTriple("glucose", "C0017725", "measured_by", "test", [1800, 1850], 0.94, "UMLS"),
+        SemanticTriple("liver", "C0023884", "metabolizes", "drugs", [1900, 1950], 0.89, "UMLS"),
+        SemanticTriple("stroke", "C0038454", "causes", "paralysis", [2000, 2050], 0.87, "UMLS"),
+    ]
 end
 
-# 6. Demonstrate bucketing algorithms
-println("\n6. Demonstrating bucketing algorithms...")
-
-# Create test triples with different scores and relations
-test_triples = [
-  SemanticTriple("entity1", "C001", "treats", "entity2", [100], 0.95, "test"),
-  SemanticTriple("entity1", "C001", "causes", "entity3", [101], 0.90, "test"),
-  SemanticTriple("entity1", "C001", "prevents", "entity4", [102], 0.85, "test"),
-  SemanticTriple("entity2", "C002", "inhibits", "entity1", [103], 0.88, "test"),
-  SemanticTriple("entity2", "C002", "treats", "entity5", [104], 0.82, "test"),
-]
-
-# Score bucketing
-score_buckets = bucket_by_score(test_triples, 3)
-println("Score buckets:")
-for (i, bucket) in enumerate(score_buckets)
-  println("  Bucket $i: $(length(bucket)) triples")
-  for triple in bucket
-    println("    - $(triple.relation) (score: $(round(triple.score, digits=3)))")
-  end
+function create_sample_sequences()
+    """Create diverse training sequences for injection."""
+    return [
+        "The patient has diabetes and takes metformin for treatment.",
+        "Pregnancy complications require careful monitoring of glucose levels.",
+        "Hypertension is a major risk factor for stroke in elderly patients.",
+        "Metformin is commonly prescribed for type 2 diabetes management.",
+        "Diabetic patients should monitor their blood glucose regularly.",
+        "Pregnant women with diabetes need specialized care.",
+        "High blood pressure can lead to serious cardiovascular events.",
+        "Regular exercise helps prevent diabetes complications.",
+        "This is a non-medical sequence with no relevant entities.",
+        "The weather is nice today and the sun is shining brightly."
+    ]
 end
 
-# Relation frequency bucketing
-relation_buckets = bucket_by_relation_frequency(test_triples, 3)
-println("\nRelation frequency buckets:")
-for (i, bucket) in enumerate(relation_buckets)
-  println("  Bucket $i: $(length(bucket)) triples")
-  relations = Set(t.relation for t in bucket)
-  println("    Relations: $relations")
+function demo_entity_linking(config)
+    """Demonstrate entity linking capabilities."""
+    test_entities = ["diabetes", "metformin", "pregnancy", "hypertension", "glucose"]
+    
+    for entity in test_entities
+        results = link_entity_sapbert(entity, config)
+        println("  Entity: '$entity'")
+        println("    • Candidates found: $(length(results))")
+        
+        if !isempty(results)
+            best = results[1]
+            println("    • Best match: '$(best.preferred_name)' (CUI: $(best.cui))")
+            println("    • Similarity score: $(round(best.similarity_score, digits=3))")
+            println("    • Semantic types: $(join(best.semantic_types, ", "))")
+        end
+        println()
+    end
 end
 
-# 7. Demonstrate validation
-println("\n7. Demonstrating validation...")
-test_sequence = "Diabetes mellitus is a chronic metabolic disorder."
-injected_triples = [
-  SemanticTriple("diabetes", "C0011849", "treats", "metformin", [2156], 0.95, "UMLS"),
-  SemanticTriple("diabetes", "C0011849", "unrelated", "something", [999], 0.85, "UMLS")
-]
-
-validation_results = validate_injected_triples(test_sequence, injected_triples)
-println("Validation results:")
-for (triple, is_valid) in validation_results
-  println("  - $(triple.head) --[$(triple.relation)]--> $(triple.tail): $(is_valid ? "VALID" : "INVALID")")
+function demo_triple_selection(config, seed_kg)
+    """Demonstrate triple selection for specific entities."""
+    test_cuis = ["C0011849", "C0025598", "C0032961"]  # diabetes, metformin, pregnancy
+    
+    for cui in test_cuis
+        triples = select_triples_for_entity(cui, config)
+        entity_name = get_entity_name_from_cui(cui)
+        
+        println("  Entity: '$entity_name' (CUI: $cui)")
+        println("    • Available triples: $(length(triples))")
+        
+        if !isempty(triples)
+            println("    • Sample triples:")
+            for (i, triple) in enumerate(triples[1:min(3, length(triples))])
+                println("      $i. $(triple.head) --[$(triple.relation)]--> $(triple.tail) (score: $(triple.score))")
+            end
+        end
+        println()
+    end
 end
 
-# 8. Integration with leafy chain graph
-println("\n8. Integration with leafy chain graph...")
-
-# Create a graph and inject a triple
-graph = create_empty_chain_graph()
-test_triple = SemanticTriple("diabetes", "C0011849", "treats", "metformin", [2156, 23421], 0.95, "UMLS")
-
-success = inject_triple!(graph, test_triple, 1)
-println("Triple injection into graph: $success")
-
-if success
-  # Convert to sequence to show integration
-  sequence = graph_to_sequence(graph)
-  println("Graph sequence length: $(length(sequence))")
-  println("First 10 tokens: $(sequence[1:10])")
-  println("Injected tokens at positions 2-3: $(sequence[2:3])")
+function demo_bucketing_algorithms(seed_kg, config)
+    """Demonstrate score and relation bucketing algorithms."""
+    # Test score bucketing
+    println("  Score Bucketing:")
+    score_buckets = bucket_by_score(seed_kg, config.score_bucket_size)
+    println("    • Number of buckets: $(length(score_buckets))")
+    for (i, bucket) in enumerate(score_buckets)
+        if !isempty(bucket)
+            avg_score = sum(t.score for t in bucket) / length(bucket)
+            println("    • Bucket $i: $(length(bucket)) triples, avg score: $(round(avg_score, digits=3))")
+        end
+    end
+    println()
+    
+    # Test relation frequency bucketing
+    println("  Relation Frequency Bucketing:")
+    relation_buckets = bucket_by_relation_frequency(seed_kg, config.relation_bucket_size)
+    println("    • Number of buckets: $(length(relation_buckets))")
+    for (i, bucket) in enumerate(relation_buckets)
+        if !isempty(bucket)
+            relations = unique([t.relation for t in bucket])
+            println("    • Bucket $i: $(length(bucket)) triples, relations: $(join(relations, ", "))")
+        end
+    end
 end
 
-println("\n✅ Seed KG Injection demo complete!")
-println("\nAlgorithm demonstrates:")
-println("• Entity linking with SapBERT-style similarity matching")
-println("• Triple selection with score and relation diversity")
-println("• Injection algorithm with semantic consistency")
-println("• Integration with leafy chain graph structure")
-println("• Validation to ensure semantic coherence")
+# Run the demo
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end

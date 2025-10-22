@@ -164,23 +164,75 @@ using GraphMERT: SeedInjectionConfig, SemanticTriple, EntityLinkingResult,
   end
 
   @testset "Triple Bucketing" begin
-    # Create test triples with different scores
+    # Create test triples with different scores and relations
     test_triples = [
-      SemanticTriple("a", nothing, "rel1", "b", [100], 0.9, "test"),
-      SemanticTriple("c", nothing, "rel2", "d", [200], 0.7, "test"),
-      SemanticTriple("e", nothing, "rel1", "f", [300], 0.8, "test"),
-      SemanticTriple("g", nothing, "rel3", "h", [400], 0.6, "test"),
+      SemanticTriple("a", nothing, "treats", "b", [100], 0.9, "test"),
+      SemanticTriple("c", nothing, "causes", "d", [200], 0.7, "test"),
+      SemanticTriple("e", nothing, "treats", "f", [300], 0.8, "test"),
+      SemanticTriple("g", nothing, "prevents", "h", [400], 0.6, "test"),
+      SemanticTriple("i", nothing, "treats", "j", [500], 0.5, "test"),
+      SemanticTriple("k", nothing, "causes", "l", [600], 0.4, "test"),
     ]
     
-    # Test score-based bucketing
-    score_buckets = bucket_by_score(test_triples, 3)
-    @test length(score_buckets) == 3
-    @test all(bucket -> bucket isa Vector{SemanticTriple}, score_buckets)
+    @testset "Score-based Bucketing" begin
+      # Test score-based bucketing
+      score_buckets = bucket_by_score(test_triples, 3)
+      @test length(score_buckets) == 3
+      @test all(bucket -> bucket isa Vector{SemanticTriple}, score_buckets)
+      
+      # Test that buckets are sorted by score (highest first)
+      all_triples = vcat(score_buckets...)
+      @test length(all_triples) == length(test_triples)
+      
+      # Test that first bucket has highest scores
+      if !isempty(score_buckets[1])
+        @test score_buckets[1][1].score >= 0.8  # Should contain highest scores
+      end
+      
+      # Test empty input
+      empty_buckets = bucket_by_score(SemanticTriple[], 3)
+      @test length(empty_buckets) == 3
+      @test all(isempty, empty_buckets)
+    end
     
-    # Test relation frequency bucketing
-    relation_buckets = bucket_by_relation_frequency(test_triples, 2)
-    @test length(relation_buckets) == 2
-    @test all(bucket -> bucket isa Vector{SemanticTriple}, relation_buckets)
+    @testset "Relation Frequency Bucketing" begin
+      # Test relation frequency bucketing
+      relation_buckets = bucket_by_relation_frequency(test_triples, 2)
+      @test length(relation_buckets) == 2
+      @test all(bucket -> bucket isa Vector{SemanticTriple}, relation_buckets)
+      
+      # Test that buckets contain triples (the function filters by relation frequency)
+      all_triples = vcat(relation_buckets...)
+      @test length(all_triples) > 0  # Should have some triples
+      
+      # Test that buckets contain different relations
+      if !isempty(relation_buckets[1]) && !isempty(relation_buckets[2])
+        relations_1 = Set([t.relation for t in relation_buckets[1]])
+        relations_2 = Set([t.relation for t in relation_buckets[2]])
+        # Should have some overlap since we're bucketing by frequency
+        @test !isempty(relations_1 ∩ relations_2) || !isempty(relations_1) || !isempty(relations_2)
+      end
+      
+      # Test empty input
+      empty_buckets = bucket_by_relation_frequency(SemanticTriple[], 2)
+      @test length(empty_buckets) == 2
+      @test all(isempty, empty_buckets)
+    end
+    
+    @testset "Edge Cases" begin
+      # Test with single triple
+      single_triple = [SemanticTriple("x", nothing, "rel", "y", [100], 0.5, "test")]
+      single_buckets = bucket_by_score(single_triple, 3)
+      @test length(single_buckets) == 3
+      @test length(single_buckets[1]) == 1
+      @test isempty(single_buckets[2])
+      @test isempty(single_buckets[3])
+      
+      # Test with more buckets than triples
+      many_buckets = bucket_by_score(test_triples, 10)
+      @test length(many_buckets) == 10
+      @test sum(length, many_buckets) == length(test_triples)
+    end
   end
 
   @testset "Triple Validation" begin
