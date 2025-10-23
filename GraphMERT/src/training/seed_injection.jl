@@ -37,7 +37,7 @@ function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
     # For demo, we'll simulate with string similarity
 
     # Stage 2: Character 3-gram string matching with Jaccard similarity
-    entity_3grams = Set([entity_text[i:i+2] for i in 1:(length(entity_text)-2)])
+    entity_3grams = Set([entity_text[i:(i+2)] for i = 1:(length(entity_text)-2)])
 
     # Simulate UMLS lookup (would be actual UMLS API calls)
     candidate_concepts = [
@@ -49,7 +49,7 @@ function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
 
     for (cui, preferred_name, semantic_types) in candidate_concepts
         # Calculate Jaccard similarity
-        concept_3grams = Set([preferred_name[i:i+2] for i in 1:(length(preferred_name)-2)])
+        concept_3grams = Set([preferred_name[i:(i+2)] for i = 1:(length(preferred_name)-2)])
         intersection = length(entity_3grams ∩ concept_3grams)
         union_size = length(entity_3grams ∪ concept_3grams)
 
@@ -61,19 +61,22 @@ function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
 
         # Filter by threshold
         if jaccard_sim ≥ config.entity_linking_threshold
-            push!(results, EntityLinkingResult(
-                entity_text,
-                cui,
-                preferred_name,
-                semantic_types,
-                jaccard_sim,
-                "jaccard_similarity"
-            ))
+            push!(
+                results,
+                EntityLinkingResult(
+                    entity_text,
+                    cui,
+                    preferred_name,
+                    semantic_types,
+                    jaccard_sim,
+                    "jaccard_similarity",
+                ),
+            )
         end
     end
 
     # Sort by similarity score (highest first)
-    sort!(results, by=r -> r.similarity_score, rev=true)
+    sort!(results, by = r -> r.similarity_score, rev = true)
 
     # Return top-k candidates
     return results[1:min(config.top_k_candidates, length(results))]
@@ -107,14 +110,21 @@ function select_triples_for_entity(entity_cui::String, config::SeedInjectionConf
         if head_cui == entity_cui
             # Get tail entity name (would be UMLS lookup)
             tail_name = get_entity_name_from_cui(tail_cui)
-            triple = SemanticTriple(entity_cui, head_cui, relation, tail_name,
-                                   tokenize_entity_name(tail_name), score, "UMLS")
+            triple = SemanticTriple(
+                entity_cui,
+                head_cui,
+                relation,
+                tail_name,
+                tokenize_entity_name(tail_name),
+                score,
+                "UMLS",
+            )
             push!(triples, triple)
         end
     end
 
     # Sort by score and return top-n
-    sort!(triples, by=t -> t.score, rev=true)
+    sort!(triples, by = t -> t.score, rev = true)
     return triples[1:min(config.top_n_triples_per_entity, length(triples))]
 end
 
@@ -135,9 +145,12 @@ vocabulary transfer and semantic grounding.
 # Returns
 - `Vector{Tuple{String, Vector{SemanticTriple}}}`: Sequences with injected triples
 """
-function inject_seed_kg(sequences::Vector{String}, seed_kg::Vector{SemanticTriple},
-                       config::SeedInjectionConfig)
-    injected_sequences = Vector{Tuple{String, Vector{SemanticTriple}}}()
+function inject_seed_kg(
+    sequences::Vector{String},
+    seed_kg::Vector{SemanticTriple},
+    config::SeedInjectionConfig,
+)
+    injected_sequences = Vector{Tuple{String,Vector{SemanticTriple}}}()
 
     # For demo purposes, inject into a fixed percentage of sequences
     num_to_inject = round(Int, config.injection_ratio * length(sequences))
@@ -169,7 +182,8 @@ function inject_seed_kg(sequences::Vector{String}, seed_kg::Vector{SemanticTripl
             end
 
             # Select triples for injection
-            selected_triples = select_triples_for_injection(linked_entities, seed_kg, config)
+            selected_triples =
+                select_triples_for_injection(linked_entities, seed_kg, config)
 
             # Limit to max_triples_per_sequence
             if length(selected_triples) > config.max_triples_per_sequence
@@ -200,9 +214,11 @@ Select diverse, high-quality triples for injection using the paper's algorithm.
 # Returns
 - `Vector{SemanticTriple}`: Selected triples for injection
 """
-function select_triples_for_injection(linked_entities::Vector{EntityLinkingResult},
-                                     seed_kg::Vector{SemanticTriple},
-                                     config::SeedInjectionConfig)
+function select_triples_for_injection(
+    linked_entities::Vector{EntityLinkingResult},
+    seed_kg::Vector{SemanticTriple},
+    config::SeedInjectionConfig,
+)
     selected_triples = Vector{SemanticTriple}()
 
     # Filter triples by entity CUIs
@@ -217,7 +233,7 @@ function select_triples_for_injection(linked_entities::Vector{EntityLinkingResul
 
     # Algorithm 1: Score bucketing + Relation diversity
     # Step 1: Make triples unique (keep highest score)
-    unique_triples = Dict{String, SemanticTriple}()
+    unique_triples = Dict{String,SemanticTriple}()
     for triple in relevant_triples
         key = "$(triple.head_cui)_$(triple.relation)_$(triple.tail)"
         if !haskey(unique_triples, key) || triple.score > unique_triples[key].score
@@ -226,12 +242,14 @@ function select_triples_for_injection(linked_entities::Vector{EntityLinkingResul
     end
 
     # Step 2: Bucket by score
-    score_buckets = bucket_by_score(collect(values(unique_triples)), config.score_bucket_size)
+    score_buckets =
+        bucket_by_score(collect(values(unique_triples)), config.score_bucket_size)
 
     # Step 3: Within score buckets, bucket by relation frequency
     for (bucket_idx, bucket) in enumerate(score_buckets)
         if !isempty(bucket)
-            relation_buckets = bucket_by_relation_frequency(bucket, config.relation_bucket_size)
+            relation_buckets =
+                bucket_by_relation_frequency(bucket, config.relation_bucket_size)
 
             # Step 4: Select highest-scoring from rarest relations
             for relation_bucket in relation_buckets
@@ -270,18 +288,18 @@ Bucket triples by their similarity scores.
 """
 function bucket_by_score(triples::Vector{SemanticTriple}, num_buckets::Int)
     if isempty(triples)
-        return [Vector{SemanticTriple}() for _ in 1:num_buckets]
+        return [Vector{SemanticTriple}() for _ = 1:num_buckets]
     end
 
     # Sort by score (highest first)
-    sorted_triples = sort(triples, by=t -> t.score, rev=true)
+    sorted_triples = sort(triples, by = t -> t.score, rev = true)
 
     # Calculate bucket size
     bucket_size = max(1, length(sorted_triples) ÷ num_buckets)
 
     # Create buckets
     buckets = Vector{Vector{SemanticTriple}}()
-    for i in 1:num_buckets
+    for i = 1:num_buckets
         start_idx = (i-1) * bucket_size + 1
         end_idx = min(i * bucket_size, length(sorted_triples))
         if start_idx ≤ length(sorted_triples)
@@ -308,21 +326,21 @@ Bucket triples by relation frequency within a score bucket.
 """
 function bucket_by_relation_frequency(triples::Vector{SemanticTriple}, num_buckets::Int)
     if isempty(triples)
-        return [Vector{SemanticTriple}() for _ in 1:num_buckets]
+        return [Vector{SemanticTriple}() for _ = 1:num_buckets]
     end
 
     # Count relation frequencies
-    relation_counts = Dict{String, Int}()
+    relation_counts = Dict{String,Int}()
     for triple in triples
         relation_counts[triple.relation] = get(relation_counts, triple.relation, 0) + 1
     end
 
     # Sort relations by frequency (lowest first for diversity)
-    sorted_relations = sort(collect(keys(relation_counts)), by=r -> relation_counts[r])
+    sorted_relations = sort(collect(keys(relation_counts)), by = r -> relation_counts[r])
 
     # Create buckets
     buckets = Vector{Vector{SemanticTriple}}()
-    for i in 1:num_buckets
+    for i = 1:num_buckets
         bucket_relations = sorted_relations[1:min(i, length(sorted_relations))]
         bucket_triples = filter(t -> t.relation in bucket_relations, triples)
         push!(buckets, bucket_triples)
@@ -343,8 +361,11 @@ Validate that injected triples are semantically consistent with source text.
 # Returns
 - `Dict{SemanticTriple, Bool}`: Validation results for each triple
 """
-function validate_injected_triples(sequence::String, injected_triples::Vector{SemanticTriple})
-    validation_results = Dict{SemanticTriple, Bool}()
+function validate_injected_triples(
+    sequence::String,
+    injected_triples::Vector{SemanticTriple},
+)
+    validation_results = Dict{SemanticTriple,Bool}()
 
     for triple in injected_triples
         # Simple validation: check if head entity appears in text
@@ -367,7 +388,7 @@ function get_entity_name_from_cui(cui::String)
         "C0011849" => "Diabetes Mellitus",
         "C0025598" => "Metformin",
         "C0032961" => "Pregnancy",
-        "C0008976" => "Clopidogrel"
+        "C0008976" => "Clopidogrel",
     )
     return get(cui_to_name, cui, "Unknown Entity")
 end
@@ -378,6 +399,10 @@ function tokenize_entity_name(name::String)
 end
 
 # Export functions for external use
-export link_entity_sapbert, select_triples_for_entity, inject_seed_kg,
-       select_triples_for_injection, bucket_by_score, bucket_by_relation_frequency,
-       validate_injected_triples
+export link_entity_sapbert,
+    select_triples_for_entity,
+    inject_seed_kg,
+    select_triples_for_injection,
+    bucket_by_score,
+    bucket_by_relation_frequency,
+    validate_injected_triples

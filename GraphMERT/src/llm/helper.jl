@@ -33,9 +33,9 @@ Response from helper LLM.
 struct HelperLLMResponse
     success::Bool
     content::String
-    error::Union{String, Nothing}
-    usage::Dict{String, Any}
-    http_status::Union{Int, Nothing}
+    error::Union{String,Nothing}
+    usage::Dict{String,Any}
+    http_status::Union{Int,Nothing}
 end
 
 """
@@ -44,13 +44,12 @@ end
 Local cache for LLM responses with TTL.
 """
 mutable struct HelperLLMCache
-    responses::Dict{String, Tuple{HelperLLMResponse, DateTime}}
+    responses::Dict{String,Tuple{HelperLLMResponse,DateTime}}
     max_size::Int
     ttl_seconds::Int
 
-    function HelperLLMCache(max_size::Int=1000, ttl_seconds::Int=3600)
-        new(Dict{String, Tuple{HelperLLMResponse, DateTime}}(),
-            max_size, ttl_seconds)
+    function HelperLLMCache(max_size::Int = 1000, ttl_seconds::Int = 3600)
+        new(Dict{String,Tuple{HelperLLMResponse,DateTime}}(), max_size, ttl_seconds)
     end
 end
 
@@ -93,15 +92,26 @@ entities = discover_entities(client, "Diabetes is a chronic condition.")
 println("Found entities: ", entities)
 ```
 """
-function create_helper_llm_client(api_key::String;
-                                 base_url::String = "https://api.openai.com/v1",
-                                 model::String = "gpt-3.5-turbo",
-                                 timeout::Int = 30,
-                                 max_retries::Int = 3,
-                                 temperature::Float64 = 0.7,
-                                 max_tokens::Int = 1000,
-                                 rate_limit::Int = 10000)
-    config = HelperLLMConfig(api_key, base_url, model, timeout, max_retries, temperature, max_tokens, rate_limit)
+function create_helper_llm_client(
+    api_key::String;
+    base_url::String = "https://api.openai.com/v1",
+    model::String = "gpt-3.5-turbo",
+    timeout::Int = 30,
+    max_retries::Int = 3,
+    temperature::Float64 = 0.7,
+    max_tokens::Int = 1000,
+    rate_limit::Int = 10000,
+)
+    config = HelperLLMConfig(
+        api_key,
+        base_url,
+        model,
+        timeout,
+        max_retries,
+        temperature,
+        max_tokens,
+        rate_limit,
+    )
     cache = HelperLLMCache(1000, 3600)
     return HelperLLMClient(config, cache, 0.0, 0, 0, time())
 end
@@ -118,7 +128,7 @@ Make an authenticated HTTP request to OpenAI API with rate limiting and retry lo
 # Returns
 - `Tuple{Union{Dict, Nothing}, Union{String, Nothing}, Union{Int, Nothing}}`: (response_data, error_message, status_code)
 """
-function _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String, String}})
+function _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String,String}})
     # Rate limiting check (tokens per minute)
     current_time = time()
     if current_time - client.rate_limit_window_start < 60.0  # 1 minute window
@@ -141,7 +151,7 @@ function _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String
     url = "$(client.config.base_url)/chat/completions"
     headers = [
         "Authorization" => "Bearer $(client.config.api_key)",
-        "Content-Type" => "application/json"
+        "Content-Type" => "application/json",
     ]
 
     # Estimate token count (rough approximation)
@@ -152,13 +162,18 @@ function _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String
         "model" => client.config.model,
         "messages" => messages,
         "temperature" => client.config.temperature,
-        "max_tokens" => client.config.max_tokens
+        "max_tokens" => client.config.max_tokens,
     )
 
     # Make request with retry logic
-    for attempt in 1:client.config.max_retries
+    for attempt = 1:client.config.max_retries
         try
-            response = HTTP.post(url, headers, JSON3.write(request_body); timeout=client.config.timeout)
+            response = HTTP.post(
+                url,
+                headers,
+                JSON3.write(request_body);
+                timeout = client.config.timeout,
+            )
 
             if response.status == 200
                 data = JSON3.read(String(response.body))
@@ -204,19 +219,17 @@ Make a request to the helper LLM with a simple text prompt.
 - `HelperLLMResponse`: LLM response with content and metadata
 """
 function make_llm_request(client::HelperLLMClient, prompt::String)
-    messages = [
-        Dict("role" => "user", "content" => prompt)
-    ]
+    messages = [Dict("role" => "user", "content" => prompt)]
 
     data, error_msg, status = _make_llm_request(client, messages)
 
     if data !== nothing && haskey(data, "choices") && !isempty(data["choices"])
         content = data["choices"][1]["message"]["content"]
-        usage = get(data, "usage", Dict{String, Any}())
+        usage = get(data, "usage", Dict{String,Any}())
 
         return HelperLLMResponse(true, content, nothing, usage, status)
     else
-        return HelperLLMResponse(false, "", error_msg, Dict{String, Any}(), status)
+        return HelperLLMResponse(false, "", error_msg, Dict{String,Any}(), status)
     end
 end
 
@@ -233,7 +246,7 @@ Discover biomedical entities in text using LLM.
 # Returns
 - `Vector{String}`: Discovered entity names
 """
-function discover_entities(client::HelperLLMClient, text::String; use_cache::Bool=true)
+function discover_entities(client::HelperLLMClient, text::String; use_cache::Bool = true)
     # Check cache first
     cache_key = "entities:$(hash(text))"
     if use_cache && haskey(client.cache.responses, cache_key)
@@ -278,7 +291,12 @@ Match relations between entities using LLM.
 # Returns
 - `Dict{String, Dict{String, String}}`: Relations in format entity1 => (relation => entity2)
 """
-function match_relations(client::HelperLLMClient, entities::Vector{String}, text::String; use_cache::Bool=true)
+function match_relations(
+    client::HelperLLMClient,
+    entities::Vector{String},
+    text::String;
+    use_cache::Bool = true,
+)
     # Check cache first
     entities_key = join(sort(entities), "|")
     cache_key = "relations:$(hash(entities_key)):$(hash(text))"
@@ -306,7 +324,7 @@ function match_relations(client::HelperLLMClient, entities::Vector{String}, text
         return relations
     else
         @warn "Relation matching failed: $(response.error)"
-        return Dict{String, Dict{String, String}}()  # Return empty on failure
+        return Dict{String,Dict{String,String}}()  # Return empty on failure
     end
 end
 
@@ -394,8 +412,9 @@ Create a prompt for forming coherent tail entities from predicted tokens.
 # Returns
 - `String`: Formatted prompt for LLM
 """
-function create_tail_formation_prompt(tokens::Vector{Tuple{Int, Float64}}, text::String)
-    token_list = join(["$(token[1]) (prob: $(round(token[2], digits=3)))" for token in tokens], "\n")
+function create_tail_formation_prompt(tokens::Vector{Tuple{Int,Float64}}, text::String)
+    token_list =
+        join(["$(token[1]) (prob: $(round(token[2], digits=3)))" for token in tokens], "\n")
     return """
 You are a biomedical expert tasked with forming coherent entity names from predicted tokens.
 
@@ -434,7 +453,10 @@ function parse_entity_response(response::String)
     for line in split(response, '\n')
         line = strip(line)
         # Skip empty lines, comments, and headers
-        if !isempty(line) && !startswith(line, "#") && !startswith(line, "Extracted") && !startswith(line, "Entities")
+        if !isempty(line) &&
+           !startswith(line, "#") &&
+           !startswith(line, "Extracted") &&
+           !startswith(line, "Entities")
             # Clean up common artifacts
             clean_line = replace(line, r"^\d+\.?\s*" => "")  # Remove numbering
             clean_line = replace(clean_line, r"[-*_]" => "")  # Remove bullets
@@ -459,11 +481,14 @@ Parse LLM response for relation matching.
 - `Dict{String, Dict{String, String}}`: Relations in format entity1 => (relation => entity2)
 """
 function parse_relation_response(response::String)
-    relations = Dict{String, Dict{String, String}}()
+    relations = Dict{String,Dict{String,String}}()
 
     for line in split(response, '\n')
         line = strip(line)
-        if !isempty(line) && !startswith(line, "#") && !startswith(line, "Relationships") && occursin("->", line)
+        if !isempty(line) &&
+           !startswith(line, "#") &&
+           !startswith(line, "Relationships") &&
+           occursin("->", line)
             # Parse format: entity1 -> relation -> entity2
             parts = split(line, "->")
             if length(parts) >= 3
@@ -552,15 +577,19 @@ Match relations in multiple texts using LLM.
 # Returns
 - `Vector{Dict{String, Dict{String, String}}}`: List of relation dictionaries
 """
-function match_relations_batch(client::HelperLLMClient, entity_lists::Vector{Vector{String}}, texts::Vector{String})
-    results = Vector{Dict{String, Dict{String, String}}}()
+function match_relations_batch(
+    client::HelperLLMClient,
+    entity_lists::Vector{Vector{String}},
+    texts::Vector{String},
+)
+    results = Vector{Dict{String,Dict{String,String}}}()
 
     for (entities, text) in zip(entity_lists, texts)
         if !isempty(entities)
             relations = match_relations(client, entities, text)
             push!(results, relations)
         else
-            push!(results, Dict{String, Dict{String, String}}())
+            push!(results, Dict{String,Dict{String,String}}())
         end
 
         # Rate limiting - don't overwhelm the API
@@ -585,8 +614,12 @@ Form coherent tail entities from predicted tokens using LLM.
 # Returns
 - `Vector{String}`: Formed tail entity names
 """
-function form_tail_from_tokens(tokens::Vector{Tuple{Int, Float64}}, text::String,
-                             client::HelperLLMClient; use_cache::Bool=true)
+function form_tail_from_tokens(
+    tokens::Vector{Tuple{Int,Float64}},
+    text::String,
+    client::HelperLLMClient;
+    use_cache::Bool = true,
+)
     # Check cache first
     tokens_key = join([string(t[1]) for t in tokens], "|")
     cache_key = "tails:$(hash(tokens_key)):$(hash(text))"
@@ -626,23 +659,23 @@ Fallback entity discovery when LLM is not available.
 function fallback_entity_discovery(text::String)
     # Simple regex-based entity discovery
     entities = String[]
-    
+
     # Look for common biomedical patterns
     patterns = [
         r"\b[A-Z][a-z]+(?:'s)?\s+(?:disease|syndrome|disorder|condition)\b",
         r"\b[A-Z][a-z]+(?:'s)?\s+(?:cancer|carcinoma|tumor|neoplasm)\b",
         r"\b[A-Z][a-z]+(?:'s)?\s+(?:virus|bacteria|infection)\b",
         r"\b[A-Z][a-z]+(?:'s)?\s+(?:protein|enzyme|receptor)\b",
-        r"\b[A-Z][a-z]+(?:'s)?\s+(?:drug|medication|therapy)\b"
+        r"\b[A-Z][a-z]+(?:'s)?\s+(?:drug|medication|therapy)\b",
     ]
-    
+
     for pattern in patterns
         matches = eachmatch(pattern, text)
         for match in matches
             push!(entities, match.match)
         end
     end
-    
+
     return entities
 end
 
@@ -652,38 +685,41 @@ end
 Fallback relation matching when LLM is not available.
 """
 function fallback_relation_matching(entities::Vector{String}, text::String)
-    relations = Dict{String, Any}()
-    
+    relations = Dict{String,Any}()
+
     # Simple co-occurrence based relation detection
-    for i in 1:length(entities)
-        for j in (i+1):length(entities)
+    for i = 1:length(entities)
+        for j = (i+1):length(entities)
             entity1 = entities[i]
             entity2 = entities[j]
-            
+
             # Check if both entities appear in the same sentence
             sentences = split(text, r"[\.\!\?]+")
             for sentence in sentences
                 if occursin(entity1, sentence) && occursin(entity2, sentence)
                     # Simple relation detection based on keywords
-                    if occursin("treats", lowercase(sentence)) || occursin("cures", lowercase(sentence))
+                    if occursin("treats", lowercase(sentence)) ||
+                       occursin("cures", lowercase(sentence))
                         relation = "TREATS"
-                    elseif occursin("causes", lowercase(sentence)) || occursin("leads to", lowercase(sentence))
+                    elseif occursin("causes", lowercase(sentence)) ||
+                           occursin("leads to", lowercase(sentence))
                         relation = "CAUSES"
-                    elseif occursin("associated with", lowercase(sentence)) || occursin("related to", lowercase(sentence))
+                    elseif occursin("associated with", lowercase(sentence)) ||
+                           occursin("related to", lowercase(sentence))
                         relation = "ASSOCIATED_WITH"
                     else
                         relation = "RELATED_TO"
                     end
-                    
+
                     relations["$entity1-$entity2"] = Dict(
                         "entity1" => entity1,
                         "relation" => relation,
-                        "entity2" => entity2
+                        "entity2" => entity2,
                     )
                 end
             end
         end
     end
-    
+
     return relations
 end

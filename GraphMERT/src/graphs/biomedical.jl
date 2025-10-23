@@ -22,21 +22,30 @@ Specialized knowledge graph for biomedical entities and relations.
 struct BiomedicalKnowledgeGraph
     entities::Vector{BiomedicalEntity}
     relations::Vector{BiomedicalRelation}
-    umls_mappings::Dict{String, String}
-    semantic_types::Dict{String, Vector{String}}
-    confidence_scores::Dict{String, Float64}
+    umls_mappings::Dict{String,String}
+    semantic_types::Dict{String,Vector{String}}
+    confidence_scores::Dict{String,Float64}
     created_at::DateTime
-    metadata::Dict{String, Any}
+    metadata::Dict{String,Any}
 
     function BiomedicalKnowledgeGraph(
         entities::Vector{BiomedicalEntity},
         relations::Vector{BiomedicalRelation},
-        umls_mappings::Dict{String, String} = Dict{String, String}(),
-        semantic_types::Dict{String, Vector{String}} = Dict{String, Vector{String}}(),
-        confidence_scores::Dict{String, Float64} = Dict{String, Float64}(),
-        metadata::Dict{String, Any} = Dict{String, Any}())
+        umls_mappings::Dict{String,String} = Dict{String,String}(),
+        semantic_types::Dict{String,Vector{String}} = Dict{String,Vector{String}}(),
+        confidence_scores::Dict{String,Float64} = Dict{String,Float64}(),
+        metadata::Dict{String,Any} = Dict{String,Any}(),
+    )
 
-        new(entities, relations, umls_mappings, semantic_types, confidence_scores, Dates.now(), metadata)
+        new(
+            entities,
+            relations,
+            umls_mappings,
+            semantic_types,
+            confidence_scores,
+            Dates.now(),
+            metadata,
+        )
     end
 end
 
@@ -51,11 +60,16 @@ struct BiomedicalGraphNode
     umls_cui::String
     semantic_types::Vector{String}
     confidence::Float64
-    position::Tuple{Int, Int}  # (x, y) coordinates for visualization
+    position::Tuple{Int,Int}  # (x, y) coordinates for visualization
 
-    function BiomedicalGraphNode(id::String, entity::BiomedicalEntity,
-        umls_cui::String = "", semantic_types::Vector{String} = String[],
-        confidence::Float64 = 0.0, position::Tuple{Int, Int} = (0, 0))
+    function BiomedicalGraphNode(
+        id::String,
+        entity::BiomedicalEntity,
+        umls_cui::String = "",
+        semantic_types::Vector{String} = String[],
+        confidence::Float64 = 0.0,
+        position::Tuple{Int,Int} = (0, 0),
+    )
 
         new(id, entity, umls_cui, semantic_types, confidence, position)
     end
@@ -74,8 +88,14 @@ struct BiomedicalGraphEdge
     weight::Float64
     confidence::Float64
 
-    function BiomedicalGraphEdge(id::String, source_node_id::String, target_node_id::String,
-        relation::BiomedicalRelation, weight::Float64 = 1.0, confidence::Float64 = 0.0)
+    function BiomedicalGraphEdge(
+        id::String,
+        source_node_id::String,
+        target_node_id::String,
+        relation::BiomedicalRelation,
+        weight::Float64 = 1.0,
+        confidence::Float64 = 0.0,
+    )
 
         new(id, source_node_id, target_node_id, relation, weight, confidence)
     end
@@ -90,9 +110,12 @@ end
 
 Create a biomedical knowledge graph from entities and relations.
 """
-function create_biomedical_graph(entities::Vector{BiomedicalEntity}, relations::Vector{BiomedicalRelation})
+function create_biomedical_graph(
+    entities::Vector{BiomedicalEntity},
+    relations::Vector{BiomedicalRelation},
+)
     # Create entity ID mapping
-    entity_id_map = Dict{String, Int}()
+    entity_id_map = Dict{String,Int}()
     for (i, entity) in enumerate(entities)
         entity_id_map[entity.id] = i
     end
@@ -130,11 +153,15 @@ end
 
 Build a complete biomedical knowledge graph with UMLS integration.
 """
-function build_biomedical_graph(entities::Vector{BiomedicalEntity}, relations::Vector{BiomedicalRelation}; umls_client = nothing)
+function build_biomedical_graph(
+    entities::Vector{BiomedicalEntity},
+    relations::Vector{BiomedicalRelation};
+    umls_client = nothing,
+)
     # Initialize mappings
-    umls_mappings = Dict{String, String}()
-    semantic_types = Dict{String, Vector{String}}()
-    confidence_scores = Dict{String, Float64}()
+    umls_mappings = Dict{String,String}()
+    semantic_types = Dict{String,Vector{String}}()
+    confidence_scores = Dict{String,Float64}()
 
     # Process entities with UMLS integration
     if umls_client !== nothing
@@ -175,7 +202,7 @@ function build_biomedical_graph(entities::Vector{BiomedicalEntity}, relations::V
     end
 
     # Create metadata
-    metadata = Dict{String, Any}(
+    metadata = Dict{String,Any}(
         "total_entities" => length(entities),
         "total_relations" => length(relations),
         "umls_entities" => length(umls_mappings),
@@ -184,7 +211,14 @@ function build_biomedical_graph(entities::Vector{BiomedicalEntity}, relations::V
         "average_confidence" => calculate_average_confidence(confidence_scores),
     )
 
-    return BiomedicalKnowledgeGraph(entities, relations, umls_mappings, semantic_types, confidence_scores, metadata)
+    return BiomedicalKnowledgeGraph(
+        entities,
+        relations,
+        umls_mappings,
+        semantic_types,
+        confidence_scores,
+        metadata,
+    )
 end
 
 # ============================================================================
@@ -197,7 +231,7 @@ end
 Analyze the biomedical knowledge graph and return statistics.
 """
 function analyze_biomedical_graph(graph::BiomedicalKnowledgeGraph)
-    stats = Dict{String, Any}()
+    stats = Dict{String,Any}()
 
     # Basic statistics
     stats["total_entities"] = length(graph.entities)
@@ -205,16 +239,17 @@ function analyze_biomedical_graph(graph::BiomedicalKnowledgeGraph)
     stats["umls_mapped_entities"] = length(graph.umls_mappings)
 
     # Entity type distribution
-    entity_types = Dict{String, Int}()
+    entity_types = Dict{String,Int}()
     for entity in graph.entities
         entity_types[entity.label] = get(entity_types, entity.label, 0) + 1
     end
     stats["entity_types"] = entity_types
 
     # Relation type distribution
-    relation_types = Dict{String, Int}()
+    relation_types = Dict{String,Int}()
     for relation in graph.relations
-        relation_types[relation.relation_type] = get(relation_types, relation.relation_type, 0) + 1
+        relation_types[relation.relation_type] =
+            get(relation_types, relation.relation_type, 0) + 1
     end
     stats["relation_types"] = relation_types
 
@@ -222,12 +257,18 @@ function analyze_biomedical_graph(graph::BiomedicalKnowledgeGraph)
     entity_confidences = [e.confidence for e in graph.entities]
     relation_confidences = [r.confidence for r in graph.relations]
 
-    stats["avg_entity_confidence"] = isempty(entity_confidences) ? 0.0 : mean(entity_confidences)
-    stats["avg_relation_confidence"] = isempty(relation_confidences) ? 0.0 : mean(relation_confidences)
-    stats["min_entity_confidence"] = isempty(entity_confidences) ? 0.0 : minimum(entity_confidences)
-    stats["max_entity_confidence"] = isempty(entity_confidences) ? 0.0 : maximum(entity_confidences)
-    stats["min_relation_confidence"] = isempty(relation_confidences) ? 0.0 : minimum(relation_confidences)
-    stats["max_relation_confidence"] = isempty(relation_confidences) ? 0.0 : maximum(relation_confidences)
+    stats["avg_entity_confidence"] =
+        isempty(entity_confidences) ? 0.0 : mean(entity_confidences)
+    stats["avg_relation_confidence"] =
+        isempty(relation_confidences) ? 0.0 : mean(relation_confidences)
+    stats["min_entity_confidence"] =
+        isempty(entity_confidences) ? 0.0 : minimum(entity_confidences)
+    stats["max_entity_confidence"] =
+        isempty(entity_confidences) ? 0.0 : maximum(entity_confidences)
+    stats["min_relation_confidence"] =
+        isempty(relation_confidences) ? 0.0 : minimum(relation_confidences)
+    stats["max_relation_confidence"] =
+        isempty(relation_confidences) ? 0.0 : maximum(relation_confidences)
 
     # UMLS integration statistics
     if !isempty(graph.umls_mappings)
@@ -252,8 +293,8 @@ function find_connected_components(graph::BiomedicalKnowledgeGraph)
     end
 
     # Create adjacency list
-    adjacency = [Int[] for _ in 1:num_entities]
-    entity_id_map = Dict{String, Int}()
+    adjacency = [Int[] for _ = 1:num_entities]
+    entity_id_map = Dict{String,Int}()
     for (i, entity) in enumerate(graph.entities)
         entity_id_map[entity.id] = i
     end
@@ -272,7 +313,7 @@ function find_connected_components(graph::BiomedicalKnowledgeGraph)
     visited = falses(num_entities)
     components = Vector{Int}[]
 
-    for i in 1:num_entities
+    for i = 1:num_entities
         if !visited[i]
             component = Int[]
             stack = [i]
@@ -301,7 +342,7 @@ end
 Calculate various graph metrics for the biomedical knowledge graph.
 """
 function calculate_graph_metrics(graph::BiomedicalKnowledgeGraph)
-    metrics = Dict{String, Any}()
+    metrics = Dict{String,Any}()
 
     # Basic metrics
     num_entities = length(graph.entities)
@@ -312,7 +353,7 @@ function calculate_graph_metrics(graph::BiomedicalKnowledgeGraph)
     metrics["density"] = num_relations / (num_entities * (num_entities - 1) / 2)
 
     # Create adjacency matrix
-    entity_id_map = Dict{String, Int}()
+    entity_id_map = Dict{String,Int}()
     for (i, entity) in enumerate(graph.entities)
         entity_id_map[entity.id] = i
     end
@@ -361,9 +402,9 @@ function filter_by_confidence(graph::BiomedicalKnowledgeGraph, threshold::Float6
     filtered_relations = filter(r -> r.confidence >= threshold, graph.relations)
 
     # Update mappings and types
-    filtered_umls_mappings = Dict{String, String}()
-    filtered_semantic_types = Dict{String, Vector{String}}()
-    filtered_confidence_scores = Dict{String, Float64}()
+    filtered_umls_mappings = Dict{String,String}()
+    filtered_semantic_types = Dict{String,Vector{String}}()
+    filtered_confidence_scores = Dict{String,Float64}()
 
     for entity in filtered_entities
         if haskey(graph.umls_mappings, entity.id)
@@ -383,8 +424,14 @@ function filter_by_confidence(graph::BiomedicalKnowledgeGraph, threshold::Float6
     filtered_metadata["total_relations"] = length(filtered_relations)
     filtered_metadata["confidence_threshold"] = threshold
 
-    return BiomedicalKnowledgeGraph(filtered_entities, filtered_relations, filtered_umls_mappings,
-        filtered_semantic_types, filtered_confidence_scores, filtered_metadata)
+    return BiomedicalKnowledgeGraph(
+        filtered_entities,
+        filtered_relations,
+        filtered_umls_mappings,
+        filtered_semantic_types,
+        filtered_confidence_scores,
+        filtered_metadata,
+    )
 end
 
 """
@@ -392,7 +439,10 @@ end
 
 Filter the graph by entity types.
 """
-function filter_by_entity_type(graph::BiomedicalKnowledgeGraph, entity_types::Vector{String})
+function filter_by_entity_type(
+    graph::BiomedicalKnowledgeGraph,
+    entity_types::Vector{String},
+)
     # Filter entities
     filtered_entities = filter(e -> e.label in entity_types, graph.entities)
 
@@ -400,12 +450,15 @@ function filter_by_entity_type(graph::BiomedicalKnowledgeGraph, entity_types::Ve
     filtered_entity_ids = Set(e.id for e in filtered_entities)
 
     # Filter relations
-    filtered_relations = filter(r -> r.head in filtered_entity_ids && r.tail in filtered_entity_ids, graph.relations)
+    filtered_relations = filter(
+        r -> r.head in filtered_entity_ids && r.tail in filtered_entity_ids,
+        graph.relations,
+    )
 
     # Update mappings and types
-    filtered_umls_mappings = Dict{String, String}()
-    filtered_semantic_types = Dict{String, Vector{String}}()
-    filtered_confidence_scores = Dict{String, Float64}()
+    filtered_umls_mappings = Dict{String,String}()
+    filtered_semantic_types = Dict{String,Vector{String}}()
+    filtered_confidence_scores = Dict{String,Float64}()
 
     for entity in filtered_entities
         if haskey(graph.umls_mappings, entity.id)
@@ -425,8 +478,14 @@ function filter_by_entity_type(graph::BiomedicalKnowledgeGraph, entity_types::Ve
     filtered_metadata["total_relations"] = length(filtered_relations)
     filtered_metadata["filtered_entity_types"] = entity_types
 
-    return BiomedicalKnowledgeGraph(filtered_entities, filtered_relations, filtered_umls_mappings,
-        filtered_semantic_types, filtered_confidence_scores, filtered_metadata)
+    return BiomedicalKnowledgeGraph(
+        filtered_entities,
+        filtered_relations,
+        filtered_umls_mappings,
+        filtered_semantic_types,
+        filtered_confidence_scores,
+        filtered_metadata,
+    )
 end
 
 # ============================================================================
@@ -439,7 +498,7 @@ end
 Export the biomedical knowledge graph to JSON format.
 """
 function export_to_json(graph::BiomedicalKnowledgeGraph)
-    export_data = Dict{String, Any}()
+    export_data = Dict{String,Any}()
 
     # Basic information
     export_data["metadata"] = graph.metadata
@@ -508,7 +567,7 @@ end
 Count entities by type.
 """
 function count_entity_types(entities::Vector{BiomedicalEntity})
-    counts = Dict{String, Int}()
+    counts = Dict{String,Int}()
     for entity in entities
         counts[entity.label] = get(counts, entity.label, 0) + 1
     end
@@ -521,7 +580,7 @@ end
 Count relations by type.
 """
 function count_relation_types(relations::Vector{BiomedicalRelation})
-    counts = Dict{String, Int}()
+    counts = Dict{String,Int}()
     for relation in relations
         counts[relation.relation_type] = get(counts, relation.relation_type, 0) + 1
     end
@@ -533,7 +592,7 @@ end
 
 Calculate average confidence score.
 """
-function calculate_average_confidence(confidence_scores::Dict{String, Float64})
+function calculate_average_confidence(confidence_scores::Dict{String,Float64})
     if isempty(confidence_scores)
         return 0.0
     end

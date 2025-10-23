@@ -18,16 +18,16 @@ using Random
 
 Preprocess text for GraphMERT processing.
 """
-function preprocess_text(text::String; max_length::Int=512)
+function preprocess_text(text::String; max_length::Int = 512)
     # Remove extra whitespace
     text = strip(text)
-    
+
     # Truncate if too long
     if length(text) > max_length
         text = text[1:max_length]
         @warn "Text truncated to $max_length characters"
     end
-    
+
     return text
 end
 
@@ -50,13 +50,13 @@ Normalize text for consistent processing.
 function normalize_text(text::String)
     # Convert to lowercase
     text = lowercase(text)
-    
+
     # Remove special characters but keep alphanumeric and spaces
     text = replace(text, r"[^\w\s]" => " ")
-    
+
     # Remove extra whitespace
     text = replace(text, r"\s+" => " ")
-    
+
     return strip(text)
 end
 
@@ -101,15 +101,15 @@ function cosine_similarity(a::Vector{Float64}, b::Vector{Float64})
     if length(a) != length(b)
         error("Vectors must have the same length")
     end
-    
+
     dot_product = sum(a .* b)
     norm_a = sqrt(sum(a .^ 2))
     norm_b = sqrt(sum(b .^ 2))
-    
+
     if norm_a == 0.0 || norm_b == 0.0
         return 0.0
     end
-    
+
     return dot_product / (norm_a * norm_b)
 end
 
@@ -122,7 +122,7 @@ end
 
 Shuffle data randomly.
 """
-function shuffle_data(data::Vector{T}) where T
+function shuffle_data(data::Vector{T}) where {T}
     indices = collect(1:length(data))
     shuffle!(indices)
     return data[indices]
@@ -133,15 +133,15 @@ end
 
 Split data into train and test sets.
 """
-function split_data(data::Vector{T}, train_ratio::Float64=0.8) where T
+function split_data(data::Vector{T}, train_ratio::Float64 = 0.8) where {T}
     @assert 0.0 < train_ratio < 1.0 "train_ratio must be between 0.0 and 1.0"
-    
+
     shuffled_data = shuffle_data(data)
     split_index = round(Int, length(data) * train_ratio)
-    
+
     train_data = shuffled_data[1:split_index]
-    test_data = shuffled_data[split_index+1:end]
-    
+    test_data = shuffled_data[(split_index+1):end]
+
     return train_data, test_data
 end
 
@@ -150,14 +150,14 @@ end
 
 Split data into batches.
 """
-function batch_data(data::Vector{T}, batch_size::Int) where T
+function batch_data(data::Vector{T}, batch_size::Int) where {T}
     batches = Vector{Vector{T}}()
-    
-    for i in 1:batch_size:length(data)
+
+    for i = 1:batch_size:length(data)
         end_idx = min(i + batch_size - 1, length(data))
         push!(batches, data[i:end_idx])
     end
-    
+
     return batches
 end
 
@@ -170,7 +170,7 @@ end
 
 Log an info message with optional context.
 """
-function log_info(message::String; context::String="")
+function log_info(message::String; context::String = "")
     if !isempty(context)
         @info "[$context] $message"
     else
@@ -183,7 +183,7 @@ end
 
 Log a warning message with optional context.
 """
-function log_warning(message::String; context::String="")
+function log_warning(message::String; context::String = "")
     if !isempty(context)
         @warn "[$context] $message"
     else
@@ -196,7 +196,7 @@ end
 
 Log an error message with optional context.
 """
-function log_error(message::String; context::String="")
+function log_error(message::String; context::String = "")
     if !isempty(context)
         @error "[$context] $message"
     else
@@ -265,13 +265,13 @@ Make a filename safe for filesystem use.
 function safe_filename(filename::String)
     # Replace invalid characters with underscores
     safe_name = replace(filename, r"[^\w\-_\.]" => "_")
-    
+
     # Remove multiple consecutive underscores
     safe_name = replace(safe_name, r"_+" => "_")
-    
+
     # Remove leading/trailing underscores
     safe_name = strip(safe_name, '_')
-    
+
     return safe_name
 end
 
@@ -288,7 +288,7 @@ function time_function(f::Function, args...)
     start_time = time()
     result = f(args...)
     end_time = time()
-    
+
     execution_time = end_time - start_time
     return result, execution_time
 end
@@ -312,11 +312,11 @@ end
 
 Truncate a string to a maximum length.
 """
-function truncate_string(s::String, max_length::Int; suffix::String="...")
+function truncate_string(s::String, max_length::Int; suffix::String = "...")
     if length(s) <= max_length
         return s
     else
-        return s[1:max_length-length(suffix)] * suffix
+        return s[1:(max_length-length(suffix))] * suffix
     end
 end
 
@@ -325,7 +325,7 @@ end
 
 Join strings with a separator.
 """
-function join_strings(strings::Vector{String}, separator::String=" ")
+function join_strings(strings::Vector{String}, separator::String = " ")
     return join(strings, separator)
 end
 

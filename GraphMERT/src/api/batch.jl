@@ -96,11 +96,17 @@ function create_batch_processing_config(;
   progress_update_interval::Int=10,
   memory_monitoring::Bool=true,
   auto_optimize::Bool=true,
-  merge_strategy::String="union")
+  merge_strategy::String="union",
+)
 
   return BatchProcessingConfig(
-    batch_size, max_memory_mb, num_threads, progress_update_interval,
-    memory_monitoring, auto_optimize, merge_strategy
+    batch_size,
+    max_memory_mb,
+    num_threads,
+    progress_update_interval,
+    memory_monitoring,
+    auto_optimize,
+    merge_strategy,
   )
 end
 
@@ -119,16 +125,19 @@ Extract knowledge graphs from a batch of documents efficiently.
 # Returns
 - `BatchProcessingResult`: Results of batch processing
 """
-function extract_knowledge_graph_batch(documents::Vector{String};
+function extract_knowledge_graph_batch(
+  documents::Vector{String};
   config::BatchProcessingConfig=create_batch_processing_config(),
-  extraction_function::Function=extract_knowledge_graph)
+  extraction_function::Function=extract_knowledge_graph,
+)
 
   start_time = time()
   total_docs = length(documents)
 
   # Calculate optimal batch size
-  optimal_batch_size = config.auto_optimize ?
-                       calculate_optimal_batch_size(total_docs, config) : config.batch_size
+  optimal_batch_size =
+    config.auto_optimize ? calculate_optimal_batch_size(total_docs, config) :
+    config.batch_size
 
   # Create batches
   batches = create_document_batches(documents, optimal_batch_size)
@@ -136,7 +145,15 @@ function extract_knowledge_graph_batch(documents::Vector{String};
 
   # Initialize progress tracking
   progress = BatchProgress(
-    num_batches, 0, 0, start_time, start_time, 0.0, 0.0, 0.0, "initializing"
+    num_batches,
+    0,
+    0,
+    start_time,
+    start_time,
+    0.0,
+    0.0,
+    0.0,
+    "initializing",
   )
 
   # Initialize results storage
@@ -157,8 +174,10 @@ function extract_knowledge_graph_batch(documents::Vector{String};
     # Update progress
     progress.completed_batches += 1
     progress.last_update_time = time()
-    progress.current_throughput = progress.completed_batches / (progress.last_update_time - progress.start_time)
-    progress.estimated_remaining = (num_batches - progress.completed_batches) / progress.current_throughput
+    progress.current_throughput =
+      progress.completed_batches / (progress.last_update_time - progress.start_time)
+    progress.estimated_remaining =
+      (num_batches - progress.completed_batches) / progress.current_throughput
 
     # Monitor memory if enabled
     if config.memory_monitoring
@@ -191,13 +210,19 @@ function extract_knowledge_graph_batch(documents::Vector{String};
 
   # Create result
   result = BatchProcessingResult(
-    [merged_kg], processing_times, memory_usage, total_docs,
-    num_batches, 0, total_time, average_throughput,
+    [merged_kg],
+    processing_times,
+    memory_usage,
+    total_docs,
+    num_batches,
+    0,
+    total_time,
+    average_throughput,
     Dict(
       "batch_size" => optimal_batch_size,
       "num_batches" => num_batches,
-      "config" => config
-    )
+      "config" => config,
+    ),
   )
 
   progress.status = "completed"
@@ -231,17 +256,23 @@ function calculate_optimal_batch_size(total_docs::Int, config::BatchProcessingCo
   estimated_memory_per_doc = estimate_memory_per_document(total_docs)
 
   # Calculate batch size based on available memory
-  memory_based_batch_size = max(1, Int(round(available_memory_mb * 0.8 / estimated_memory_per_doc)))
+  memory_based_batch_size =
+    max(1, Int(round(available_memory_mb * 0.8 / estimated_memory_per_doc)))
 
   # Consider thread count and load balancing
   thread_based_batch_size = max(1, Int(round(total_docs / config.num_threads)))
 
   # Consider document count for efficiency
-  doc_count_based_batch_size = min(config.batch_size, max(1, Int(round(sqrt(total_docs)))))
+  doc_count_based_batch_size =
+    min(config.batch_size, max(1, Int(round(sqrt(total_docs)))))
 
   # Take minimum of all constraints
-  optimal_size = min(memory_based_batch_size, thread_based_batch_size,
-    doc_count_based_batch_size, config.batch_size)
+  optimal_size = min(
+    memory_based_batch_size,
+    thread_based_batch_size,
+    doc_count_based_batch_size,
+    config.batch_size,
+  )
 
   # Ensure minimum batch size for efficiency
   optimal_size = max(1, optimal_size)
@@ -301,10 +332,12 @@ Dynamically optimize batch size based on observed performance.
 # Returns
 - `Int`: Optimized batch size
 """
-function optimize_batch_size_dynamically(processing_times::Vector{Float64},
+function optimize_batch_size_dynamically(
+  processing_times::Vector{Float64},
   memory_usage::Vector{Float64},
   current_batch_size::Int,
-  config::BatchProcessingConfig)
+  config::BatchProcessingConfig,
+)
 
   if length(processing_times) < 3
     return current_batch_size  # Not enough data for optimization
@@ -331,7 +364,7 @@ function optimize_batch_size_dynamically(processing_times::Vector{Float64},
 
   # Check for performance degradation
   if length(processing_times) >= 5
-    recent_times = processing_times[end-4:end]
+    recent_times = processing_times[(end-4):end]
     if std(recent_times) / mean(recent_times) > 0.3  # High variance
       # Reduce batch size if performance is inconsistent
       new_batch_size = max(1, Int(current_batch_size * 0.9))
@@ -357,7 +390,7 @@ Create batches of documents for processing.
 function create_document_batches(documents::Vector{String}, batch_size::Int)
   batches = Vector{String}[]
 
-  for i in 1:batch_size:length(documents)
+  for i = 1:batch_size:length(documents)
     end_idx = min(i + batch_size - 1, length(documents))
     push!(batches, documents[i:end_idx])
   end
@@ -380,9 +413,11 @@ Process a single batch of documents.
 # Returns
 - `Vector{KnowledgeGraph}`: Extracted knowledge graphs
 """
-function process_single_batch(documents::Vector{String},
+function process_single_batch(
+  documents::Vector{String},
   extraction_function::Function,
-  config::BatchProcessingConfig)
+  config::BatchProcessingConfig,
+)
 
   results = KnowledgeGraph[]
 
@@ -390,14 +425,19 @@ function process_single_batch(documents::Vector{String},
   if config.num_threads > 1
     results = Vector{KnowledgeGraph}(undef, length(documents))
 
-    Threads.@threads for i in 1:length(documents)
+    Threads.@threads for i = 1:length(documents)
       try
         kg = extraction_function(documents[i])
         results[i] = kg
       catch e
         @warn "Failed to process document $i: $e"
         # Create empty knowledge graph for failed documents
-        results[i] = KnowledgeGraph([], [], Dict{String,Any}("error" => string(e)), now())
+        results[i] = KnowledgeGraph(
+          BiomedicalEntity[],
+          BiomedicalRelation[],
+          Dict{String,Any}("error" => string(e)),
+          now(),
+        )
       end
     end
   else
@@ -409,7 +449,15 @@ function process_single_batch(documents::Vector{String},
       catch e
         @warn "Failed to process document $i: $e"
         # Create empty knowledge graph for failed documents
-        push!(results, KnowledgeGraph([], [], Dict{String,Any}("error" => string(e)), now()))
+        push!(
+          results,
+          KnowledgeGraph(
+            BiomedicalEntity[],
+            BiomedicalRelation[],
+            Dict{String,Any}("error" => string(e)),
+            now(),
+          ),
+        )
       end
     end
   end
@@ -430,11 +478,18 @@ Merge multiple knowledge graphs into a single graph.
 # Returns
 - `KnowledgeGraph`: Merged knowledge graph
 """
-function merge_knowledge_graphs(knowledge_graphs::Vector{KnowledgeGraph},
-  strategy::String="union")
+function merge_knowledge_graphs(
+  knowledge_graphs::Vector{KnowledgeGraph},
+  strategy::String="union",
+)
 
   if isempty(knowledge_graphs)
-    return KnowledgeGraph([], [], Dict{String,Any}("merged" => true), now())
+    return KnowledgeGraph(
+      BiomedicalEntity[],
+      BiomedicalRelation[],
+      Dict{String,Any}("merged" => true),
+      now(),
+    )
   end
 
   if length(knowledge_graphs) == 1
@@ -483,7 +538,7 @@ function merge_knowledge_graphs(knowledge_graphs::Vector{KnowledgeGraph},
     "source_graphs" => length(knowledge_graphs),
     "total_entities" => length(merged_entities),
     "total_relations" => length(merged_relations),
-    "strategy" => strategy
+    "strategy" => strategy,
   )
 
   return KnowledgeGraph(merged_entities, merged_relations, merged_metadata, now())
@@ -502,7 +557,9 @@ function update_progress_display(progress::BatchProgress)
   progress_pct = (progress.completed_batches / progress.total_batches) * 100
 
   println("Batch Processing Progress:")
-  println("  • Completed: $(progress.completed_batches)/$(progress.total_batches) ($(round(progress_pct, digits=1))%)")
+  println(
+    "  • Completed: $(progress.completed_batches)/$(progress.total_batches) ($(round(progress_pct, digits=1))%)",
+  )
   println("  • Elapsed: $(round(elapsed, digits=1))s")
   println("  • Throughput: $(round(progress.current_throughput, digits=2)) batches/s")
   println("  • Memory: $(round(progress.memory_usage, digits=1)) MB")
@@ -514,7 +571,15 @@ function update_progress_display(progress::BatchProgress)
 end
 
 # Export functions
-export BatchProcessingConfig, BatchProcessingResult, BatchProgress,
-  create_batch_processing_config, extract_knowledge_graph_batch,
-  calculate_optimal_batch_size, estimate_memory_per_document, optimize_batch_size_dynamically,
-  create_document_batches, process_single_batch, merge_knowledge_graphs, update_progress_display
+export BatchProcessingConfig,
+  BatchProcessingResult,
+  BatchProgress,
+  create_batch_processing_config,
+  extract_knowledge_graph_batch,
+  calculate_optimal_batch_size,
+  estimate_memory_per_document,
+  optimize_batch_size_dynamically,
+  create_document_batches,
+  process_single_batch,
+  merge_knowledge_graphs,
+  update_progress_display

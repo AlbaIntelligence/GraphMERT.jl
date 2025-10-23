@@ -24,12 +24,12 @@ using Statistics: mean, std, var
 Result of ValidityScore evaluation containing detailed metrics.
 """
 struct ValidityScoreResult
-  triple_validity::Vector{Symbol}
-  justifications::Vector{String}
-  validity_score::Float64
-  valid_triples::Int
-  total_triples::Int
-  metadata::Dict{String,Any}
+    triple_validity::Vector{Symbol}
+    justifications::Vector{String}
+    validity_score::Float64
+    valid_triples::Int
+    total_triples::Int
+    metadata::Dict{String,Any}
 end
 
 # Use filter_triples_by_confidence from factscore.jl
@@ -59,55 +59,61 @@ ValidityScore = count(yes) / total_triples
 
 where "yes" indicates ontological validity of the triple.
 """
-function evaluate_validity(kg::GraphMERT.KnowledgeGraph;
-  llm_client::Union{HelperLLMClient,Nothing}=nothing,
-  umls_client::Union{UMLSClient,Nothing}=nothing,
-  confidence_threshold::Float64=0.5)
-  @info "Starting ValidityScore evaluation for $(length(kg.entities)) entities and $(length(kg.relations)) relations"
+function evaluate_validity(
+    kg::GraphMERT.KnowledgeGraph;
+    llm_client::Union{HelperLLMClient,Nothing} = nothing,
+    umls_client::Union{UMLSClient,Nothing} = nothing,
+    confidence_threshold::Float64 = 0.5,
+)
+    @info "Starting ValidityScore evaluation for $(length(kg.entities)) entities and $(length(kg.relations)) relations"
 
-  # Filter triples by confidence threshold
-  high_confidence_triples = filter_triples_by_confidence(kg, confidence_threshold)
+    # Filter triples by confidence threshold
+    high_confidence_triples = filter_triples_by_confidence(kg, confidence_threshold)
 
-  @info "Evaluating $(length(high_confidence_triples)) high-confidence triples"
+    @info "Evaluating $(length(high_confidence_triples)) high-confidence triples"
 
-  # Evaluate each triple
-  triple_validity = Vector{Symbol}()
-  justifications = Vector{String}()
+    # Evaluate each triple
+    triple_validity = Vector{Symbol}()
+    justifications = Vector{String}()
 
-  for (head_idx, rel_idx, tail_idx) in high_confidence_triples
-    head_entity = kg.entities[head_idx]
-    tail_entity = kg.entities[tail_idx]
-    relation = kg.relations[rel_idx]
+    for (head_idx, rel_idx, tail_idx) in high_confidence_triples
+        head_entity = kg.entities[head_idx]
+        tail_entity = kg.entities[tail_idx]
+        relation = kg.relations[rel_idx]
 
-    # Evaluate ontological validity
-    is_valid, justification = evaluate_triple_validity(
-      head_entity, relation, tail_entity, llm_client, umls_client
+        # Evaluate ontological validity
+        is_valid, justification = evaluate_triple_validity(
+            head_entity,
+            relation,
+            tail_entity,
+            llm_client,
+            umls_client,
+        )
+
+        push!(triple_validity, is_valid)
+        push!(justifications, justification)
+    end
+
+    # Calculate overall ValidityScore
+    total_triples = length(triple_validity)
+    valid_triples = count(v -> v == :yes, triple_validity)
+    validity_score = total_triples > 0 ? valid_triples / total_triples : 0.0
+
+    @info "ValidityScore = $(round(validity_score, digits=4)) ($valid_triples/$total_triples valid)"
+
+    return ValidityScoreResult(
+        triple_validity,
+        justifications,
+        validity_score,
+        valid_triples,
+        total_triples,
+        Dict(
+            "confidence_threshold" => confidence_threshold,
+            "valid_count" => valid_triples,
+            "maybe_count" => count(v -> v == :maybe, triple_validity),
+            "no_count" => count(v -> v == :no, triple_validity),
+        ),
     )
-
-    push!(triple_validity, is_valid)
-    push!(justifications, justification)
-  end
-
-  # Calculate overall ValidityScore
-  total_triples = length(triple_validity)
-  valid_triples = count(v -> v == :yes, triple_validity)
-  validity_score = total_triples > 0 ? valid_triples / total_triples : 0.0
-
-  @info "ValidityScore = $(round(validity_score, digits=4)) ($valid_triples/$total_triples valid)"
-
-  return ValidityScoreResult(
-    triple_validity,
-    justifications,
-    validity_score,
-    valid_triples,
-    total_triples,
-    Dict(
-      "confidence_threshold" => confidence_threshold,
-      "valid_count" => valid_triples,
-      "maybe_count" => count(v -> v == :maybe, triple_validity),
-      "no_count" => count(v -> v == :no, triple_validity)
-    )
-  )
 end
 
 """
@@ -128,32 +134,33 @@ Evaluate the ontological validity of a triple.
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
-function evaluate_triple_validity(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-  tail_entity::BiomedicalEntity,
-  llm_client::Union{HelperLLMClient,Nothing},
-  umls_client::Union{UMLSClient,Nothing})
-  # Try LLM-based evaluation first if available
-  if llm_client !== nothing
-    validity, justification = evaluate_triple_with_llm(
-      head_entity, relation, tail_entity, llm_client
-    )
-    if validity !== :unknown
-      return validity, justification
+function evaluate_triple_validity(
+    head_entity::BiomedicalEntity,
+    relation::BiomedicalRelation,
+    tail_entity::BiomedicalEntity,
+    llm_client::Union{HelperLLMClient,Nothing},
+    umls_client::Union{UMLSClient,Nothing},
+)
+    # Try LLM-based evaluation first if available
+    if llm_client !== nothing
+        validity, justification =
+            evaluate_triple_with_llm(head_entity, relation, tail_entity, llm_client)
+        if validity !== :unknown
+            return validity, justification
+        end
     end
-  end
 
-  # Fallback to UMLS-based evaluation if available
-  if umls_client !== nothing
-    validity, justification = evaluate_triple_with_umls(
-      head_entity, relation, tail_entity, umls_client
-    )
-    if validity !== :unknown
-      return validity, justification
+    # Fallback to UMLS-based evaluation if available
+    if umls_client !== nothing
+        validity, justification =
+            evaluate_triple_with_umls(head_entity, relation, tail_entity, umls_client)
+        if validity !== :unknown
+            return validity, justification
+        end
     end
-  end
 
-  # Final fallback to heuristic evaluation
-  return evaluate_triple_heuristic_validity(head_entity, relation, tail_entity)
+    # Final fallback to heuristic evaluation
+    return evaluate_triple_heuristic_validity(head_entity, relation, tail_entity)
 end
 
 """
@@ -171,39 +178,43 @@ Evaluate triple validity using LLM.
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
-function evaluate_triple_with_llm(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-  tail_entity::BiomedicalEntity, llm_client::HelperLLMClient)
-  prompt = """
-  Evaluate if the following biomedical relationship is ontologically valid:
+function evaluate_triple_with_llm(
+    head_entity::BiomedicalEntity,
+    relation::BiomedicalRelation,
+    tail_entity::BiomedicalEntity,
+    llm_client::HelperLLMClient,
+)
+    prompt = """
+    Evaluate if the following biomedical relationship is ontologically valid:
 
-  Relationship: $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text)
+    Relationship: $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text)
 
-  Is this relationship semantically valid in biomedical knowledge?
-  Consider:
-  - Are the entity types compatible with the relation?
-  - Does this relationship make sense in medical context?
-  - Are there any contradictions with established knowledge?
+    Is this relationship semantically valid in biomedical knowledge?
+    Consider:
+    - Are the entity types compatible with the relation?
+    - Does this relationship make sense in medical context?
+    - Are there any contradictions with established knowledge?
 
-  Answer YES, MAYBE, or NO with a brief justification:
-  """
+    Answer YES, MAYBE, or NO with a brief justification:
+    """
 
-  try
-    response = make_llm_request(llm_client, prompt)
-    if response.success
-      answer = strip(lowercase(response.content))
-      if startswith(answer, "yes")
-        return :yes, "LLM validation: semantically valid"
-      elseif startswith(answer, "no")
-        return :no, "LLM validation: semantically invalid"
-      else
-        return :maybe, "LLM validation: uncertain validity"
-      end
+    try
+        response = make_llm_request(llm_client, prompt)
+        if response.success
+            answer = strip(lowercase(response.content))
+            if startswith(answer, "yes")
+                return :yes, "LLM validation: semantically valid"
+            elseif startswith(answer, "no")
+                return :no, "LLM validation: semantically invalid"
+            else
+                return :maybe, "LLM validation: uncertain validity"
+            end
+        end
+    catch e
+        @warn "LLM validity evaluation failed: $e"
     end
-  catch e
-    @warn "LLM validity evaluation failed: $e"
-  end
 
-  return :unknown, "LLM evaluation failed"
+    return :unknown, "LLM evaluation failed"
 end
 
 """
@@ -221,28 +232,33 @@ Evaluate triple validity using UMLS ontology.
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
-function evaluate_triple_with_umls(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-  tail_entity::BiomedicalEntity, umls_client::UMLSClient)
-  # Check if entities are linked to UMLS
-  head_cui = head_entity.cui
-  tail_cui = tail_entity.cui
+function evaluate_triple_with_umls(
+    head_entity::BiomedicalEntity,
+    relation::BiomedicalRelation,
+    tail_entity::BiomedicalEntity,
+    umls_client::UMLSClient,
+)
+    # Check if entities are linked to UMLS
+    head_cui = head_entity.cui
+    tail_cui = tail_entity.cui
 
-  if head_cui === nothing || tail_cui === nothing
-    return :unknown, "Entities not linked to UMLS"
-  end
+    if head_cui === nothing || tail_cui === nothing
+        return :unknown, "Entities not linked to UMLS"
+    end
 
-  # Get semantic types
-  head_types = get_entity_semantic_types(umls_client, head_cui)
-  tail_types = get_entity_semantic_types(umls_client, tail_cui)
+    # Get semantic types
+    head_types = get_entity_semantic_types(umls_client, head_cui)
+    tail_types = get_entity_semantic_types(umls_client, tail_cui)
 
-  # Check ontological compatibility
-  is_valid = check_ontological_compatibility(head_types, relation.relation_type, tail_types)
+    # Check ontological compatibility
+    is_valid =
+        check_ontological_compatibility(head_types, relation.relation_type, tail_types)
 
-  if is_valid
-    return :yes, "UMLS validation: ontologically compatible"
-  else
-    return :no, "UMLS validation: ontologically incompatible"
-  end
+    if is_valid
+        return :yes, "UMLS validation: ontologically compatible"
+    else
+        return :no, "UMLS validation: ontologically incompatible"
+    end
 end
 
 """
@@ -259,24 +275,28 @@ Check if entity types are compatible with the relation.
 # Returns
 - `Bool`: True if compatible, false otherwise
 """
-function check_ontological_compatibility(head_types::Vector{String}, relation::String,
-  tail_types::Vector{String})
-  # Simple compatibility rules (would be more sophisticated in practice)
-  relation_compatibility = Dict(
-    "TREATS" => (["Disease", "Pharmacologic Substance"], ["Disease"]),
-    "CAUSES" => (["Disease", "Finding"], ["Disease", "Finding"]),
-    "ASSOCIATED_WITH" => (["*"], ["*"]),  # Very permissive
-    "INDICATES" => (["Finding", "Laboratory Procedure"], ["Disease", "Finding"]),
-    "PREVENTS" => (["Pharmacologic Substance", "Therapeutic Procedure"], ["Disease"])
-  )
+function check_ontological_compatibility(
+    head_types::Vector{String},
+    relation::String,
+    tail_types::Vector{String},
+)
+    # Simple compatibility rules (would be more sophisticated in practice)
+    relation_compatibility = Dict(
+        "TREATS" => (["Disease", "Pharmacologic Substance"], ["Disease"]),
+        "CAUSES" => (["Disease", "Finding"], ["Disease", "Finding"]),
+        "ASSOCIATED_WITH" => (["*"], ["*"]),  # Very permissive
+        "INDICATES" => (["Finding", "Laboratory Procedure"], ["Disease", "Finding"]),
+        "PREVENTS" =>
+            (["Pharmacologic Substance", "Therapeutic Procedure"], ["Disease"]),
+    )
 
-  compatible = get(relation_compatibility, relation, ([], []))
-  head_compatible, tail_compatible = compatible
+    compatible = get(relation_compatibility, relation, ([], []))
+    head_compatible, tail_compatible = compatible
 
-  head_ok = "*" in head_compatible || any(t in head_compatible for t in head_types)
-  tail_ok = "*" in tail_compatible || any(t in tail_compatible for t in tail_types)
+    head_ok = "*" in head_compatible || any(t in head_compatible for t in head_types)
+    tail_ok = "*" in tail_compatible || any(t in tail_compatible for t in tail_types)
 
-  return head_ok && tail_ok
+    return head_ok && tail_ok
 end
 
 """
@@ -293,23 +313,26 @@ Simple heuristic evaluation of triple validity.
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
-function evaluate_triple_heuristic_validity(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-  tail_entity::BiomedicalEntity)
-  # Simple heuristic based on entity and relation types
-  head_type = lowercase(head_entity.label)
-  tail_type = lowercase(tail_entity.label)
-  relation_type = lowercase(relation.relation_type)
+function evaluate_triple_heuristic_validity(
+    head_entity::BiomedicalEntity,
+    relation::BiomedicalRelation,
+    tail_entity::BiomedicalEntity,
+)
+    # Simple heuristic based on entity and relation types
+    head_type = lowercase(head_entity.label)
+    tail_type = lowercase(tail_entity.label)
+    relation_type = lowercase(relation.relation_type)
 
-  # Basic validity rules
-  if relation_type == "treats" && head_type == "drug" && tail_type == "disease"
-    return :yes, "Heuristic: drug treats disease"
-  elseif relation_type == "causes" && head_type == "disease" && tail_type == "disease"
-    return :yes, "Heuristic: disease causes disease"
-  elseif relation_type == "associated_with"  # Very permissive
-    return :maybe, "Heuristic: general association"
-  else
-    return :no, "Heuristic: incompatible types for relation"
-  end
+    # Basic validity rules
+    if relation_type == "treats" && head_type == "drug" && tail_type == "disease"
+        return :yes, "Heuristic: drug treats disease"
+    elseif relation_type == "causes" && head_type == "disease" && tail_type == "disease"
+        return :yes, "Heuristic: disease causes disease"
+    elseif relation_type == "associated_with"  # Very permissive
+        return :maybe, "Heuristic: general association"
+    else
+        return :no, "Heuristic: incompatible types for relation"
+    end
 end
 
 """
@@ -325,23 +348,27 @@ Calculate confidence interval for ValidityScore using Wilson score interval.
 # Returns
 - `Tuple{Float64, Float64}`: (lower_bound, upper_bound)
 """
-function calculate_validity_confidence_interval(validity_score::Float64, n::Int, confidence_level::Float64=0.95)
-  if n == 0
-    return (0.0, 0.0)
-  end
+function calculate_validity_confidence_interval(
+    validity_score::Float64,
+    n::Int,
+    confidence_level::Float64 = 0.95,
+)
+    if n == 0
+        return (0.0, 0.0)
+    end
 
-  # Wilson score interval for binomial proportion
-  z = quantile(Normal(), (1 + confidence_level) / 2)
-  p = validity_score
-  n = Float64(n)
+    # Wilson score interval for binomial proportion
+    z = quantile(Normal(), (1 + confidence_level) / 2)
+    p = validity_score
+    n = Float64(n)
 
-  center = (p + z^2 / (2 * n)) / (1 + z^2 / n)
-  margin = z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / (1 + z^2 / n)
+    center = (p + z^2 / (2 * n)) / (1 + z^2 / n)
+    margin = z * sqrt(p * (1 - p) / n + z^2 / (4 * n^2)) / (1 + z^2 / n)
 
-  lower = max(0.0, center - margin)
-  upper = min(1.0, center + margin)
+    lower = max(0.0, center - margin)
+    upper = min(1.0, center + margin)
 
-  return (lower, upper)
+    return (lower, upper)
 end
 
 """
@@ -350,14 +377,14 @@ end
 Result of statistical significance testing.
 """
 struct StatisticalSignificanceResult
-  p_value::Float64
-  significant::Bool
-  confidence_interval::Tuple{Float64,Float64}
-  effect_size::Float64
-  test_statistic::Float64
-  degrees_of_freedom::Int
-  test_type::String
-  metadata::Dict{String,Any}
+    p_value::Float64
+    significant::Bool
+    confidence_interval::Tuple{Float64,Float64}
+    effect_size::Float64
+    test_statistic::Float64
+    degrees_of_freedom::Int
+    test_type::String
+    metadata::Dict{String,Any}
 end
 
 """
@@ -375,76 +402,93 @@ Perform statistical significance testing on validity scores.
 # Returns
 - `StatisticalSignificanceResult`: Statistical test results
 """
-function perform_statistical_significance_test(validity_scores::Vector{Float64};
-  alpha::Float64=0.05,
-  test_type::String="t_test")
+function perform_statistical_significance_test(
+    validity_scores::Vector{Float64};
+    alpha::Float64 = 0.05,
+    test_type::String = "t_test",
+)
 
-  if isempty(validity_scores)
-    return StatisticalSignificanceResult(1.0, false, (0.0, 0.0), 0.0, 0.0, 0, test_type, Dict())
-  end
+    if isempty(validity_scores)
+        return StatisticalSignificanceResult(
+            1.0,
+            false,
+            (0.0, 0.0),
+            0.0,
+            0.0,
+            0,
+            test_type,
+            Dict(),
+        )
+    end
 
-  n = length(validity_scores)
-  mean_score = mean(validity_scores)
-  std_score = std(validity_scores)
+    n = length(validity_scores)
+    mean_score = mean(validity_scores)
+    std_score = std(validity_scores)
 
-  if test_type == "t_test"
-    # One-sample t-test against null hypothesis (score = 0.5)
-    null_hypothesis = 0.5
-    t_statistic = (mean_score - null_hypothesis) / (std_score / sqrt(n))
-    df = n - 1
-    p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
+    if test_type == "t_test"
+        # One-sample t-test against null hypothesis (score = 0.5)
+        null_hypothesis = 0.5
+        t_statistic = (mean_score - null_hypothesis) / (std_score / sqrt(n))
+        df = n - 1
+        p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
 
-    # Calculate confidence interval
-    t_critical = quantile(TDist(df), 1 - alpha / 2)
-    margin_error = t_critical * (std_score / sqrt(n))
-    ci_lower = mean_score - margin_error
-    ci_upper = mean_score + margin_error
+        # Calculate confidence interval
+        t_critical = quantile(TDist(df), 1 - alpha / 2)
+        margin_error = t_critical * (std_score / sqrt(n))
+        ci_lower = mean_score - margin_error
+        ci_upper = mean_score + margin_error
 
-    # Effect size (Cohen's d)
-    effect_size = (mean_score - null_hypothesis) / std_score
+        # Effect size (Cohen's d)
+        effect_size = (mean_score - null_hypothesis) / std_score
 
-  elseif test_type == "chi_square"
-    # Chi-square test for goodness of fit
-    expected_valid = n * 0.5  # Expected 50% valid
-    observed_valid = sum(validity_scores .> 0.5)
-    observed_invalid = n - observed_valid
+    elseif test_type == "chi_square"
+        # Chi-square test for goodness of fit
+        expected_valid = n * 0.5  # Expected 50% valid
+        observed_valid = sum(validity_scores .> 0.5)
+        observed_invalid = n - observed_valid
 
-    chi2_statistic = ((observed_valid - expected_valid)^2 / expected_valid) +
-                     ((observed_invalid - expected_valid)^2 / expected_valid)
-    df = 1
-    p_value = 1 - chi2cdf(chi2_statistic, df)
+        chi2_statistic =
+            ((observed_valid - expected_valid)^2 / expected_valid) +
+            ((observed_invalid - expected_valid)^2 / expected_valid)
+        df = 1
+        p_value = 1 - chi2cdf(chi2_statistic, df)
 
-    # Confidence interval for proportion
-    p_hat = observed_valid / n
-    z_critical = quantile(Normal(), 1 - alpha / 2)
-    margin_error = z_critical * sqrt(p_hat * (1 - p_hat) / n)
-    ci_lower = p_hat - margin_error
-    ci_upper = p_hat + margin_error
+        # Confidence interval for proportion
+        p_hat = observed_valid / n
+        z_critical = quantile(Normal(), 1 - alpha / 2)
+        margin_error = z_critical * sqrt(p_hat * (1 - p_hat) / n)
+        ci_lower = p_hat - margin_error
+        ci_upper = p_hat + margin_error
 
-    effect_size = (p_hat - 0.5) / sqrt(0.5 * 0.5)
-    t_statistic = chi2_statistic
+        effect_size = (p_hat - 0.5) / sqrt(0.5 * 0.5)
+        t_statistic = chi2_statistic
 
-  else
-    # Default to t-test
-    null_hypothesis = 0.5
-    t_statistic = (mean_score - null_hypothesis) / (std_score / sqrt(n))
-    df = n - 1
-    p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
+    else
+        # Default to t-test
+        null_hypothesis = 0.5
+        t_statistic = (mean_score - null_hypothesis) / (std_score / sqrt(n))
+        df = n - 1
+        p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
 
-    t_critical = quantile(TDist(df), 1 - alpha / 2)
-    margin_error = t_critical * (std_score / sqrt(n))
-    ci_lower = mean_score - margin_error
-    ci_upper = mean_score + margin_error
-    effect_size = (mean_score - null_hypothesis) / std_score
-  end
+        t_critical = quantile(TDist(df), 1 - alpha / 2)
+        margin_error = t_critical * (std_score / sqrt(n))
+        ci_lower = mean_score - margin_error
+        ci_upper = mean_score + margin_error
+        effect_size = (mean_score - null_hypothesis) / std_score
+    end
 
-  significant = p_value < alpha
+    significant = p_value < alpha
 
-  return StatisticalSignificanceResult(
-    p_value, significant, (ci_lower, ci_upper), effect_size,
-    t_statistic, df, test_type,
-    Dict("sample_size" => n, "mean_score" => mean_score, "std_score" => std_score)
-  )
+    return StatisticalSignificanceResult(
+        p_value,
+        significant,
+        (ci_lower, ci_upper),
+        effect_size,
+        t_statistic,
+        df,
+        test_type,
+        Dict("sample_size" => n, "mean_score" => mean_score, "std_score" => std_score),
+    )
 end
 
 """
@@ -461,41 +505,58 @@ Compare validity scores between two knowledge graphs using two-sample t-test.
 # Returns
 - `StatisticalSignificanceResult`: Comparison test results
 """
-function compare_validity_scores(kg1_scores::Vector{Float64}, kg2_scores::Vector{Float64};
-  alpha::Float64=0.05)
+function compare_validity_scores(
+    kg1_scores::Vector{Float64},
+    kg2_scores::Vector{Float64};
+    alpha::Float64 = 0.05,
+)
 
-  if isempty(kg1_scores) || isempty(kg2_scores)
-    return StatisticalSignificanceResult(1.0, false, (0.0, 0.0), 0.0, 0.0, 0, "two_sample_t_test", Dict())
-  end
+    if isempty(kg1_scores) || isempty(kg2_scores)
+        return StatisticalSignificanceResult(
+            1.0,
+            false,
+            (0.0, 0.0),
+            0.0,
+            0.0,
+            0,
+            "two_sample_t_test",
+            Dict(),
+        )
+    end
 
-  n1, n2 = length(kg1_scores), length(kg2_scores)
-  mean1, mean2 = mean(kg1_scores), mean(kg2_scores)
-  std1, std2 = std(kg1_scores), std(kg2_scores)
+    n1, n2 = length(kg1_scores), length(kg2_scores)
+    mean1, mean2 = mean(kg1_scores), mean(kg2_scores)
+    std1, std2 = std(kg1_scores), std(kg2_scores)
 
-  # Two-sample t-test
-  pooled_std = sqrt(((n1 - 1) * std1^2 + (n2 - 1) * std2^2) / (n1 + n2 - 2))
-  t_statistic = (mean1 - mean2) / (pooled_std * sqrt(1 / n1 + 1 / n2))
-  df = n1 + n2 - 2
+    # Two-sample t-test
+    pooled_std = sqrt(((n1 - 1) * std1^2 + (n2 - 1) * std2^2) / (n1 + n2 - 2))
+    t_statistic = (mean1 - mean2) / (pooled_std * sqrt(1 / n1 + 1 / n2))
+    df = n1 + n2 - 2
 
-  p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
+    p_value = 2 * (1 - cdf(TDist(df), abs(t_statistic)))
 
-  # Confidence interval for difference
-  t_critical = quantile(TDist(df), 1 - alpha / 2)
-  margin_error = t_critical * pooled_std * sqrt(1 / n1 + 1 / n2)
-  diff = mean1 - mean2
-  ci_lower = diff - margin_error
-  ci_upper = diff + margin_error
+    # Confidence interval for difference
+    t_critical = quantile(TDist(df), 1 - alpha / 2)
+    margin_error = t_critical * pooled_std * sqrt(1 / n1 + 1 / n2)
+    diff = mean1 - mean2
+    ci_lower = diff - margin_error
+    ci_upper = diff + margin_error
 
-  # Effect size (Cohen's d)
-  effect_size = (mean1 - mean2) / pooled_std
+    # Effect size (Cohen's d)
+    effect_size = (mean1 - mean2) / pooled_std
 
-  significant = p_value < alpha
+    significant = p_value < alpha
 
-  return StatisticalSignificanceResult(
-    p_value, significant, (ci_lower, ci_upper), effect_size,
-    t_statistic, df, "two_sample_t_test",
-    Dict("kg1_size" => n1, "kg2_size" => n2, "mean1" => mean1, "mean2" => mean2)
-  )
+    return StatisticalSignificanceResult(
+        p_value,
+        significant,
+        (ci_lower, ci_upper),
+        effect_size,
+        t_statistic,
+        df,
+        "two_sample_t_test",
+        Dict("kg1_size" => n1, "kg2_size" => n2, "mean1" => mean1, "mean2" => mean2),
+    )
 end
 
 """
@@ -517,35 +578,45 @@ Evaluate validity with statistical significance testing.
 # Returns
 - `Tuple{ValidityScoreResult, StatisticalSignificanceResult}`: Validity and statistical results
 """
-function evaluate_validity_with_statistics(kg::KnowledgeGraph;
-  llm_client::Union{HelperLLMClient,Nothing}=nothing,
-  umls_client::Union{UMLSClient,Nothing}=nothing,
-  confidence_threshold::Float64=0.5,
-  alpha::Float64=0.05)
+function evaluate_validity_with_statistics(
+    kg::KnowledgeGraph;
+    llm_client::Union{HelperLLMClient,Nothing} = nothing,
+    umls_client::Union{UMLSClient,Nothing} = nothing,
+    confidence_threshold::Float64 = 0.5,
+    alpha::Float64 = 0.05,
+)
 
-  # Get basic validity results
-  validity_result = evaluate_validity(kg, llm_client=llm_client, umls_client=umls_client,
-    confidence_threshold=confidence_threshold)
+    # Get basic validity results
+    validity_result = evaluate_validity(
+        kg,
+        llm_client = llm_client,
+        umls_client = umls_client,
+        confidence_threshold = confidence_threshold,
+    )
 
-  # Convert validity symbols to numeric scores for statistical testing
-  validity_scores = Float64[]
-  for validity in validity_result.triple_validity
-    if validity == :yes
-      push!(validity_scores, 1.0)
-    elseif validity == :no
-      push!(validity_scores, 0.0)
-    else  # :maybe
-      push!(validity_scores, 0.5)
+    # Convert validity symbols to numeric scores for statistical testing
+    validity_scores = Float64[]
+    for validity in validity_result.triple_validity
+        if validity == :yes
+            push!(validity_scores, 1.0)
+        elseif validity == :no
+            push!(validity_scores, 0.0)
+        else  # :maybe
+            push!(validity_scores, 0.5)
+        end
     end
-  end
 
-  # Perform statistical significance testing
-  stats_result = perform_statistical_significance_test(validity_scores, alpha=alpha)
+    # Perform statistical significance testing
+    stats_result = perform_statistical_significance_test(validity_scores, alpha = alpha)
 
-  return validity_result, stats_result
+    return validity_result, stats_result
 end
 
 # Export functions
-export evaluate_validity, evaluate_triple_validity, evaluate_triple_heuristic_validity,
-  StatisticalSignificanceResult, perform_statistical_significance_test,
-  compare_validity_scores, evaluate_validity_with_statistics
+export evaluate_validity,
+    evaluate_triple_validity,
+    evaluate_triple_heuristic_validity,
+    StatisticalSignificanceResult,
+    perform_statistical_significance_test,
+    compare_validity_scores,
+    evaluate_validity_with_statistics

@@ -16,12 +16,12 @@ using Dates
 Configuration for UMLS API client.
 """
 struct UMLSConfig
-  api_key::String
-  base_url::String
-  timeout::Int
-  max_retries::Int
-  semantic_networks::Vector{String}
-  rate_limit::Int  # requests per minute
+    api_key::String
+    base_url::String
+    timeout::Int
+    max_retries::Int
+    semantic_networks::Vector{String}
+    rate_limit::Int  # requests per minute
 end
 
 """
@@ -30,10 +30,10 @@ end
 Response from UMLS API.
 """
 struct UMLSResponse
-  success::Bool
-  data::Dict{String,Any}
-  error::Union{String,Nothing}
-  http_status::Union{Int,Nothing}
+    success::Bool
+    data::Dict{String,Any}
+    error::Union{String,Nothing}
+    http_status::Union{Int,Nothing}
 end
 
 """
@@ -42,16 +42,19 @@ end
 Local cache for UMLS responses with TTL.
 """
 mutable struct UMLSCache
-  concepts::Dict{String,Tuple{Any,DateTime}}
-  relations::Dict{String,Tuple{Any,DateTime}}
-  max_size::Int
-  ttl_seconds::Int
+    concepts::Dict{String,Tuple{Any,DateTime}}
+    relations::Dict{String,Tuple{Any,DateTime}}
+    max_size::Int
+    ttl_seconds::Int
 
-  function UMLSCache(max_size::Int=1000, ttl_seconds::Int=3600)
-    new(Dict{String,Tuple{Any,DateTime}}(),
-      Dict{String,Tuple{Any,DateTime}}(),
-      max_size, ttl_seconds)
-  end
+    function UMLSCache(max_size::Int = 1000, ttl_seconds::Int = 3600)
+        new(
+            Dict{String,Tuple{Any,DateTime}}(),
+            Dict{String,Tuple{Any,DateTime}}(),
+            max_size,
+            ttl_seconds,
+        )
+    end
 end
 
 """
@@ -60,11 +63,11 @@ end
 UMLS API client with rate limiting and caching.
 """
 mutable struct UMLSClient
-  config::UMLSConfig
-  cache::UMLSCache
-  last_request_time::Float64
-  request_count::Int
-  rate_limit_window_start::Float64
+    config::UMLSConfig
+    cache::UMLSCache
+    last_request_time::Float64
+    request_count::Int
+    rate_limit_window_start::Float64
 end
 
 """
@@ -72,16 +75,19 @@ end
 
 Create a new UMLS client with authentication and rate limiting.
 """
-function create_umls_client(api_key::String;
-  base_url::String="https://uts-ws.nlm.nih.gov/rest",
-  timeout::Int=30,
-  max_retries::Int=3,
-  semantic_networks::Vector{String}=["SNOMEDCT_US", "MSH", "RXNORM"],
-  rate_limit::Int=100,
-  cache_ttl::Int=3600)
-  config = UMLSConfig(api_key, base_url, timeout, max_retries, semantic_networks, rate_limit)
-  cache = UMLSCache(1000, cache_ttl)
-  return UMLSClient(config, cache, 0.0, 0, time())
+function create_umls_client(
+    api_key::String;
+    base_url::String = "https://uts-ws.nlm.nih.gov/rest",
+    timeout::Int = 30,
+    max_retries::Int = 3,
+    semantic_networks::Vector{String} = ["SNOMEDCT_US", "MSH", "RXNORM"],
+    rate_limit::Int = 100,
+    cache_ttl::Int = 3600,
+)
+    config =
+        UMLSConfig(api_key, base_url, timeout, max_retries, semantic_networks, rate_limit)
+    cache = UMLSCache(1000, cache_ttl)
+    return UMLSClient(config, cache, 0.0, 0, time())
 end
 
 """
@@ -90,8 +96,8 @@ end
 Link a biomedical entity to UMLS concepts.
 """
 function link_entity_to_umls(entity_text::String, client::UMLSClient)
-  # Simplified implementation for now
-  return nothing
+    # Simplified implementation for now
+    return nothing
 end
 
 """
@@ -100,8 +106,8 @@ end
 Get the CUI for an entity.
 """
 function get_entity_cui(client::UMLSClient, entity_text::String)
-  linking_result = link_entity_to_umls(entity_text, client)
-  return linking_result !== nothing ? linking_result.cui : nothing
+    linking_result = link_entity_to_umls(entity_text, client)
+    return linking_result !== nothing ? linking_result.cui : nothing
 end
 
 """
@@ -110,14 +116,14 @@ end
 Link multiple entities to UMLS concepts.
 """
 function link_entities_batch(client::UMLSClient, entities::Vector{String})
-  results = Dict{String,EntityLinkingResult}()
+    results = Dict{String,EntityLinkingResult}()
 
-  for entity in entities
-    linking_result = link_entity_to_umls(entity, client)
-    if linking_result !== nothing
-      results[entity] = linking_result
+    for entity in entities
+        linking_result = link_entity_to_umls(entity, client)
+        if linking_result !== nothing
+            results[entity] = linking_result
+        end
     end
-  end
 
-  return results
+    return results
 end
