@@ -53,7 +53,7 @@
 - **REQ-007:** Generate biomedical knowledge graph structure with nodes (entities) and edges (relations)
 - **REQ-008:** Provide confidence scores for extracted entities and relations
 - **REQ-009:** Support biomedical text formats (PubMed abstracts, medical documents)
-- **REQ-010:** Optimize for laptop deployment with 80M parameter model
+- **REQ-010:** Optimize for laptop deployment with 80M parameter model targeting <2GB model size, <4GB total memory usage, and <30 second startup time on standard laptop hardware
 
 ### Performance & Validation
 
@@ -96,8 +96,8 @@
 
 ### Performance
 
-- **NFR-001:** Process 5,000 tokens per second on laptop hardware (Intel i7-10750H or AMD Ryzen 7 4800H, 16GB RAM, no GPU acceleration)
-- **NFR-002:** Memory usage should not exceed 4GB for datasets up to 100K tokens (tested on 16GB RAM systems)
+- **NFR-001:** Process 5,000 input text tokens per second on laptop hardware (Intel i7-10750H or AMD Ryzen 7 4800H, 16GB RAM, no GPU acceleration). Tokens refer to input text tokens as processed by the tokenizer, not model internal tokens.
+- **NFR-002:** Total process memory usage (including model weights, activations, and working memory) should not exceed 4GB for datasets up to 100K input tokens (tested on 16GB RAM systems)
 - **NFR-003:** Algorithm should scale linearly with input size
 - **NFR-004:** ONNX model loading should complete within 30 seconds
 
