@@ -19,19 +19,19 @@ This document organizes implementation tasks by user story to enable independent
 
 ## Task Summary
 
-| Phase     | User Story            | Tasks   | Tests  | Examples | Status        | Dependencies |
-| --------- | --------------------- | ------- | ------ | -------- | ------------- | ------------ |
-| Phase 1   | Setup                 | 8       | 0      | 0        | ✅ Complete    | None         |
-| Phase 2   | Foundation            | 23      | 6      | 2        | ✅ Complete    | Phase 1      |
-| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | ✅ Complete    | Phase 2      |
-| Phase 4   | US2: Train Model      | 37      | 13     | 4        | ✅ Complete    | Phase 2      |
-| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | ✅ Complete    | Phase 2      |
-| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | ✅ Complete    | Phase 2      |
-| Phase 7   | US5: Evaluation       | 17      | 6      | 2        | 🔴 Blocked     | Phase 3      |
-| Phase 8   | US6: Batch Processing | 9       | 2      | 2        | 🔴 Blocked     | Phase 3      |
-| Phase 9   | Project Management    | 5       | 0      | 0        | ✅ Complete    | All          |
-| Phase 10  | Polish & Integration  | 16      | 5      | 3        | ✅ Complete    | All          |
-| **Total** |                       | **175** | **50** | **21**   |               |              |
+| Phase     | User Story            | Tasks   | Tests  | Examples | Status     | Dependencies |
+| --------- | --------------------- | ------- | ------ | -------- | ---------- | ------------ |
+| Phase 1   | Setup                 | 8       | 0      | 0        | ✅ Complete | None         |
+| Phase 2   | Foundation            | 23      | 6      | 2        | ✅ Complete | Phase 1      |
+| Phase 3   | US1: Extract KG       | 22      | 7      | 4        | ✅ Complete | Phase 2      |
+| Phase 4   | US2: Train Model      | 37      | 13     | 4        | ✅ Complete | Phase 2      |
+| Phase 5   | US3: UMLS Integration | 16      | 6      | 2        | ✅ Complete | Phase 2      |
+| Phase 6   | US4: Helper LLM       | 13      | 5      | 2        | ✅ Complete | Phase 2      |
+| Phase 7   | US5: Evaluation       | 17      | 6      | 2        | ✅ Complete | Phase 3      |
+| Phase 8   | US6: Batch Processing | 9       | 2      | 2        | ✅ Complete | Phase 3      |
+| Phase 9   | Project Management    | 5       | 0      | 0        | ✅ Complete | All          |
+| Phase 10  | Polish & Integration  | 16      | 5      | 3        | ✅ Complete | All          |
+| **Total** |                       | **175** | **50** | **21**   |            |              |
 
 ---
 
@@ -310,15 +310,15 @@ This document organizes implementation tasks by user story to enable independent
 
 ### US6: Batch Processing Implementation
 
-- [ ] T137 [US6] Implement extract_knowledge_graph_batch() API in GraphMERT/src/api/batch.jl
-- [ ] T138 [US6] Write unit tests for batch processing in GraphMERT/test/unit/test_batch.jl
-- [ ] T139 [US6] Implement automatic batch size optimization in GraphMERT/src/api/batch.jl
-- [ ] T140 [US6] Implement batch result merging in GraphMERT/src/api/batch.jl
-- [ ] T141 [US6] Implement progress tracking for batches in GraphMERT/src/api/batch.jl
-- [ ] T142 [US6] Add memory monitoring and optimization in GraphMERT/src/optimization/memory.jl
-- [ ] T143 [US6] Write performance tests for batch processing in GraphMERT/test/performance/test_batch_performance.jl
-- [ ] T144 [US6] Create working example: batch process PubMed corpus in examples/biomedical/09_batch_processing_demo.jl
-- [ ] T145 [US6] Verify performance: 3x throughput improvement vs sequential
+- [x] T137 [US6] Implement extract_knowledge_graph_batch() API in GraphMERT/src/api/batch.jl
+- [x] T138 [US6] Write unit tests for batch processing in GraphMERT/test/unit/test_batch.jl
+- [x] T139 [US6] Implement automatic batch size optimization in GraphMERT/src/api/batch.jl
+- [x] T140 [US6] Implement batch result merging in GraphMERT/src/api/batch.jl
+- [x] T141 [US6] Implement progress tracking for batches in GraphMERT/src/api/batch.jl
+- [x] T142 [US6] Add memory monitoring and optimization in GraphMERT/src/optimization/memory.jl
+- [x] T143 [US6] Write performance tests for batch processing in GraphMERT/test/performance/test_batch_performance.jl
+- [x] T144 [US6] Create working example: batch process PubMed corpus in examples/biomedical/09_batch_processing_demo.jl
+- [x] T145 [US6] Verify performance: 3x throughput improvement vs sequential
 
 ---
 
@@ -343,13 +343,13 @@ This document organizes implementation tasks by user story to enable independent
 
 ### Utility Functions
 
-- [ ] T151 [P] Implement merge_knowledge_graphs() in GraphMERT/src/utils.jl
-- [ ] T152 [P] Write unit tests for merge function in GraphMERT/test/unit/test_utils.jl
-- [ ] T153 [P] Implement filter_knowledge_graph() in GraphMERT/src/utils.jl
-- [ ] T154 [P] Write unit tests for filter function in GraphMERT/test/unit/test_utils.jl
-- [ ] T155 [P] Implement export_knowledge_graph() with multiple formats in GraphMERT/src/api/serialization.jl
-- [ ] T156 [P] Write unit tests for export formats in GraphMERT/test/unit/test_serialization.jl
-- [ ] T157 Verify compilation: test all utility functions
+- [x] T151 [P] Implement merge_knowledge_graphs() in GraphMERT/src/utils.jl
+- [x] T152 [P] Write unit tests for merge function in GraphMERT/test/unit/test_utils.jl
+- [x] T153 [P] Implement filter_knowledge_graph() in GraphMERT/src/utils.jl
+- [x] T154 [P] Write unit tests for filter function in GraphMERT/test/unit/test_utils.jl
+- [x] T155 [P] Implement export_knowledge_graph() with multiple formats in GraphMERT/src/api/serialization.jl
+- [x] T156 [P] Write unit tests for export formats in GraphMERT/test/unit/test_serialization.jl
+- [x] T157 Verify compilation: test all utility functions
 
 ### Documentation & Examples
 
@@ -770,7 +770,7 @@ grep "^##" .specify/features/replicate-graphmert/tasks.md
 
 ---
 
-**Last Updated**: 2025-01-20
+**Last Updated**: 2025-1-23
 **Total Tasks**: 87
 **Estimated Duration**: 12 weeks
 **MVP Duration**: 5 weeks (US1 only)

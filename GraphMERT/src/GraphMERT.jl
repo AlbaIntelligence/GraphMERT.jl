@@ -128,6 +128,8 @@ export extract_knowledge_graph, load_model, preprocess_text
 export KnowledgeGraph, BiomedicalEntity, BiomedicalRelation, TextPosition
 export GraphMERTModel, ProcessingOptions, GraphMERTConfig
 export FActScore, ValidityScore, GraphRAG
+export filter_knowledge_graph
+export export_knowledge_graph, export_to_json, export_to_csv, export_to_rdf, export_to_ttl
 
 # Export biomedical types and functions
 export BiomedicalEntityType, BiomedicalRelationType

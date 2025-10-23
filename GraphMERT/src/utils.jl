@@ -354,3 +354,71 @@ function convert_to_type(value::Any, target_type::Type)
         error("Cannot convert $value to $target_type: $e")
     end
 end
+
+# ============================================================================
+# Knowledge Graph Utilities
+# ============================================================================
+
+# merge_knowledge_graphs is already implemented in GraphMERT/src/api/batch.jl
+
+"""
+    filter_knowledge_graph(kg::KnowledgeGraph; 
+                          min_confidence::Float64=0.0,
+                          entity_types::Vector{String}=String[],
+                          relation_types::Vector{String}=String[]) -> KnowledgeGraph
+
+Filter knowledge graph based on confidence thresholds and types.
+"""
+function filter_knowledge_graph(kg::KnowledgeGraph; 
+                               min_confidence::Float64=0.0,
+                               entity_types::Vector{String}=String[],
+                               relation_types::Vector{String}=String[])
+    
+    # Filter entities
+    filtered_entities = filter(kg.entities) do entity
+        # Confidence filter
+        if entity.confidence < min_confidence
+            return false
+        end
+        
+        # Entity type filter
+        if !isempty(entity_types) && !(entity.label in entity_types)
+            return false
+        end
+        
+        return true
+    end
+    
+    # Filter relations
+    filtered_relations = filter(kg.relations) do relation
+        # Confidence filter
+        if relation.confidence < min_confidence
+            return false
+        end
+        
+        # Relation type filter
+        if !isempty(relation_types) && !(relation.relation_type in relation_types)
+            return false
+        end
+        
+        # Ensure both head and tail entities are still present
+        head_present = any(e.text == relation.head for e in filtered_entities)
+        tail_present = any(e.text == relation.tail for e in filtered_entities)
+        
+        return head_present && tail_present
+    end
+    
+    # Create filtered metadata
+    filtered_metadata = copy(kg.metadata)
+    filtered_metadata["filtered"] = true
+    filtered_metadata["filter_time"] = now()
+    filtered_metadata["min_confidence"] = min_confidence
+    filtered_metadata["entity_types"] = entity_types
+    filtered_metadata["relation_types"] = relation_types
+    filtered_metadata["original_entities"] = length(kg.entities)
+    filtered_metadata["original_relations"] = length(kg.relations)
+    filtered_metadata["filtered_entities"] = length(filtered_entities)
+    filtered_metadata["filtered_relations"] = length(filtered_relations)
+    
+    return KnowledgeGraph(filtered_entities, filtered_relations, filtered_metadata, now())
+end

@@ -1,0 +1,3 @@
+text,label,id,confidence,start_pos,stop_pos
+TYPE1,C001,entity1,0.8,1,7
+TYPE2,C002,entity2,0.9,8,14
