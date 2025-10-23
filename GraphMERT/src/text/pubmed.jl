@@ -11,7 +11,7 @@ Configuration for PubMed API client.
 """
 struct PubMedConfig
     base_url::String
-    api_key::Union{String, Nothing}
+    api_key::Union{String,Nothing}
     timeout::Int
     max_retries::Int
     rate_limit::Float64
@@ -24,8 +24,8 @@ Response from PubMed API.
 """
 struct PubMedResponse
     success::Bool
-    data::Dict{String, Any}
-    error::Union{String, Nothing}
+    data::Dict{String,Any}
+    error::Union{String,Nothing}
 end
 
 """
@@ -34,7 +34,7 @@ end
 Local cache for PubMed responses.
 """
 struct PubMedCache
-    articles::Dict{String, Any}
+    articles::Dict{String,Any}
     max_size::Int
 end
 
@@ -55,14 +55,15 @@ end
 
 Create a new PubMed client.
 """
-function create_pubmed_client(; 
-                             base_url::String = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils",
-                             api_key::Union{String, Nothing} = nothing,
-                             timeout::Int = 30,
-                             max_retries::Int = 3,
-                             rate_limit::Float64 = 0.1)
+function create_pubmed_client(;
+    base_url::String = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils",
+    api_key::Union{String,Nothing} = nothing,
+    timeout::Int = 30,
+    max_retries::Int = 3,
+    rate_limit::Float64 = 0.1,
+)
     config = PubMedConfig(base_url, api_key, timeout, max_retries, rate_limit)
-    cache = PubMedCache(Dict{String, Any}(), 1000)
+    cache = PubMedCache(Dict{String,Any}(), 1000)
     return PubMedClient(config, cache, 0.0, 0)
 end
 
@@ -71,13 +72,16 @@ end
 
 Search PubMed for articles.
 """
-function search_pubmed(client::PubMedClient, query::String; 
-                      max_results::Int = 100,
-                      sort::String = "relevance",
-                      mindate::Union{String, Nothing} = nothing,
-                      maxdate::Union{String, Nothing} = nothing)
+function search_pubmed(
+    client::PubMedClient,
+    query::String;
+    max_results::Int = 100,
+    sort::String = "relevance",
+    mindate::Union{String,Nothing} = nothing,
+    maxdate::Union{String,Nothing} = nothing,
+)
     @warn "PubMed search not available - HTTP.jl not loaded"
-    return PubMedResponse(false, Dict{String, Any}(), "HTTP.jl not available")
+    return PubMedResponse(false, Dict{String,Any}(), "HTTP.jl not available")
 end
 
 """
@@ -87,7 +91,7 @@ Fetch full article details for given PMIDs.
 """
 function fetch_pubmed_articles(client::PubMedClient, pmids::Vector{String})
     @warn "PubMed article fetching not available - HTTP.jl not loaded"
-    return PubMedResponse(false, Dict{String, Any}(), "HTTP.jl not available")
+    return PubMedResponse(false, Dict{String,Any}(), "HTTP.jl not available")
 end
 
 """
@@ -97,7 +101,7 @@ Get a single PubMed article.
 """
 function get_pubmed_article(client::PubMedClient, pmid::String)
     @warn "PubMed article retrieval not available - HTTP.jl not loaded"
-    return PubMedResponse(false, Dict{String, Any}(), "HTTP.jl not available")
+    return PubMedResponse(false, Dict{String,Any}(), "HTTP.jl not available")
 end
 
 """
@@ -105,16 +109,16 @@ end
 
 Process a PubMed article to extract text content.
 """
-function process_pubmed_article(article_data::Dict{String, Any})
+function process_pubmed_article(article_data::Dict{String,Any})
     # Placeholder implementation
-    return Dict{String, Any}(
+    return Dict{String,Any}(
         "title" => get(article_data, "title", ""),
         "abstract" => get(article_data, "abstract", ""),
         "authors" => get(article_data, "authors", String[]),
         "pmid" => get(article_data, "pmid", ""),
         "doi" => get(article_data, "doi", ""),
         "publication_date" => get(article_data, "publication_date", ""),
-        "journal" => get(article_data, "journal", "")
+        "journal" => get(article_data, "journal", ""),
     )
 end
 
@@ -123,16 +127,16 @@ end
 
 Extract biomedical text from a processed article.
 """
-function extract_biomedical_text(article::Dict{String, Any})
+function extract_biomedical_text(article::Dict{String,Any})
     title = get(article, "title", "")
     abstract = get(article, "abstract", "")
-    
+
     # Combine title and abstract
     text = title
     if !isempty(abstract)
         text = isempty(text) ? abstract : "$text $abstract"
     end
-    
+
     return text
 end
 
@@ -143,7 +147,7 @@ Search PubMed and process results.
 """
 function search_and_process_pubmed(client::PubMedClient, query::String; kwargs...)
     @warn "PubMed search and process not available - HTTP.jl not loaded"
-    return Dict{String, Any}()
+    return Dict{String,Any}()
 end
 
 """
@@ -153,7 +157,7 @@ Process multiple PubMed queries in batch.
 """
 function process_pubmed_batch(client::PubMedClient, queries::Vector{String})
     @warn "PubMed batch processing not available - HTTP.jl not loaded"
-    return Dict{String, Any}()
+    return Dict{String,Any}()
 end
 
 """

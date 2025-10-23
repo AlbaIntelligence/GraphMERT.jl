@@ -1,0 +1,19 @@
+GraphMERT Batch Processing Results
+Generated: 2025-10-23T09:55:07.114
+==================================================
+
+Performance Metrics:
+  Total documents: 10
+  Successful batches: 4
+  Failed batches: 0
+  Total time: 0.77s
+  Average throughput: 13.01 docs/s
+
+Memory Usage:
+  Peak memory: 58.2 MB
+  Average memory: 57.6 MB
+
+Knowledge Graph:
+  Total entities: 21
+  Total relations: 12
+  Merge strategy: union

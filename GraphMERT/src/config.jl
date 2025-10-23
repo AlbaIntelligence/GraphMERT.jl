@@ -7,6 +7,7 @@ for the GraphMERT implementation.
 
 using JSON
 using Logging
+# ProcessingOptions will be available from main module
 
 # ============================================================================
 # Default Configuration
@@ -18,8 +19,8 @@ using Logging
 Get the default configuration for GraphMERT.
 """
 function get_default_config()
-    return Dict{String, Any}(
-        "model" => Dict{String, Any}(
+    return Dict{String,Any}(
+        "model" => Dict{String,Any}(
             "vocab_size" => 50265,
             "hidden_size" => 768,
             "num_attention_heads" => 12,
@@ -27,9 +28,9 @@ function get_default_config()
             "max_position_embeddings" => 512,
             "type_vocab_size" => 2,
             "initializer_range" => 0.02,
-            "layer_norm_eps" => 1e-12
+            "layer_norm_eps" => 1e-12,
         ),
-        "processing" => Dict{String, Any}(
+        "processing" => Dict{String,Any}(
             "max_length" => 512,
             "batch_size" => 32,
             "use_umls" => true,
@@ -37,17 +38,17 @@ function get_default_config()
             "confidence_threshold" => 0.5,
             "cache_enabled" => true,
             "parallel_processing" => false,
-            "verbose" => false
+            "verbose" => false,
         ),
-        "api" => Dict{String, Any}(
-            "umls" => Dict{String, Any}(
+        "api" => Dict{String,Any}(
+            "umls" => Dict{String,Any}(
                 "base_url" => "https://uts-ws.nlm.nih.gov/rest",
                 "rate_limit" => 100,
                 "timeout" => 30,
                 "retry_attempts" => 3,
-                "cache_ttl" => 3600
+                "cache_ttl" => 3600,
             ),
-            "helper_llm" => Dict{String, Any}(
+            "helper_llm" => Dict{String,Any}(
                 "base_url" => "https://api.openai.com/v1",
                 "model" => "gpt-4",
                 "max_tokens" => 1000,
@@ -55,14 +56,14 @@ function get_default_config()
                 "rate_limit" => 10000,
                 "timeout" => 60,
                 "retry_attempts" => 3,
-                "cache_ttl" => 3600
-            )
+                "cache_ttl" => 3600,
+            ),
         ),
-        "evaluation" => Dict{String, Any}(
+        "evaluation" => Dict{String,Any}(
             "factscore_threshold" => 0.7,
             "validity_threshold" => 0.8,
-            "graphrag_threshold" => 0.75
-        )
+            "graphrag_threshold" => 0.75,
+        ),
     )
 end
 
@@ -81,7 +82,7 @@ function load_config(config_path::String)
             @warn "Configuration file not found: $config_path. Using default configuration."
             return get_default_config()
         end
-        
+
         config_data = JSON.parsefile(config_path)
         return merge_config(get_default_config(), config_data)
     catch e
@@ -96,9 +97,9 @@ end
 
 Merge user configuration with default configuration.
 """
-function merge_config(default::Dict{String, Any}, user::Dict{String, Any})
+function merge_config(default::Dict{String,Any}, user::Dict{String,Any})
     result = deepcopy(default)
-    
+
     for (key, value) in user
         if haskey(result, key) && isa(value, Dict) && isa(result[key], Dict)
             result[key] = merge_config(result[key], value)
@@ -106,7 +107,7 @@ function merge_config(default::Dict{String, Any}, user::Dict{String, Any})
             result[key] = value
         end
     end
-    
+
     return result
 end
 
@@ -119,81 +120,85 @@ end
 
 Validate configuration parameters.
 """
-function validate_config(config::Dict{String, Any})
+function validate_config(config::Dict{String,Any})
     errors = String[]
-    
+
     # Validate model configuration
     if haskey(config, "model")
         model_config = config["model"]
-        
+
         if haskey(model_config, "vocab_size") && model_config["vocab_size"] <= 0
             push!(errors, "vocab_size must be positive")
         end
-        
+
         if haskey(model_config, "hidden_size") && model_config["hidden_size"] <= 0
             push!(errors, "hidden_size must be positive")
         end
-        
-        if haskey(model_config, "num_attention_heads") && model_config["num_attention_heads"] <= 0
+
+        if haskey(model_config, "num_attention_heads") &&
+           model_config["num_attention_heads"] <= 0
             push!(errors, "num_attention_heads must be positive")
         end
-        
-        if haskey(model_config, "num_hidden_layers") && model_config["num_hidden_layers"] <= 0
+
+        if haskey(model_config, "num_hidden_layers") &&
+           model_config["num_hidden_layers"] <= 0
             push!(errors, "num_hidden_layers must be positive")
         end
     end
-    
+
     # Validate processing configuration
     if haskey(config, "processing")
         processing_config = config["processing"]
-        
+
         if haskey(processing_config, "max_length") && processing_config["max_length"] <= 0
             push!(errors, "max_length must be positive")
         end
-        
+
         if haskey(processing_config, "batch_size") && processing_config["batch_size"] <= 0
             push!(errors, "batch_size must be positive")
         end
-        
-        if haskey(processing_config, "confidence_threshold") && 
-           (processing_config["confidence_threshold"] < 0.0 || processing_config["confidence_threshold"] > 1.0)
+
+        if haskey(processing_config, "confidence_threshold") && (
+            processing_config["confidence_threshold"] < 0.0 ||
+            processing_config["confidence_threshold"] > 1.0
+        )
             push!(errors, "confidence_threshold must be between 0.0 and 1.0")
         end
     end
-    
+
     # Validate API configuration
     if haskey(config, "api")
         api_config = config["api"]
-        
+
         if haskey(api_config, "umls")
             umls_config = api_config["umls"]
-            
+
             if haskey(umls_config, "rate_limit") && umls_config["rate_limit"] <= 0
                 push!(errors, "UMLS rate_limit must be positive")
             end
-            
+
             if haskey(umls_config, "timeout") && umls_config["timeout"] <= 0
                 push!(errors, "UMLS timeout must be positive")
             end
         end
-        
+
         if haskey(api_config, "helper_llm")
             llm_config = api_config["helper_llm"]
-            
+
             if haskey(llm_config, "rate_limit") && llm_config["rate_limit"] <= 0
                 push!(errors, "Helper LLM rate_limit must be positive")
             end
-            
+
             if haskey(llm_config, "timeout") && llm_config["timeout"] <= 0
                 push!(errors, "Helper LLM timeout must be positive")
             end
         end
     end
-    
+
     if !isempty(errors)
         error("Configuration validation failed: " * join(errors, ", "))
     end
-    
+
     return true
 end
 
@@ -206,7 +211,7 @@ end
 
 Save configuration to a JSON file.
 """
-function save_config(config::Dict{String, Any}, config_path::String)
+function save_config(config::Dict{String,Any}, config_path::String)
     try
         open(config_path, "w") do io
             JSON.print(io, config, 2)
@@ -223,10 +228,14 @@ end
 
 Get a configuration value using dot notation (e.g., "model.hidden_size").
 """
-function get_config_value(config::Dict{String, Any}, key_path::String, default_value::Any=nothing)
+function get_config_value(
+    config::Dict{String,Any},
+    key_path::String,
+    default_value::Any = nothing,
+)
     keys = split(key_path, ".")
     current = config
-    
+
     for key in keys
         if haskey(current, key)
             current = current[key]
@@ -234,7 +243,7 @@ function get_config_value(config::Dict{String, Any}, key_path::String, default_v
             return default_value
         end
     end
-    
+
     return current
 end
 
@@ -243,16 +252,69 @@ end
 
 Set a configuration value using dot notation.
 """
-function set_config_value!(config::Dict{String, Any}, key_path::String, value::Any)
+function set_config_value!(config::Dict{String,Any}, key_path::String, value::Any)
     keys = split(key_path, ".")
     current = config
-    
-    for key in keys[1:end-1]
+
+    for key in keys[1:(end-1)]
         if !haskey(current, key) || !isa(current[key], Dict)
-            current[key] = Dict{String, Any}()
+            current[key] = Dict{String,Any}()
         end
         current = current[key]
     end
-    
+
     current[keys[end]] = value
+end
+
+"""
+    default_processing_options(;
+        batch_size::Int=32,
+        max_length::Int=1024,
+        device::Symbol=:cpu,
+        use_amp::Bool=false,
+        num_workers::Int=1,
+        seed::Union{Int, Nothing}=nothing,
+        top_k_predictions::Int=20,
+        similarity_threshold::Float64=0.8,
+        enable_provenance_tracking::Bool=true
+    )::ProcessingOptions
+
+Create default processing options for GraphMERT.
+
+# Arguments
+- `batch_size::Int`: Batch size for processing (default: 32)
+- `max_length::Int`: Maximum sequence length (default: 1024)
+- `device::Symbol`: Compute device (`:cpu`, `:cuda`) (default: :cpu)
+- `use_amp::Bool`: Use automatic mixed precision (default: false)
+- `num_workers::Int`: Number of parallel workers (default: 1)
+- `seed::Union{Int, Nothing}`: Random seed for reproducibility
+- `top_k_predictions::Int`: Top-k for tail prediction (default: 20)
+- `similarity_threshold::Float64`: Filtering threshold (β, default: 0.8)
+- `enable_provenance_tracking::Bool`: Track provenance (default: true)
+
+# Returns
+- `ProcessingOptions`: Configured processing options
+"""
+function default_processing_options(;
+    batch_size::Int = 32,
+    max_length::Int = 1024,
+    device::Symbol = :cpu,
+    use_amp::Bool = false,
+    num_workers::Int = 1,
+    seed::Union{Int,Nothing} = nothing,
+    top_k_predictions::Int = 20,
+    similarity_threshold::Float64 = 0.8,
+    enable_provenance_tracking::Bool = true,
+)
+    return GraphMERT.ProcessingOptions(
+        batch_size,
+        max_length,
+        device,
+        use_amp,
+        num_workers,
+        seed,
+        top_k_predictions,
+        similarity_threshold,
+        enable_provenance_tracking,
+    )
 end

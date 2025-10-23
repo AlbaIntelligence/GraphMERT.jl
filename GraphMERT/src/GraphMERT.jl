@@ -128,11 +128,15 @@ export extract_knowledge_graph, load_model, preprocess_text
 export KnowledgeGraph, BiomedicalEntity, BiomedicalRelation, TextPosition
 export GraphMERTModel, ProcessingOptions, GraphMERTConfig
 export FActScore, ValidityScore, GraphRAG
+export filter_knowledge_graph
+export export_knowledge_graph, export_to_json, export_to_csv, export_to_rdf, export_to_ttl
 
 # Export biomedical types and functions
 export BiomedicalEntityType, BiomedicalRelationType
-export DISEASE, DRUG, PROTEIN, GENE, ANATOMY, SYMPTOM, PROCEDURE, ORGANISM, CHEMICAL, CELL_TYPE
-export TREATS, CAUSES, ASSOCIATED_WITH, PREVENTS, INHIBITS, ACTIVATES, BINDS_TO, INTERACTS_WITH
+export DISEASE,
+  DRUG, PROTEIN, GENE, ANATOMY, SYMPTOM, PROCEDURE, ORGANISM, CHEMICAL, CELL_TYPE
+export TREATS,
+  CAUSES, ASSOCIATED_WITH, PREVENTS, INHIBITS, ACTIVATES, BINDS_TO, INTERACTS_WITH
 export REGULATES, EXPRESSES, LOCATED_IN, PART_OF, DERIVED_FROM, SYNONYMOUS_WITH
 export CONTRAINDICATED_WITH, INDICATES, MANIFESTS_AS, ADMINISTERED_FOR, TARGETS
 export METABOLIZED_BY, TRANSPORTED_BY, SECRETED_BY, PRODUCED_BY, CONTAINS, COMPONENT_OF
@@ -192,54 +196,57 @@ graph = extract_knowledge_graph(text)
 println("Found \$(length(graph.entities)) entities and \$(length(graph.relations)) relations")
 ```
 """
-function extract_knowledge_graph(text::String; options::ProcessingOptions=ProcessingOptions())
-    # Preprocess text
-    processed_text = preprocess_text_for_graphmert(text; max_length=options.max_length)
-    
-    # Extract entities using fallback method
-    entities = fallback_entity_recognition(processed_text)
-    
-    # Convert to BiomedicalEntity objects
-    biomedical_entities = Vector{BiomedicalEntity}()
-    for (i, entity_text) in enumerate(entities)
-        entity = BiomedicalEntity(
-            "entity_$i",
-            entity_text,
-            "UNKNOWN",
-            0.5,
-            TextPosition(1, length(entity_text), 1, 1),
-            Dict{String,Any}(),
-            Dates.now()
-        )
-        push!(biomedical_entities, entity)
-    end
-    
-    # Extract relations using fallback method
-    relations = fallback_relation_matching(entities, processed_text)
-    
-    # Convert to BiomedicalRelation objects
-    biomedical_relations = Vector{BiomedicalRelation}()
-    for (key, rel_data) in relations
-        relation = BiomedicalRelation(
-            head=rel_data["entity1"],
-            tail=rel_data["entity2"],
-            relation_type=rel_data["relation"],
-            confidence=0.5,
-            attributes=Dict{String,Any}("context" => processed_text),
-            created_at=Dates.now()
-        )
-        push!(biomedical_relations, relation)
-    end
-    
-    # Create knowledge graph
-    metadata = Dict{String,Any}(
-        "total_entities" => length(biomedical_entities),
-        "total_relations" => length(biomedical_relations),
-        "confidence_threshold" => options.confidence_threshold,
-        "processing_time" => Dates.now()
+function extract_knowledge_graph(
+  text::String;
+  options::ProcessingOptions=ProcessingOptions(),
+)
+  # Preprocess text
+  processed_text = preprocess_text_for_graphmert(text; max_length=options.max_length)
+
+  # Extract entities using fallback method
+  entities = fallback_entity_recognition(processed_text)
+
+  # Convert to BiomedicalEntity objects
+  biomedical_entities = Vector{BiomedicalEntity}()
+  for (i, entity_text) in enumerate(entities)
+    entity = BiomedicalEntity(
+      "entity_$i",
+      entity_text,
+      "UNKNOWN",
+      0.5,
+      TextPosition(1, length(entity_text), 1, 1),
+      Dict{String,Any}(),
+      Dates.now(),
     )
-    
-    return KnowledgeGraph(biomedical_entities, biomedical_relations, metadata)
+    push!(biomedical_entities, entity)
+  end
+
+  # Extract relations using fallback method
+  relations = fallback_relation_matching(entities, processed_text)
+
+  # Convert to BiomedicalRelation objects
+  biomedical_relations = Vector{BiomedicalRelation}()
+  for (key, rel_data) in relations
+    relation = BiomedicalRelation(
+      head=rel_data["entity1"],
+      tail=rel_data["entity2"],
+      relation_type=rel_data["relation"],
+      confidence=0.5,
+      attributes=Dict{String,Any}("context" => processed_text),
+      created_at=Dates.now(),
+    )
+    push!(biomedical_relations, relation)
+  end
+
+  # Create knowledge graph
+  metadata = Dict{String,Any}(
+    "total_entities" => length(biomedical_entities),
+    "total_relations" => length(biomedical_relations),
+    "confidence_threshold" => options.confidence_threshold,
+    "processing_time" => Dates.now(),
+  )
+
+  return KnowledgeGraph(biomedical_entities, biomedical_relations, metadata)
 end
 
 """
@@ -259,10 +266,10 @@ model = load_graphmert_model("path/to/model.onnx")
 ```
 """
 function load_graphmert_model(model_path::String)
-    # Placeholder implementation
-    # TODO: Implement actual model loading
-    config = GraphMERTConfig(model_path=model_path)
-    return GraphMERTModel(config)
+  # Placeholder implementation
+  # TODO: Implement actual model loading
+  config = GraphMERTConfig(model_path=model_path)
+  return GraphMERTModel(config)
 end
 
 """
@@ -283,12 +290,71 @@ processed = preprocess_text_for_graphmert("Alzheimer's disease is a neurodegener
 ```
 """
 function preprocess_text_for_graphmert(text::String; max_length::Int=512)
-    # Basic text preprocessing
-    text = strip(text)
-    if length(text) > max_length
-        text = text[1:max_length]
-    end
-    return String(text)  # Ensure we return a String, not SubString
+  # Basic text preprocessing
+  text = strip(text)
+  if length(text) > max_length
+    text = text[1:max_length]
+  end
+  return String(text)  # Ensure we return a String, not SubString
 end
+
+# ============================================================================
+# Export Additional Functions from Submodules
+# ============================================================================
+
+# Export from API module
+export extract_knowledge_graph,
+  discover_head_entities,
+  match_relations_for_entities,
+  predict_tail_tokens,
+  form_tail_from_tokens,
+  filter_and_deduplicate_triples
+
+# Export from Evaluation modules
+export evaluate_factscore,
+  evaluate_validity,
+  evaluate_graphrag,
+  calculate_factscore_confidence_interval,
+  calculate_validity_confidence_interval
+
+# Export from Config module
+export default_processing_options
+
+# Export from Training.MNM module
+export select_leaves_to_mask,
+  apply_mnm_masks, calculate_mnm_loss, create_mnm_batch, train_mnm_step, evaluate_mnm
+
+# Export from Training.SeedInjection module
+export link_entity_sapbert,
+  select_triples_for_entity,
+  inject_seed_kg,
+  select_triples_for_injection,
+  bucket_by_score,
+  bucket_by_relation_frequency,
+  validate_injected_triples
+
+# Export from Training.Pipeline module
+export train_graphmert,
+  prepare_training_data, create_training_configurations, load_training_data
+
+# Export from Graphs module
+export default_chain_graph_config,
+  create_empty_chain_graph,
+  build_adjacency_matrix,
+  floyd_warshall,
+  inject_triple!,
+  graph_to_sequence,
+  create_attention_mask,
+  create_leafy_chain_from_text
+
+# Export from Types module (additional types)
+export ChainGraphNode,
+  ChainGraphConfig,
+  LeafyChainGraph,
+  MNMConfig,
+  MNMBatch,
+  SeedInjectionConfig,
+  EntityLinkingResult,
+  SemanticTriple
 
 end # module GraphMERT

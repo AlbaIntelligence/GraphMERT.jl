@@ -1,172 +1,97 @@
 """
-Example 2: Relation Extraction
-==============================
+Relation Extraction Demo
 
-This example demonstrates relation extraction between biomedical entities,
-following the progression of the original GraphMERT paper. This builds on
-the entity extraction from Example 1.
+This example demonstrates the second stage of the GraphMERT knowledge graph
+extraction pipeline: matching entities to relations.
 
-Based on: GraphMERT paper - Section 3.2 Relation Extraction
+Key concepts demonstrated:
+1. Entity pair analysis for potential relations
+2. Relation type determination based on text context
+3. Confidence scoring for relation extraction
+4. Relation filtering based on thresholds
 """
 
-using Pkg
-Pkg.activate(; temp = true)
-Pkg.add(["Revise", "Logging"])
-using Revise
-using Logging
-
-Pkg.develop(path = "./GraphMERT")
 using GraphMERT
 
-# Configure logging
-global_logger(ConsoleLogger(stderr, Logging.Info))
+println("=== Relation Extraction Demo ===")
 
-function main()
-    println("="^60)
-    println("GraphMERT Example 2: Relation Extraction")
-    println("="^60)
+# 1. Sample biomedical text with entities
+text = """
+Diabetes mellitus is a chronic metabolic disorder characterized by
+elevated blood glucose levels. Metformin is commonly used to treat
+type 2 diabetes. Insulin resistance is a key feature of type 2 diabetes.
+Cardiovascular disease is a major complication of diabetes.
+"""
 
-    # Sample biomedical text with clear relations
-    sample_text = """
-    Donepezil is a cholinesterase inhibitor that treats Alzheimer's disease
-    by preventing the breakdown of acetylcholine in the brain. The drug
-    binds to acetylcholinesterase enzyme and inhibits its activity, which
-    leads to increased acetylcholine levels. This medication is commonly
-    prescribed for patients with mild to moderate Alzheimer's disease and
-    has been shown to improve cognitive function and reduce symptoms.
-    However, donepezil does not cure the disease and only provides
-    symptomatic relief.
-    """
+println("Sample text:")
+println(text)
+println()
 
-    println("\n📄 Sample Text:")
-    println(sample_text)
+# 2. Extract entities first
+println("2. Extracting entities...")
+entities = discover_head_entities(text)
+println("Found $(length(entities)) entities:")
 
-    # Initialize clients
-    umls_client = nothing
-    llm_client = nothing
+for (i, entity) in enumerate(entities)
+  println("  $i. $(entity.text) ($(entity.entity_type), conf: $(round(entity.confidence, digits=3)))")
+end
+println()
 
-    try
-        # In a real scenario, you would provide your API keys
-        # umls_client = create_umls_client("your-umls-api-key")
-        # llm_client = create_helper_llm_client("your-llm-api-key")
-        println("\n⚠️  External clients not configured - using fallback methods")
-    catch e
-        println("\n⚠️  Client initialization failed: $e")
-    end
+# 3. Find relations between entities
+println("3. Finding relations between entities...")
+relations = match_relations_for_entities(entities, text)
+println("Found $(length(relations)) potential relations:")
 
-    # Step 1: Extract entities
-    println("\n🔍 Step 1: Extracting entities...")
-    entity_types = get_supported_entity_types()
-    entities = extract_entities_from_text(sample_text; entity_types = entity_types)
+for (head_idx, tail_idx, relation_type, confidence) in relations
+  head_entity = entities[head_idx]
+  tail_entity = entities[tail_idx]
+  println("  $(head_entity.text) --[$(relation_type)]--> $(tail_entity.text) (conf: $(round(confidence, digits=3)))")
+end
+println()
 
-    println("Found $(length(entities)) entities:")
-    for (i, (text, entity_type, confidence)) in enumerate(entities)
-        println("  $i. \"$text\" -> $entity_type")
-    end
+# 4. Analyze relation types
+println("4. Relation type analysis:")
+relation_counts = Dict{String,Int}()
 
-    # Step 2: Extract relations
-    println("\n🔗 Step 2: Extracting relations...")
-
-    # Convert entities to the format expected by relation extraction
-    entity_list = [Dict("text" => text, "type" => get_entity_type_name(entity_type),
-        "confidence" => confidence) for (text, entity_type, confidence) in entities]
-
-    # Extract relations using rule-based approach
-    relations = Vector{Dict{String, Any}}()
-
-    # Find relations between entities
-    for i in 1:length(entity_list)
-        for j in (i+1):length(entity_list)
-            head_entity = entity_list[i]["text"]
-            tail_entity = entity_list[j]["text"]
-
-            # Classify relation using rule-based approach
-            relation_type = classify_relation(head_entity, tail_entity, sample_text; umls_client = umls_client)
-
-            if relation_type != UNKNOWN_RELATION
-                # Calculate confidence
-                confidence = calculate_relation_confidence(head_entity, tail_entity, relation_type, sample_text)
-
-                # Validate relation
-                is_valid = validate_biomedical_relation(head_entity, tail_entity, relation_type)
-
-                if is_valid
-                    push!(relations, Dict(
-                        "head_entity" => head_entity,
-                        "tail_entity" => tail_entity,
-                        "relation_type" => get_relation_type_name(relation_type),
-                        "confidence" => confidence,
-                        "context" => sample_text,
-                    ))
-                end
-            end
-        end
-    end
-
-    println("\n📊 Relation Extraction Results:")
-    println("Found $(length(relations)) relations")
-
-    # Display results
-    for (i, relation) in enumerate(relations)
-        println("  $i. $(relation["head_entity"]) --[$(relation["relation_type"])]--> $(relation["tail_entity"])")
-        println("     Confidence: $(round(relation["confidence"], digits=3))")
-    end
-
-    # Group by relation type
-    println("\n📈 Relation Type Distribution:")
-    relation_counts = Dict{String, Int}()
-    for relation in relations
-        rel_type = relation["relation_type"]
-        relation_counts[rel_type] = get(relation_counts, rel_type, 0) + 1
-    end
-
-    for (rel_type, count) in sort(collect(relation_counts), by = x->x[2], rev = true)
-        println("  $rel_type: $count relations")
-    end
-
-    # Analyze relation confidence
-    if !isempty(relations)
-        confidences = [rel["confidence"] for rel in relations]
-        avg_confidence = mean(confidences)
-        max_confidence = maximum(confidences)
-        min_confidence = minimum(confidences)
-
-        println("\n📊 Relation Confidence Statistics:")
-        println("  Average: $(round(avg_confidence, digits=3))")
-        println("  Maximum: $(round(max_confidence, digits=3))")
-        println("  Minimum: $(round(min_confidence, digits=3))")
-    end
-
-    # Create a simple knowledge graph representation
-    println("\n🕸️  Knowledge Graph Representation:")
-    println("Entities: $(length(entities))")
-    println("Relations: $(length(relations))")
-
-    # Show entity-relation network
-    println("\nNetwork Structure:")
-    for relation in relations
-        head = relation["head_entity"]
-        tail = relation["tail_entity"]
-        rel_type = relation["relation_type"]
-        println("  $head --[$rel_type]--> $tail")
-    end
-
-    # Calculate graph density
-    num_entities = length(entities)
-    num_relations = length(relations)
-    max_possible_relations = num_entities * (num_entities - 1)
-    density = max_possible_relations > 0 ? num_relations / max_possible_relations : 0.0
-
-    println("\n📊 Graph Statistics:")
-    println("  Entities: $num_entities")
-    println("  Relations: $num_relations")
-    println("  Density: $(round(density, digits=3))")
-
-    println("\n" * "="^60)
-    println("✅ Example 2 completed successfully!")
-    println("Next: Run 03_knowledge_graph_construction.jl")
-    println("="^60)
+for (_, _, relation_type, _) in relations
+  relation_counts[relation_type] = get(relation_counts, relation_type, 0) + 1
 end
 
-# Run the example
-main()
+for (relation_type, count) in sort(collect(relation_counts), by=x -> x[2], rev=true)
+  println("  $relation_type: $count relations")
+end
+println()
+
+# 5. Relation confidence analysis
+println("5. Relation confidence analysis:")
+high_confidence = filter(r -> r[4] > 0.8, relations)
+medium_confidence = filter(r -> 0.6 ≤ r[4] ≤ 0.8, relations)
+low_confidence = filter(r -> r[4] < 0.6, relations)
+
+println("  High confidence (>0.8): $(length(high_confidence)) relations")
+println("  Medium confidence (0.6-0.8): $(length(medium_confidence)) relations")
+println("  Low confidence (<0.6): $(length(low_confidence)) relations")
+
+if !isempty(high_confidence)
+  println("  High confidence relations:")
+  for (head_idx, tail_idx, relation_type, confidence) in high_confidence
+    head_entity = entities[head_idx]
+    tail_entity = entities[tail_idx]
+    println("    $(head_entity.text) --[$(relation_type)]--> $(tail_entity.text)")
+  end
+end
+
+# 6. Integration with knowledge graph construction
+println("\n6. Integration with knowledge graph construction:")
+println("These relations form the foundation for:")
+println("• Knowledge graph triple formation")
+println("• Semantic relationship modeling")
+println("• Graph structure creation")
+println("• Biomedical knowledge representation")
+
+println("\n✅ Relation extraction demo complete!")
+println("\nNext steps:")
+println("• Tail entity prediction using GraphMERT model")
+println("• Triple formation and filtering")
+println("• Complete knowledge graph construction")
+println("• Performance evaluation against ground truth")

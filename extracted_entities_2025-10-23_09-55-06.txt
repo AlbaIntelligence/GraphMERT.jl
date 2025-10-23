@@ -1,0 +1,88 @@
+Extracted Biomedical Entities
+Generated: 2025-10-23T09:55:07.114
+==================================================
+
+1. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+2. C0011860 (Disease)
+   ID: type 2 diabetes
+   Confidence: 0.92
+
+3. C0025234 (Drug)
+   ID: metformin
+   Confidence: 0.88
+
+4. C0021641 (Drug)
+   ID: insulin
+   Confidence: 0.9
+
+5. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+6. C0011860 (Disease)
+   ID: type 2 diabetes
+   Confidence: 0.92
+
+7. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+8. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+9. C0011860 (Disease)
+   ID: type 2 diabetes
+   Confidence: 0.92
+
+10. C0021641 (Drug)
+   ID: insulin
+   Confidence: 0.9
+
+11. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+12. C0011860 (Disease)
+   ID: type 2 diabetes
+   Confidence: 0.92
+
+13. C0021641 (Drug)
+   ID: insulin
+   Confidence: 0.9
+
+14. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+15. C0011860 (Disease)
+   ID: type 2 diabetes
+   Confidence: 0.92
+
+16. C0025234 (Drug)
+   ID: metformin
+   Confidence: 0.88
+
+17. C0021641 (Drug)
+   ID: insulin
+   Confidence: 0.9
+
+18. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+19. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
+20. C0011860 (Disease)
+   ID: type 2 diabetes
+   Confidence: 0.92
+
+21. C0011849 (Disease)
+   ID: diabetes
+   Confidence: 0.95
+
