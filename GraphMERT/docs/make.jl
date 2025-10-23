@@ -18,11 +18,11 @@ makedocs(
     "Troubleshooting" => "troubleshooting.md",
     "Changelog" => "changelog.md"
   ],
-  doctest = false,
-  linkcheck = false,
-  checkdocs = :none,
-  clean = true,
-  warnonly = [:missing_docs, :cross_references]
+  doctest=false,
+  linkcheck=false,
+  checkdocs=:none,
+  clean=true,
+  warnonly=[:missing_docs, :cross_references]
 )
 
 # Documenter can also automatically deploy documentation to gh-pages.
