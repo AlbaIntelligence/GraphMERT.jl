@@ -216,6 +216,88 @@ function match_relations_for_entities(
 end
 
 """
+    determine_relation_type(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
+
+Determine the relationship type between two entities based on their context in the text.
+
+# Arguments
+- `head_entity::BiomedicalEntity`: The head entity
+- `tail_entity::BiomedicalEntity`: The tail entity
+- `text::String`: The source text
+
+# Returns
+- `String`: The relationship type
+"""
+function determine_relation_type(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
+    # Simple heuristic-based relation determination
+    # In practice, this would use more sophisticated NLP techniques
+
+    head_text = lowercase(head_entity.text)
+    tail_text = lowercase(tail_entity.text)
+
+    # Check for common biomedical relations
+    if occursin("treats", text) || occursin("therapy", text) || occursin("medication", text)
+        return "treats"
+    elseif occursin("causes", text) || occursin("leads to", text) || occursin("results in", text)
+        return "causes"
+    elseif occursin("associated with", text) || occursin("related to", text)
+        return "associated_with"
+    elseif occursin("prevents", text) || occursin("reduces", text)
+        return "prevents"
+    elseif occursin("diagnoses", text) || occursin("indicates", text)
+        return "diagnoses"
+    else
+        return "related_to"  # Default relation
+    end
+end
+
+"""
+    calculate_relation_confidence(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
+
+Calculate the confidence score for a relation between two entities.
+
+# Arguments
+- `head_entity::BiomedicalEntity`: The head entity
+- `tail_entity::BiomedicalEntity`: The tail entity
+- `text::String`: The source text
+
+# Returns
+- `Float64`: Confidence score between 0.0 and 1.0
+"""
+function calculate_relation_confidence(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
+    # Simple confidence calculation based on entity proximity and text context
+    # In practice, this would use more sophisticated methods
+
+    base_confidence = 0.5
+
+    # Check if entities are in the same sentence
+    head_pos = head_entity.position
+    tail_pos = tail_entity.position
+
+    # Calculate distance between entities
+    distance = abs(tail_pos.start - head_pos.stop)
+
+    # Closer entities get higher confidence
+    if distance < 50
+        base_confidence += 0.2
+    elseif distance < 100
+        base_confidence += 0.1
+    end
+
+    # Check for relation keywords
+    relation_keywords = ["treats", "causes", "associated", "prevents", "diagnoses", "therapy", "medication"]
+    keyword_bonus = 0.0
+    for keyword in relation_keywords
+        if occursin(keyword, lowercase(text))
+            keyword_bonus += 0.1
+        end
+    end
+
+    confidence = base_confidence + keyword_bonus
+    return min(1.0, confidence)
+end
+
+"""
     predict_tail_tokens(model::GraphMERTModel, head_entity::BiomedicalEntity,
                        relation::String, text::String, top_k::Int=20)
 

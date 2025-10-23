@@ -59,13 +59,13 @@ function benchmark_token_processing()
   text = PERFORMANCE_TEXT
   benchmark_result = @benchmark process_tokens($text)
 
-    avg_time_ns = mean(benchmark_result.times)
-    tokens_per_second = length(split(text, " ")) / (avg_time_ns / 1e9)
-    
-    println("   • Text length: $(length(text)) characters")
-    println("   • Token count: $(length(split(text, " "))) tokens")
-    println("   • Processing time: $(round(avg_time_ns / 1e6, digits=2)) ms")
-    println("   • Tokens per second: $(round(tokens_per_second, digits=0))")
+  avg_time_ns = mean(benchmark_result.times)
+  tokens_per_second = length(split(text, " ")) / (avg_time_ns / 1e9)
+
+  println("   • Text length: $(length(text)) characters")
+  println("   • Token count: $(length(split(text, " "))) tokens")
+  println("   • Processing time: $(round(avg_time_ns / 1e6, digits=2)) ms")
+  println("   • Tokens per second: $(round(tokens_per_second, digits=0))")
 
   # Verify NFR-001
   nfr_001_met = tokens_per_second >= 5000
