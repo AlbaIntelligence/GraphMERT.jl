@@ -15,11 +15,14 @@ over sequential processing while maintaining memory efficiency.
 
 using Base.Threads
 using Statistics: mean, std
+using DocStringExtensions
 
 """
     BatchProcessingConfig
 
 Configuration for batch processing operations.
+
+$(FIELDS)
 """
 struct BatchProcessingConfig
   batch_size::Int
@@ -35,6 +38,8 @@ end
     BatchProcessingResult
 
 Result of batch processing operation.
+
+$(FIELDS)
 """
 struct BatchProcessingResult
   knowledge_graphs::Vector{KnowledgeGraph}
@@ -52,6 +57,8 @@ end
     BatchProgress
 
 Progress tracking for batch processing.
+
+$(FIELDS)
 """
 mutable struct BatchProgress
   total_batches::Int
@@ -77,17 +84,7 @@ end
 
 Create configuration for batch processing.
 
-# Arguments
-- `batch_size::Int`: Initial batch size (default: 32)
-- `max_memory_mb::Int`: Maximum memory usage in MB (default: 2048)
-- `num_threads::Int`: Number of threads to use (default: available threads)
-- `progress_update_interval::Int`: Progress update frequency (default: 10)
-- `memory_monitoring::Bool`: Enable memory monitoring (default: true)
-- `auto_optimize::Bool`: Enable automatic batch size optimization (default: true)
-- `merge_strategy::String`: Strategy for merging results ("union", "intersection", "weighted")
-
-# Returns
-- `BatchProcessingConfig`: Configuration object
+$(TYPEDSIGNATURES)
 """
 function create_batch_processing_config(;
   batch_size::Int=32,
@@ -117,13 +114,7 @@ end
 
 Extract knowledge graphs from a batch of documents efficiently.
 
-# Arguments
-- `documents::Vector{String}`: Documents to process
-- `config::BatchProcessingConfig`: Batch processing configuration
-- `extraction_function::Function`: Function to use for extraction
-
-# Returns
-- `BatchProcessingResult`: Results of batch processing
+$(TYPEDSIGNATURES)
 """
 function extract_knowledge_graph_batch(
   documents::Vector{String};
@@ -236,12 +227,7 @@ end
 
 Calculate optimal batch size based on available memory, document count, and system resources.
 
-# Arguments
-- `total_docs::Int`: Total number of documents
-- `config::BatchProcessingConfig`: Batch processing configuration
-
-# Returns
-- `Int`: Optimal batch size
+$(TYPEDSIGNATURES)
 """
 function calculate_optimal_batch_size(total_docs::Int, config::BatchProcessingConfig)
   # Get current system memory usage
@@ -285,11 +271,7 @@ end
 
 Estimate memory usage per document based on document count and system characteristics.
 
-# Arguments
-- `total_docs::Int`: Total number of documents
-
-# Returns
-- `Float64`: Estimated memory per document in MB
+$(TYPEDSIGNATURES)
 """
 function estimate_memory_per_document(total_docs::Int)
   # Base memory estimate
@@ -323,14 +305,7 @@ end
 
 Dynamically optimize batch size based on observed performance.
 
-# Arguments
-- `processing_times::Vector{Float64}`: Observed processing times
-- `memory_usage::Vector{Float64}`: Observed memory usage
-- `current_batch_size::Int`: Current batch size
-- `config::BatchProcessingConfig`: Batch processing configuration
-
-# Returns
-- `Int`: Optimized batch size
+$(TYPEDSIGNATURES)
 """
 function optimize_batch_size_dynamically(
   processing_times::Vector{Float64},
@@ -380,17 +355,12 @@ end
 
 Create batches of documents for processing.
 
-# Arguments
-- `documents::Vector{String}`: Documents to batch
-- `batch_size::Int`: Size of each batch
-
-# Returns
-- `Vector{Vector{String}}`: Batches of documents
+$(TYPEDSIGNATURES)
 """
 function create_document_batches(documents::Vector{String}, batch_size::Int)
   batches = Vector{String}[]
 
-  for i = 1:batch_size:length(documents)
+  for i ∈ 1:batch_size:length(documents)
     end_idx = min(i + batch_size - 1, length(documents))
     push!(batches, documents[i:end_idx])
   end
@@ -405,13 +375,7 @@ end
 
 Process a single batch of documents.
 
-# Arguments
-- `documents::Vector{String}`: Documents in the batch
-- `extraction_function::Function`: Function to use for extraction
-- `config::BatchProcessingConfig`: Batch processing configuration
-
-# Returns
-- `Vector{KnowledgeGraph}`: Extracted knowledge graphs
+$(TYPEDSIGNATURES)
 """
 function process_single_batch(
   documents::Vector{String},
@@ -425,7 +389,7 @@ function process_single_batch(
   if config.num_threads > 1
     results = Vector{KnowledgeGraph}(undef, length(documents))
 
-    Threads.@threads for i = 1:length(documents)
+    Threads.@threads for i ∈ 1:length(documents)
       try
         kg = extraction_function(documents[i])
         results[i] = kg
@@ -471,12 +435,7 @@ end
 
 Merge multiple knowledge graphs into a single graph.
 
-# Arguments
-- `knowledge_graphs::Vector{KnowledgeGraph}`: Knowledge graphs to merge
-- `strategy::String`: Merging strategy ("union", "intersection", "weighted")
-
-# Returns
-- `KnowledgeGraph`: Merged knowledge graph
+$(TYPEDSIGNATURES)
 """
 function merge_knowledge_graphs(
   knowledge_graphs::Vector{KnowledgeGraph},
@@ -549,8 +508,7 @@ end
 
 Update and display progress information.
 
-# Arguments
-- `progress::BatchProgress`: Progress tracking object
+$(TYPEDSIGNATURES)
 """
 function update_progress_display(progress::BatchProgress)
   elapsed = progress.last_update_time - progress.start_time

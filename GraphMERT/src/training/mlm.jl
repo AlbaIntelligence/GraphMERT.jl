@@ -18,6 +18,8 @@ using LinearAlgebra
     MLMConfig
 
 Configuration for MLM training objective.
+
+$(FIELDS)
 """
 struct MLMConfig
     vocab_size::Int

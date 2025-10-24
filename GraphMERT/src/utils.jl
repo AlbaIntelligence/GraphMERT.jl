@@ -8,6 +8,7 @@ the GraphMERT implementation.
 using Logging
 using Statistics
 using Random
+using DocStringExtensions
 
 # ============================================================================
 # Text Processing Utilities
@@ -17,6 +18,8 @@ using Random
     preprocess_text(text::String; max_length::Int=512)
 
 Preprocess text for GraphMERT processing.
+
+$(TYPEDSIGNATURES)
 """
 function preprocess_text(text::String; max_length::Int=512)
   # Remove extra whitespace
@@ -35,6 +38,8 @@ end
     tokenize_text(text::String)
 
 Simple tokenization for text processing.
+
+$(TYPEDSIGNATURES)
 """
 function tokenize_text(text::String)
   # Simple word tokenization
@@ -46,6 +51,8 @@ end
     normalize_text(text::String)
 
 Normalize text for consistent processing.
+
+$(TYPEDSIGNATURES)
 """
 function normalize_text(text::String)
   # Convert to lowercase
@@ -68,6 +75,8 @@ end
     softmax(x::Vector{Float64})
 
 Compute softmax function.
+
+$(TYPEDSIGNATURES)
 """
 function softmax(x::Vector{Float64})
   exp_x = exp.(x .- maximum(x))
@@ -78,6 +87,8 @@ end
     sigmoid(x::Float64)
 
 Compute sigmoid function.
+
+$(TYPEDSIGNATURES)
 """
 function sigmoid(x::Float64)
   return 1.0 / (1.0 + exp(-x))
@@ -87,6 +98,8 @@ end
     relu(x::Float64)
 
 Compute ReLU function.
+
+$(TYPEDSIGNATURES)
 """
 function relu(x::Float64)
   return max(0.0, x)
@@ -96,6 +109,8 @@ end
     cosine_similarity(a::Vector{Float64}, b::Vector{Float64})
 
 Compute cosine similarity between two vectors.
+
+$(TYPEDSIGNATURES)
 """
 function cosine_similarity(a::Vector{Float64}, b::Vector{Float64})
   if length(a) != length(b)
@@ -121,6 +136,8 @@ end
     shuffle_data(data::Vector{T}) where T
 
 Shuffle data randomly.
+
+$(TYPEDSIGNATURES)
 """
 function shuffle_data(data::Vector{T}) where {T}
   indices = collect(1:length(data))
@@ -132,6 +149,8 @@ end
     split_data(data::Vector{T}, train_ratio::Float64=0.8) where T
 
 Split data into train and test sets.
+
+$(TYPEDSIGNATURES)
 """
 function split_data(data::Vector{T}, train_ratio::Float64=0.8) where {T}
   @assert 0.0 < train_ratio < 1.0 "train_ratio must be between 0.0 and 1.0"
@@ -149,6 +168,8 @@ end
     batch_data(data::Vector{T}, batch_size::Int) where T
 
 Split data into batches.
+
+$(TYPEDSIGNATURES)
 """
 function batch_data(data::Vector{T}, batch_size::Int) where {T}
   batches = Vector{Vector{T}}()
@@ -169,6 +190,8 @@ end
     log_info(message::String; context::String="")
 
 Log an info message with optional context.
+
+$(TYPEDSIGNATURES)
 """
 function log_info(message::String; context::String="")
   if !isempty(context)
@@ -182,6 +205,8 @@ end
     log_warning(message::String; context::String="")
 
 Log a warning message with optional context.
+
+$(TYPEDSIGNATURES)
 """
 function log_warning(message::String; context::String="")
   if !isempty(context)
@@ -195,6 +220,8 @@ end
     log_error(message::String; context::String="")
 
 Log an error message with optional context.
+
+$(TYPEDSIGNATURES)
 """
 function log_error(message::String; context::String="")
   if !isempty(context)
@@ -212,6 +239,8 @@ end
     validate_not_empty(value::Any, name::String)
 
 Validate that a value is not empty.
+
+$(TYPEDSIGNATURES)
 """
 function validate_not_empty(value::Any, name::String)
   if isempty(value)
@@ -223,6 +252,8 @@ end
     validate_positive(value::Number, name::String)
 
 Validate that a numeric value is positive.
+
+$(TYPEDSIGNATURES)
 """
 function validate_positive(value::Number, name::String)
   if value <= 0
@@ -234,6 +265,8 @@ end
     validate_range(value::Number, min_val::Number, max_val::Number, name::String)
 
 Validate that a numeric value is within a range.
+
+$(TYPEDSIGNATURES)
 """
 function validate_range(value::Number, min_val::Number, max_val::Number, name::String)
   if value < min_val || value > max_val
@@ -249,6 +282,8 @@ end
     ensure_directory(path::String)
 
 Ensure that a directory exists.
+
+$(TYPEDSIGNATURES)
 """
 function ensure_directory(path::String)
   if !isdir(path)
@@ -261,6 +296,8 @@ end
     safe_filename(filename::String)
 
 Make a filename safe for filesystem use.
+
+$(TYPEDSIGNATURES)
 """
 function safe_filename(filename::String)
   # Replace invalid characters with underscores
@@ -283,6 +320,8 @@ end
     time_function(f::Function, args...)
 
 Time the execution of a function.
+
+$(TYPEDSIGNATURES)
 """
 function time_function(f::Function, args...)
   start_time = time()
@@ -297,6 +336,8 @@ end
     memory_usage()
 
 Get current memory usage in MB.
+
+$(TYPEDSIGNATURES)
 """
 function memory_usage()
   # This is a simplified version - in practice you'd use proper memory profiling
@@ -311,6 +352,8 @@ end
     truncate_string(s::String, max_length::Int; suffix::String="...")
 
 Truncate a string to a maximum length.
+
+$(TYPEDSIGNATURES)
 """
 function truncate_string(s::String, max_length::Int; suffix::String="...")
   if length(s) <= max_length
@@ -324,6 +367,8 @@ end
     join_strings(strings::Vector{String}, separator::String=" ")
 
 Join strings with a separator.
+
+$(TYPEDSIGNATURES)
 """
 function join_strings(strings::Vector{String}, separator::String=" ")
   return join(strings, separator)
@@ -337,6 +382,8 @@ end
     is_type_of(value::Any, expected_type::Type)
 
 Check if a value is of the expected type.
+
+$(TYPEDSIGNATURES)
 """
 function is_type_of(value::Any, expected_type::Type)
   return isa(value, expected_type)
@@ -346,6 +393,8 @@ end
     convert_to_type(value::Any, target_type::Type)
 
 Convert a value to the target type if possible.
+
+$(TYPEDSIGNATURES)
 """
 function convert_to_type(value::Any, target_type::Type)
   try
@@ -368,6 +417,8 @@ end
                           relation_types::Vector{String}=String[]) -> KnowledgeGraph
 
 Filter knowledge graph based on confidence thresholds and types.
+
+$(TYPEDSIGNATURES)
 """
 function filter_knowledge_graph(kg::KnowledgeGraph;
   min_confidence::Float64=0.0,

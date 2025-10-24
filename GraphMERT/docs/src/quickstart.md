@@ -113,10 +113,9 @@ println("ValidityScore: $(validity_score)")
 
 ## Next Steps
 
-- [Basic Usage Guide](basic_usage.md) - Learn more about core functionality
-- [Advanced Features](advanced_features.md) - Explore advanced capabilities
-- [Performance Optimization](performance.md) - Optimize for your use case
-- [API Reference](api/index.md) - Complete API documentation
+- [Core Concepts](user_guide/core_concepts.md) - Learn more about core functionality
+- [API Reference](api/core.md) - Complete API documentation
+- [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
 ## Troubleshooting
 
@@ -128,15 +127,13 @@ println("ValidityScore: $(validity_score)")
 
 ### Getting Help
 
-- Check the [FAQ](faq.md)
-- Review [Troubleshooting Guide](troubleshooting.md)
+- Check the [Troubleshooting Guide](troubleshooting.md)
+- Review [API Reference](api/core.md)
 - Open an issue on GitHub
 
 ## Examples
 
-See the [examples/](examples/) directory for complete working examples:
+See the documentation for complete working examples:
 
-- [Basic Extraction](examples/basic_extraction.md)
-- [Biomedical Processing](examples/biomedical_processing.md)
-- [Training Pipeline](examples/training.md)
-- [Performance Benchmarking](examples/benchmarking.md)
+- [Basic Extraction](getting_started/quickstart.md)
+- [Biomedical Processing](user_guide/core_concepts.md)
