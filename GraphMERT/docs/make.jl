@@ -1,6 +1,7 @@
 push!(LOAD_PATH, "..")
 
 using Documenter
+using DocStringExtensions
 using GraphMERT
 
 format = Documenter.HTML()

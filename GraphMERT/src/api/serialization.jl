@@ -8,6 +8,7 @@ in various formats including JSON, CSV, and RDF.
 using JSON3
 using CSV
 using Dates
+using DocStringExtensions
 
 """
     export_knowledge_graph(kg::KnowledgeGraph, format::String; filepath::String="") -> String
@@ -19,6 +20,8 @@ Supported formats:
 - "csv": CSV format with separate files for entities and relations
 - "rdf": RDF/XML format (basic implementation)
 - "ttl": Turtle format (basic implementation)
+
+$(TYPEDSIGNATURES)
 """
 function export_knowledge_graph(kg::KnowledgeGraph, format::String; filepath::String="")
   if format == "json"
@@ -38,6 +41,8 @@ end
     export_to_json(kg::KnowledgeGraph, filepath::String="") -> String
 
 Export knowledge graph to JSON format.
+
+$(TYPEDSIGNATURES)
 """
 function export_to_json(kg::KnowledgeGraph, filepath::String="")
   # Convert to JSON-serializable format
@@ -50,8 +55,8 @@ function export_to_json(kg::KnowledgeGraph, filepath::String="")
         "confidence" => e.confidence,
         "position" => Dict(
           "start" => e.position.start,
-          "stop" => e.position.stop
-        )
+          "stop" => e.position.stop,
+        ),
       ) for e in kg.entities
     ],
     "relations" => [
@@ -61,17 +66,17 @@ function export_to_json(kg::KnowledgeGraph, filepath::String="")
         "head" => Dict(
           "text" => r.head,
           "label" => "",
-          "id" => ""
+          "id" => "",
         ),
         "tail" => Dict(
           "text" => r.tail,
           "label" => "",
-          "id" => ""
-        )
+          "id" => "",
+        ),
       ) for r in kg.relations
     ],
     "metadata" => kg.metadata,
-    "timestamp" => string(kg.created_at)
+    "timestamp" => string(kg.created_at),
   )
 
   json_string = JSON3.write(json_data, pretty=true)
@@ -90,6 +95,8 @@ end
     export_to_csv(kg::KnowledgeGraph, filepath::String="") -> String
 
 Export knowledge graph to CSV format with separate files for entities and relations.
+
+$(TYPEDSIGNATURES)
 """
 function export_to_csv(kg::KnowledgeGraph, filepath::String="")
   base_path = isempty(filepath) ? "kg_export" : filepath
@@ -122,6 +129,8 @@ end
     export_to_rdf(kg::KnowledgeGraph, filepath::String="") -> String
 
 Export knowledge graph to RDF/XML format (basic implementation).
+
+$(TYPEDSIGNATURES)
 """
 function export_to_rdf(kg::KnowledgeGraph, filepath::String="")
   rdf_content = """<?xml version="1.0" encoding="UTF-8"?>
@@ -134,13 +143,13 @@ function export_to_rdf(kg::KnowledgeGraph, filepath::String="")
   for (i, entity) in enumerate(kg.entities)
     entity_id = "entity_$i"
     rdf_content *= """
-  <rdf:Description rdf:about="#$entity_id">
-    <rdfs:label>$entity.text</rdfs:label>
-    <graphmert:type>$entity.label</graphmert:type>
-    <graphmert:confidence>$entity.confidence</graphmert:confidence>
-    <graphmert:id>$entity.id</graphmert:id>
-  </rdf:Description>
-"""
+      <rdf:Description rdf:about="#$entity_id">
+        <rdfs:label>$entity.text</rdfs:label>
+        <graphmert:type>$entity.label</graphmert:type>
+        <graphmert:confidence>$entity.confidence</graphmert:confidence>
+        <graphmert:id>$entity.id</graphmert:id>
+      </rdf:Description>
+    """
   end
 
   # Add relations
@@ -150,13 +159,13 @@ function export_to_rdf(kg::KnowledgeGraph, filepath::String="")
     tail_id = "entity_$(findfirst(e -> e.text == relation.tail, kg.entities))"
 
     rdf_content *= """
-  <rdf:Description rdf:about="#$relation_id">
-    <rdf:type rdf:resource="#$relation.relation_type"/>
-    <graphmert:confidence>$relation.confidence</graphmert:confidence>
-    <graphmert:head rdf:resource="#$head_id"/>
-    <graphmert:tail rdf:resource="#$tail_id"/>
-  </rdf:Description>
-"""
+      <rdf:Description rdf:about="#$relation_id">
+        <rdf:type rdf:resource="#$relation.relation_type"/>
+        <graphmert:confidence>$relation.confidence</graphmert:confidence>
+        <graphmert:head rdf:resource="#$head_id"/>
+        <graphmert:tail rdf:resource="#$tail_id"/>
+      </rdf:Description>
+    """
   end
 
   rdf_content *= "</rdf:RDF>"
@@ -175,6 +184,8 @@ end
     export_to_ttl(kg::KnowledgeGraph, filepath::String="") -> String
 
 Export knowledge graph to Turtle format (basic implementation).
+
+$(TYPEDSIGNATURES)
 """
 function export_to_ttl(kg::KnowledgeGraph, filepath::String="")
   ttl_content = """@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .

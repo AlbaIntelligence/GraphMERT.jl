@@ -5,6 +5,8 @@ This module defines custom exceptions used throughout
 the GraphMERT implementation.
 """
 
+using DocStringExtensions
+
 # ============================================================================
 # Base Exceptions
 # ============================================================================
@@ -13,18 +15,20 @@ the GraphMERT implementation.
     GraphMERTException <: Exception
 
 Base exception for all GraphMERT-related errors.
+
+$(FIELDS)
 """
 struct GraphMERTException <: Exception
-    message::String
-    cause::Union{Exception,Nothing}
+  message::String
+  cause::Union{Exception,Nothing}
 
-    function GraphMERTException(message::String, cause::Union{Exception,Nothing} = nothing)
-        new(message, cause)
-    end
+  function GraphMERTException(message::String, cause::Union{Exception,Nothing}=nothing)
+    new(message, cause)
+  end
 end
 
 Base.showerror(io::IO, e::GraphMERTException) =
-    print(io, "GraphMERTException: $(e.message)")
+  print(io, "GraphMERTException: $(e.message)")
 
 # ============================================================================
 # Model Exceptions
@@ -34,41 +38,45 @@ Base.showerror(io::IO, e::GraphMERTException) =
     ModelLoadException <: Exception
 
 Exception raised when model loading fails.
+
+$(FIELDS)
 """
 struct ModelLoadException <: Exception
-    model_path::String
-    cause::Union{Exception,Nothing}
+  model_path::String
+  cause::Union{Exception,Nothing}
 
-    function ModelLoadException(
-        model_path::String,
-        cause::Union{Exception,Nothing} = nothing,
-    )
-        new(model_path, cause)
-    end
+  function ModelLoadException(
+    model_path::String,
+    cause::Union{Exception,Nothing}=nothing,
+  )
+    new(model_path, cause)
+  end
 end
 
 Base.showerror(io::IO, e::ModelLoadException) =
-    print(io, "ModelLoadException: Failed to load model from: $(e.model_path)")
+  print(io, "ModelLoadException: Failed to load model from: $(e.model_path)")
 
 """
     ModelSaveException <: Exception
 
 Exception raised when model saving fails.
+
+$(FIELDS)
 """
 struct ModelSaveException <: Exception
-    model_path::String
-    cause::Union{Exception,Nothing}
+  model_path::String
+  cause::Union{Exception,Nothing}
 
-    function ModelSaveException(
-        model_path::String,
-        cause::Union{Exception,Nothing} = nothing,
-    )
-        new(model_path, cause)
-    end
+  function ModelSaveException(
+    model_path::String,
+    cause::Union{Exception,Nothing}=nothing,
+  )
+    new(model_path, cause)
+  end
 end
 
 Base.showerror(io::IO, e::ModelSaveException) =
-    print(io, "ModelSaveException: Failed to save model to: $(e.model_path)")
+  print(io, "ModelSaveException: Failed to save model to: $(e.model_path)")
 
 # ============================================================================
 # Data Exceptions
@@ -78,18 +86,20 @@ Base.showerror(io::IO, e::ModelSaveException) =
     DataLoadException <: Exception
 
 Exception raised when data loading fails.
+
+$(FIELDS)
 """
 struct DataLoadException <: Exception
-    data_path::String
-    cause::Union{Exception,Nothing}
+  data_path::String
+  cause::Union{Exception,Nothing}
 
-    function DataLoadException(data_path::String, cause::Union{Exception,Nothing} = nothing)
-        new(data_path, cause)
-    end
+  function DataLoadException(data_path::String, cause::Union{Exception,Nothing}=nothing)
+    new(data_path, cause)
+  end
 end
 
 Base.showerror(io::IO, e::DataLoadException) =
-    print(io, "DataLoadException: Failed to load data from: $(e.data_path)")
+  print(io, "DataLoadException: Failed to load data from: $(e.data_path)")
 
 # ============================================================================
 # API Exceptions
@@ -99,24 +109,26 @@ Base.showerror(io::IO, e::DataLoadException) =
     APIException <: Exception
 
 Exception raised when API calls fail.
+
+$(FIELDS)
 """
 struct APIException <: Exception
-    api_name::String
-    status_code::Int
-    cause::Union{Exception,Nothing}
+  api_name::String
+  status_code::Int
+  cause::Union{Exception,Nothing}
 
-    function APIException(
-        api_name::String,
-        status_code::Int,
-        cause::Union{Exception,Nothing} = nothing,
-    )
-        new(api_name, status_code, cause)
-    end
+  function APIException(
+    api_name::String,
+    status_code::Int,
+    cause::Union{Exception,Nothing}=nothing,
+  )
+    new(api_name, status_code, cause)
+  end
 end
 
 Base.showerror(io::IO, e::APIException) = print(
-    io,
-    "APIException: API call to '$(e.api_name)' failed with status code: $(e.status_code)",
+  io,
+  "APIException: API call to '$(e.api_name)' failed with status code: $(e.status_code)",
 )
 
 # ============================================================================
@@ -127,22 +139,24 @@ Base.showerror(io::IO, e::APIException) = print(
     TextProcessingException <: Exception
 
 Exception raised when text processing fails.
+
+$(FIELDS)
 """
 struct TextProcessingException <: Exception
-    text::String
-    cause::Union{Exception,Nothing}
+  text::String
+  cause::Union{Exception,Nothing}
 
-    function TextProcessingException(
-        text::String,
-        cause::Union{Exception,Nothing} = nothing,
-    )
-        new(text, cause)
-    end
+  function TextProcessingException(
+    text::String,
+    cause::Union{Exception,Nothing}=nothing,
+  )
+    new(text, cause)
+  end
 end
 
 Base.showerror(io::IO, e::TextProcessingException) = print(
-    io,
-    "TextProcessingException: Text processing failed for: $(e.text[1:min(100, length(e.text))])...",
+  io,
+  "TextProcessingException: Text processing failed for: $(e.text[1:min(100, length(e.text))])...",
 )
 
 # ============================================================================
@@ -153,18 +167,22 @@ Base.showerror(io::IO, e::TextProcessingException) = print(
     wrap_exception(original::Exception, message::String)
 
 Wrap an original exception with a custom message.
+
+$(TYPEDSIGNATURES)
 """
 function wrap_exception(original::Exception, message::String)
-    return GraphMERTException(message, original)
+  return GraphMERTException(message, original)
 end
 
 """
     check_condition(condition::Bool, exception_type::Type{<:Exception}, args...)
 
 Check a condition and throw an exception if it fails.
+
+$(TYPEDSIGNATURES)
 """
 function check_condition(condition::Bool, exception_type::Type{<:Exception}, args...)
-    if !condition
-        throw(exception_type(args...))
-    end
+  if !condition
+    throw(exception_type(args...))
+  end
 end

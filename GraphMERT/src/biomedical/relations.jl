@@ -16,6 +16,8 @@ using Random
     BiomedicalRelationType
 
 Enumeration of supported biomedical relation types.
+
+$(FIELDS)
 """
 @enum BiomedicalRelationType begin
     # Biomedical relation types

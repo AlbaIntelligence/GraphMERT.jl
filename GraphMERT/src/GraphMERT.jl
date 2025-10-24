@@ -64,6 +64,7 @@ If you use GraphMERT.jl in your research, please cite the original paper:
 module GraphMERT
 
 using Dates
+using DocStringExtensions
 
 # Core modules
 include("types.jl")
@@ -125,7 +126,7 @@ include("optimization/speed.jl")
 
 # Export main API functions
 export extract_knowledge_graph, load_model, preprocess_text
-export KnowledgeGraph, BiomedicalEntity, BiomedicalRelation, TextPosition
+export KnowledgeGraph, KnowledgeEntity, KnowledgeRelation, TextPosition
 export GraphMERTModel, ProcessingOptions, GraphMERTConfig
 export FActScore, ValidityScore, GraphRAG
 export filter_knowledge_graph
@@ -206,10 +207,10 @@ function extract_knowledge_graph(
   # Extract entities using fallback method
   entities = fallback_entity_recognition(processed_text)
 
-  # Convert to BiomedicalEntity objects
-  biomedical_entities = Vector{BiomedicalEntity}()
+  # Convert to KnowledgeEntity objects
+  knowledge_entities = Vector{KnowledgeEntity}()
   for (i, entity_text) in enumerate(entities)
-    entity = BiomedicalEntity(
+    entity = KnowledgeEntity(
       "entity_$i",
       entity_text,
       "UNKNOWN",
@@ -218,16 +219,16 @@ function extract_knowledge_graph(
       Dict{String,Any}(),
       Dates.now(),
     )
-    push!(biomedical_entities, entity)
+    push!(knowledge_entities, entity)
   end
 
   # Extract relations using fallback method
   relations = fallback_relation_matching(entities, processed_text)
 
-  # Convert to BiomedicalRelation objects
-  biomedical_relations = Vector{BiomedicalRelation}()
+  # Convert to KnowledgeRelation objects
+  knowledge_relations = Vector{KnowledgeRelation}()
   for (key, rel_data) in relations
-    relation = BiomedicalRelation(
+    relation = KnowledgeRelation(
       head=rel_data["entity1"],
       tail=rel_data["entity2"],
       relation_type=rel_data["relation"],
@@ -235,18 +236,18 @@ function extract_knowledge_graph(
       attributes=Dict{String,Any}("context" => processed_text),
       created_at=Dates.now(),
     )
-    push!(biomedical_relations, relation)
+    push!(knowledge_relations, relation)
   end
 
   # Create knowledge graph
   metadata = Dict{String,Any}(
-    "total_entities" => length(biomedical_entities),
-    "total_relations" => length(biomedical_relations),
+    "total_entities" => length(knowledge_entities),
+    "total_relations" => length(knowledge_relations),
     "confidence_threshold" => options.confidence_threshold,
     "processing_time" => Dates.now(),
   )
 
-  return KnowledgeGraph(biomedical_entities, biomedical_relations, metadata)
+  return KnowledgeGraph(knowledge_entities, knowledge_relations, metadata)
 end
 
 """

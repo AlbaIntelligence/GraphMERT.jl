@@ -16,6 +16,8 @@ using Random
     BiomedicalEntityType
 
 Enumeration of supported biomedical entity types.
+
+$(FIELDS)
 """
 @enum BiomedicalEntityType begin
   # Biomedical entity types
