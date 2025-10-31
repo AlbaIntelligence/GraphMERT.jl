@@ -6,6 +6,8 @@ the GraphMERT implementation.
 """
 
 using Dates
+using SparseArrays
+using DocStringExtensions
 
 # ============================================================================
 # New Types for GraphMERT Enhancement
@@ -21,6 +23,7 @@ using Dates
 Represents the position of text in a document.
 
 $(FIELDS)
+
 """
 struct TextPosition
   start::Int
@@ -113,6 +116,82 @@ struct KnowledgeGraph
     created_at::DateTime=now(),
   )
     new(entities, relations, metadata, created_at)
+  end
+end
+
+# ============================================================================
+# Biomedical Knowledge Graph
+# ============================================================================
+
+"""
+    BiomedicalEntity
+
+Represents a biomedical entity with UMLS mappings and semantic types.
+
+$(FIELDS)
+"""
+struct BiomedicalEntity
+  id::String
+  text::String
+  label::String
+  cui::Union{String,Nothing}  # UMLS Concept Unique Identifier
+  semantic_types::Vector{String}  # UMLS semantic types
+  position::TextPosition
+  confidence::Float64
+  provenance::String  # Source text or document
+
+  function BiomedicalEntity(
+    id::String,
+    text::String,
+    label::String,
+    cui::Union{String,Nothing} = nothing,
+    semantic_types::Vector{String} = String[],
+    position::TextPosition = TextPosition(0, 0, 0, 0),
+    confidence::Float64 = 0.5,
+    provenance::String = "",
+  )
+    @assert !isempty(id) "Entity ID cannot be empty"
+    @assert !isempty(text) "Entity text cannot be empty"
+    @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
+    new(id, text, label, cui, semantic_types, position, confidence, provenance)
+  end
+end
+
+"""
+    BiomedicalRelation
+
+Represents a biomedical relation between entities.
+
+$(FIELDS)
+"""
+struct BiomedicalRelation
+  id::String
+  head::String  # Head entity ID
+  tail::String  # Tail entity ID
+  relation_type::String
+  confidence::Float64
+  provenance::String  # Source text or document
+  evidence::String  # Supporting evidence text
+
+  function BiomedicalRelation(
+    head::String,
+    tail::String,
+    relation_type::String,
+    confidence::Float64,
+    provenance::String = "",
+    evidence::String = "",
+    id::String = "",
+  )
+    @assert !isempty(head) "Head entity ID cannot be empty"
+    @assert !isempty(tail) "Tail entity ID cannot be empty"
+    @assert !isempty(relation_type) "Relation type cannot be empty"
+    @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
+
+    if isempty(id)
+      id = "$(head)_$(relation_type)_$(tail)"
+    end
+
+    new(id, head, tail, relation_type, confidence, provenance, evidence)
   end
 end
 
@@ -357,110 +436,131 @@ end
 """
     ChainGraphNode
 
-Represents a node in the leafy chain graph structure.
+Represents a single node in the leafy chain graph.
 
 $(FIELDS)
 """
 struct ChainGraphNode
-  node_type::Symbol  # :root or :leaf
-  token_id::Int
-  position::Int
-  parent_root::Union{Int,Nothing}
-  is_padding::Bool
+    # Node identification
+    id::Int                      # Global node ID (0-1023)
+    node_type::Symbol            # :root or :leaf
 
-  function ChainGraphNode(
-    node_type::Symbol,
-    token_id::Int,
-    position::Int,
-    parent_root::Union{Int,Nothing}=nothing,
-    is_padding::Bool=false,
-  )
-    @assert node_type ∈ [:root, :leaf] "node_type must be :root or :leaf"
-    @assert token_id ≥ 0 "token_id must be non-negative"
-    if node_type == :leaf
-      @assert parent_root !== nothing "leaf nodes must have parent_root"
-    else
-      @assert parent_root === nothing "root nodes cannot have parent_root"
+    # Position in structure
+    root_index::Int              # Which root this belongs to (0-127)
+    leaf_index::Union{Int,Nothing}  # If leaf, which position (0-6); nothing if root
+
+    # Token information
+    token_id::Int                # Vocabulary token ID
+    token_text::String           # Original text (for debugging)
+    is_padding::Bool             # Whether this is a <pad> token
+
+    # Semantic information (only for leaves)
+    relation::Union{Symbol,Nothing}  # e.g., :isa, :associated_with
+    head_text::Union{String,Nothing} # Text of the head entity
+
+    # Embedding info (filled during forward pass)
+    embedding::Union{Vector{Float32},Nothing}
+
+    function ChainGraphNode(;
+        id::Int,
+        node_type::Symbol,
+        root_index::Int,
+        leaf_index::Union{Int,Nothing} = nothing,
+        token_id::Int,
+        token_text::String,
+        is_padding::Bool = false,
+        relation::Union{Symbol,Nothing} = nothing,
+        head_text::Union{String,Nothing} = nothing,
+        embedding::Union{Vector{Float32},Nothing} = nothing,
+    )
+        new(id, node_type, root_index, leaf_index, token_id, token_text, is_padding, relation, head_text, embedding)
     end
-    new(node_type, token_id, position, parent_root, is_padding)
-  end
 end
 
 """
     ChainGraphConfig
 
-Configuration parameters for leafy chain graph construction.
+Configuration for leafy chain graph construction.
 
 $(FIELDS)
 """
 struct ChainGraphConfig
-  num_roots::Int
-  num_leaves_per_root::Int
-  vocab_size::Int
-  pad_token_id::Int
-  mask_token_id::Int
-  precompute_shortest_paths::Bool
+    num_roots::Int                    # Fixed: 128
+    num_leaves_per_root::Int          # Fixed: 7
+    max_sequence_length::Int          # Fixed: 1024
+    pad_token_id::Int                 # Usually 0 or 1
+    vocab_size::Int                   # e.g., 30522 for BioMedBERT
 
-  function ChainGraphConfig(
-    num_roots::Int=128,
-    num_leaves_per_root::Int=7,
-    vocab_size::Int=30522,
-    pad_token_id::Int=1,
-    mask_token_id::Int=103,
-    precompute_shortest_paths::Bool=true,
-  )
-    @assert num_roots > 0 "num_roots must be positive"
-    @assert num_leaves_per_root > 0 "num_leaves_per_root must be positive"
-    @assert vocab_size > 0 "vocab_size must be positive"
-    new(
-      num_roots,
-      num_leaves_per_root,
-      vocab_size,
-      pad_token_id,
-      mask_token_id,
-      precompute_shortest_paths,
+    function ChainGraphConfig(;
+        num_roots::Int = 128,
+        num_leaves_per_root::Int = 7,
+        max_sequence_length::Int = 1024,
+        pad_token_id::Int = 0,
+        vocab_size::Int = 30522,
     )
-  end
+        new(num_roots, num_leaves_per_root, max_sequence_length, pad_token_id, vocab_size)
+    end
+end
+
+# Default configuration matching paper
+function default_chain_graph_config()
+    return ChainGraphConfig(
+        num_roots = 128,
+        num_leaves_per_root = 7,
+        max_sequence_length = 1024,
+        pad_token_id = 0,
+        vocab_size = 30522
+    )
 end
 
 """
     LeafyChainGraph
 
-Complete leafy chain graph structure combining roots (syntactic) and leaves (semantic).
+Complete leafy chain graph structure for GraphMERT.
 
 $(FIELDS)
 """
-struct LeafyChainGraph
-  root_nodes::Vector{ChainGraphNode}
-  leaf_nodes::Vector{Vector{ChainGraphNode}}
-  adjacency_matrix::Matrix{Bool}
-  shortest_paths::Union{Matrix{Int},Nothing}
-  config::ChainGraphConfig
-  metadata::Dict{String,Any}
+mutable struct LeafyChainGraph
+    # Graph structure
+    nodes::Vector{ChainGraphNode}     # All 1024 nodes
+    adjacency_matrix::SparseMatrixCSC{Float32}  # 1024×1024 adjacency
+    shortest_paths::Matrix{Int}       # 1024×1024 shortest path distances
 
-  function LeafyChainGraph(
-    root_nodes::Vector{ChainGraphNode},
-    leaf_nodes::Vector{Vector{ChainGraphNode}},
-    adjacency_matrix::Matrix{Bool},
-    config::ChainGraphConfig;
-    shortest_paths::Union{Matrix{Int},Nothing}=nothing,
-    metadata::Dict{String,Any}=Dict{String,Any}(),
-  )
+    # Root information (syntactic space)
+    root_tokens::Vector{Int}          # 128 token IDs
+    root_texts::Vector{String}        # Original text tokens
 
-    # Validation
-    @assert length(root_nodes) == config.num_roots "root_nodes length must match config.num_roots"
-    @assert length(leaf_nodes) == config.num_roots "leaf_nodes length must match config.num_roots"
-    @assert all(length(leaves) == config.num_leaves_per_root for leaves in leaf_nodes) "all leaf groups must have config.num_leaves_per_root nodes"
+    # Leaf information (semantic space)
+    leaf_tokens::Matrix{Int}          # 128×7 matrix of token IDs
+    leaf_relations::Matrix{Union{Symbol,Nothing}}  # 128×7 relations
+    injected_mask::Matrix{Bool}       # 128×7 which leaves have injections
 
-    total_nodes = config.num_roots * (1 + config.num_leaves_per_root)
-    @assert size(adjacency_matrix) == (total_nodes, total_nodes) "adjacency_matrix size must be (total_nodes, total_nodes)"
+    # Metadata
+    source_sequence_id::String        # Identifier for source text
+    sequence_length::Int              # Original text length (≤128)
+    num_injections::Int               # Count of non-padding leaves
 
-    if config.precompute_shortest_paths && shortest_paths !== nothing
-      @assert size(shortest_paths) == (total_nodes, total_nodes) "shortest_paths size must match adjacency_matrix"
+    # Configuration
+    config::ChainGraphConfig
+
+    function LeafyChainGraph(;
+        nodes::Vector{ChainGraphNode},
+        adjacency_matrix::SparseMatrixCSC{Float32},
+        shortest_paths::Matrix{Int},
+        root_tokens::Vector{Int},
+        root_texts::Vector{String},
+        leaf_tokens::Matrix{Int},
+        leaf_relations::Matrix{Union{Symbol,Nothing}},
+        injected_mask::Matrix{Bool},
+        source_sequence_id::String = "",
+        sequence_length::Int,
+        num_injections::Int,
+        config::ChainGraphConfig,
+    )
+        new(nodes, adjacency_matrix, shortest_paths, root_tokens, root_texts,
+            leaf_tokens, leaf_relations, injected_mask, source_sequence_id,
+            sequence_length, num_injections, config)
     end
-
-    new(root_nodes, leaf_nodes, adjacency_matrix, shortest_paths, config, metadata)
-  end
 end
 
 """
@@ -508,6 +608,26 @@ struct MNMConfig
       mask_token_id,
     )
   end
+end
+
+"""
+    default_mnm_config()
+
+Create default MNM configuration for GraphMERT training.
+
+$(TYPEDSIGNATURES)
+"""
+function default_mnm_config()
+    return MNMConfig(
+        vocab_size = 30522,      # BioMedBERT vocabulary
+        hidden_size = 512,       # Hidden dimension
+        num_leaves = 7,          # Number of leaves per root
+        mask_probability = 0.15, # Masking probability
+        relation_dropout = 0.3,  # Relation dropout rate
+        loss_weight = 1.0,       # Loss weighting factor
+        mask_entire_leaf_span = true, # Always mask entire spans
+        mask_token_id = 103,     # [MASK] token ID
+    )
 end
 
 """

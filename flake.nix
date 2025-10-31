@@ -40,7 +40,7 @@
           openspecfun
           openssl
           unzip
-          utillinux
+          util-linux
           which
 
           # Building
@@ -66,6 +66,7 @@
           # IDE
           code-cursor
           cursor-cli
+          amp-cli
           bash # Required by Speckit scripts
           vscode
         ]);

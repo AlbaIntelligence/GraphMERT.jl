@@ -60,6 +60,25 @@ struct MLMConfig
 end
 
 """
+    default_mlm_config()
+
+Create default MLM configuration for GraphMERT training.
+
+$(TYPEDSIGNATURES)
+"""
+function default_mlm_config()
+    return MLMConfig(
+        vocab_size = 30522,      # BioMedBERT vocabulary
+        hidden_size = 512,       # Hidden dimension
+        max_length = 1024,       # Maximum sequence length
+        mask_probability = 0.15, # Standard masking probability
+        span_length = 7,         # Span length for masking
+        boundary_loss_weight = 1.0, # Boundary loss weight
+        temperature = 1.0,       # Temperature for sampling
+    )
+end
+
+"""
     MLMBatch
 
 Batch data for MLM training.
@@ -85,6 +104,59 @@ struct MLMBatch
 
         new(input_ids, attention_mask, labels, masked_positions, span_boundaries)
     end
+end
+
+"""
+    create_mlm_batch(texts::Vector{String}, config::MLMConfig; rng::AbstractRNG=Random.GLOBAL_RNG)
+
+Create MLM training batch from texts.
+
+$(TYPEDSIGNATURES)
+"""
+function create_mlm_batch(texts::Vector{String}, config::MLMConfig; rng::AbstractRNG=Random.GLOBAL_RNG)
+    batch_size = length(texts)
+    seq_len = config.max_length
+
+    # Initialize batch tensors
+    input_ids = zeros(Int, batch_size, seq_len)
+    attention_mask = ones(Int, batch_size, seq_len)
+    labels = fill(-100, batch_size, seq_len)  # -100 for ignored positions
+
+    # Process each text
+    for (i, text) in enumerate(texts)
+        # Simple tokenization (would use proper tokenizer)
+        tokens = [hash(c) % config.vocab_size for c in text]
+        tokens = tokens[1:min(length(tokens), seq_len)]
+
+        # Fill input_ids
+        input_ids[i, 1:length(tokens)] = tokens
+
+        # Create attention mask
+        attention_mask[i, 1:length(tokens)] .= 1
+        attention_mask[i, (length(tokens)+1):end] .= 0
+
+        # Apply masking
+        masked_tokens, masked_labels, masked_positions, span_boundaries =
+            create_span_masks(reshape(tokens, 1, :), config; rng=rng)
+
+        # Update input_ids and labels
+        for (pos, masked_token) in enumerate(masked_tokens[1, :])
+            if pos <= length(tokens)
+                input_ids[i, pos] = masked_token
+                if masked_token != tokens[pos]  # If masked
+                    labels[i, pos] = tokens[pos]
+                end
+            end
+        end
+    end
+
+    return MLMBatch(
+        input_ids,
+        attention_mask,
+        labels,
+        Int[],  # masked_positions (simplified)
+        Tuple{Int,Int}[],  # span_boundaries (simplified)
+    )
 end
 
 # ============================================================================

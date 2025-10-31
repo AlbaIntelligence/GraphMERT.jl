@@ -91,6 +91,7 @@ include("biomedical/umls.jl")
 include("biomedical/entities.jl")
 include("biomedical/relations.jl")
 include("text/pubmed.jl")
+include("text/tokenizer.jl")
 
 # LLM integration
 include("llm/helper.jl")

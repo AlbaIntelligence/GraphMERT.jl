@@ -11,366 +11,280 @@ and vocabulary transfer between syntactic and semantic spaces.
 # Types will be available from main module after all includes
 
 """
-    select_leaves_to_mask(graph::LeafyChainGraph, config::MNMConfig)
+    select_leaves_to_mask(graph::LeafyChainGraph, mnm_probability::Float64, rng::AbstractRNG)
 
-Select leaf nodes to mask for MNM training.
+Select leaf spans to mask for MNM training.
 
-# Arguments
-- `graph::LeafyChainGraph`: Graph containing leaf nodes
-- `config::MNMConfig`: MNM configuration
-
-# Returns
-- `Vector{Tuple{Int,Int}}`: List of (root_idx, leaf_idx) pairs to mask
+Key difference from MLM: Masks ENTIRE leaf group (all 7 leaves) when selected.
 """
-function select_leaves_to_mask(graph::LeafyChainGraph, config::MNMConfig)
-    masked_positions = Vector{Tuple{Int,Int}}()
+function select_leaves_to_mask(
+    graph::LeafyChainGraph,
+    mnm_probability::Float64,  # 0.15 as per paper
+    rng::AbstractRNG
+)::Vector{Tuple{Int,Int}}  # Returns (root_idx, leaf_idx) pairs
 
-    for root_idx = 1:graph.config.num_roots
-        # Decide whether to mask this root's leaves
-        if rand() < config.mask_probability
-            # Mask entire leaf span for this root (as per paper)
-            for leaf_idx = 1:config.num_leaves
-                push!(masked_positions, (root_idx, leaf_idx))
+    masked_leaves = Tuple{Int,Int}[]
+
+    # Find all roots with injections
+    injected_roots = findall(any(graph.injected_mask, dims=2)[:])
+
+    if isempty(injected_roots)
+        return masked_leaves
+    end
+
+    # Calculate number of roots to mask
+    num_to_mask = max(1, round(Int, length(injected_roots) * mnm_probability))
+
+    # Randomly select roots to mask
+    roots_to_mask = shuffle(rng, injected_roots)[1:min(num_to_mask, length(injected_roots))]
+
+    # For each selected root, mask ALL its leaves
+    for root_idx in roots_to_mask
+        for leaf_idx in 1:graph.config.num_leaves_per_root
+            # Only add to mask if this leaf was actually injected
+            if graph.injected_mask[root_idx, leaf_idx]
+                push!(masked_leaves, (root_idx, leaf_idx))
             end
         end
     end
 
-    return masked_positions
+    return masked_leaves
 end
 
 """
-    apply_mnm_masks(graph::LeafyChainGraph, masked_positions::Vector{Tuple{Int,Int}}, config::MNMConfig)
+    apply_mnm_masks(
+        graph::LeafyChainGraph,
+        masked_leaves::Vector{Tuple{Int,Int}},
+        mask_token_id::Int,
+        vocab_size::Int,
+        rng::AbstractRNG
+    )
 
-Apply MNM masking to the graph by replacing selected leaf tokens.
+Apply MNM masking strategy to leaf nodes.
 
-# Arguments
-- `graph::LeafyChainGraph`: Graph to modify
-- `masked_positions::Vector{Tuple{Int,Int}}`: Positions to mask
-- `config::MNMConfig`: MNM configuration
-
-# Returns
-- `Vector{Int}`: Original token IDs before masking
+Masking Strategy (same as MLM):
+- 80%: Replace with [MASK] token
+- 10%: Replace with random token
+- 10%: Keep original token
 """
 function apply_mnm_masks(
     graph::LeafyChainGraph,
-    masked_positions::Vector{Tuple{Int,Int}},
-    config::MNMConfig,
-)
-    original_tokens = Vector{Int}()
+    masked_leaves::Vector{Tuple{Int,Int}},
+    mask_token_id::Int,  # Usually 103 for [MASK]
+    vocab_size::Int,
+    rng::AbstractRNG
+)::Tuple{LeafyChainGraph, Matrix{Int}}
 
-    for (root_idx, leaf_idx) in masked_positions
-        if root_idx ≤ length(graph.leaf_nodes) &&
-           leaf_idx ≤ length(graph.leaf_nodes[root_idx])
-            leaf_node = graph.leaf_nodes[root_idx][leaf_idx]
-            if !leaf_node.is_padding
-                push!(original_tokens, leaf_node.token_id)
-                # Replace with mask token (80% of time) or random token (10% of time) or keep original (10% of time)
-                if rand() < 0.8
-                    # 80% mask token
-                    graph.leaf_nodes[root_idx][leaf_idx] = ChainGraphNode(
-                        :leaf,
-                        config.mask_token_id,
-                        leaf_node.position,
-                        root_idx,
-                        false,
-                    )
-                elseif rand() < 0.5
-                    # 10% random token
-                    random_token = rand(1:config.vocab_size)
-                    graph.leaf_nodes[root_idx][leaf_idx] = ChainGraphNode(
-                        :leaf,
-                        random_token,
-                        leaf_node.position,
-                        root_idx,
-                        false,
-                    )
-                end
-                # 10% keep original (do nothing)
-            end
+    # Create copy of graph
+    masked_graph = deepcopy(graph)
+
+    # Create labels matrix (-100 = ignore, actual token_id = predict)
+    labels = fill(-100, size(graph.leaf_tokens))
+
+    for (root_idx, leaf_idx) in masked_leaves
+        original_token = graph.leaf_tokens[root_idx, leaf_idx]
+
+        # Store label
+        labels[root_idx, leaf_idx] = original_token
+
+        # Apply masking strategy
+        rand_val = rand(rng)
+
+        if rand_val < 0.8
+            # 80%: Replace with [MASK]
+            masked_graph.leaf_tokens[root_idx, leaf_idx] = mask_token_id
+        elseif rand_val < 0.9
+            # 10%: Replace with random token
+            # Avoid special tokens (0-3: PAD, UNK, CLS, SEP)
+            masked_graph.leaf_tokens[root_idx, leaf_idx] = rand(rng, 4:(vocab_size-1))
         end
+        # 10%: Keep original (no change)
     end
 
-    return original_tokens
+    return masked_graph, labels
 end
 
 """
-    calculate_mnm_loss(model::GraphMERTModel, batch::MNMBatch, masked_positions::Vector{Tuple{Int,Int}})
+    calculate_mnm_loss(
+        logits::Array{Float32, 3},
+        labels::Matrix{Int},
+        attention_mask::Matrix{Int},
+        graph::LeafyChainGraph
+    )
 
-Calculate MNM loss for masked leaf node prediction.
-
-# Arguments
-- `model::GraphMERTModel`: Trained GraphMERT model
-- `batch::MNMBatch`: Batch containing graph sequences and attention masks
-- `masked_positions::Vector{Tuple{Int,Int}}`: Positions that were masked
-
-# Returns
-- `Float64`: MNM loss value
+Calculate MNM loss on masked leaf predictions.
 """
 function calculate_mnm_loss(
-    model::GraphMERTModel,
-    batch::MNMBatch,
-    masked_positions::Vector{Tuple{Int,Int}},
-)
-    # Forward pass through model
-    logits = model(batch.graph_sequence, batch.attention_mask)
+    logits::Array{Float32, 3},  # [batch, 1024, vocab_size]
+    labels::Matrix{Int},         # [batch, 128, 7]
+    attention_mask::Matrix{Int}, # [batch, 1024]
+    graph::LeafyChainGraph
+)::Float32
 
-    # Extract logits for masked positions
-    loss = 0.0
-    total_masked = 0
+    batch_size = size(logits, 1)
+    vocab_size = size(logits, 3)
+    config = graph.config
 
-    for (root_idx, leaf_idx) in masked_positions
-        if root_idx ≤ size(batch.graph_sequence, 1) &&
-           leaf_idx ≤ size(batch.graph_sequence, 2)
-            # Calculate position in sequence
-            seq_pos = (root_idx - 1) * (1 + model.config.num_leaves) + 1 + leaf_idx
-            if seq_pos ≤ size(logits, 2)
-                # Cross-entropy loss for this position
-                target_token = batch.original_leaf_tokens[findfirst(
-                    pos -> pos[1] == root_idx && pos[2] == leaf_idx,
-                    masked_positions,
-                )]
-                loss += Flux.crossentropy(logits[:, seq_pos, :], target_token)
-                total_masked += 1
+    total_loss = 0.0f0
+    count = 0
+
+    # Iterate over leaf positions
+    for batch_idx in 1:batch_size
+        for root_idx in 1:config.num_roots
+            for leaf_idx in 1:config.num_leaves_per_root
+
+                label = labels[batch_idx, root_idx, leaf_idx]
+
+                # Skip if not a prediction target
+                if label == -100
+                    continue
+                end
+
+                # Get position in sequence
+                seq_pos = config.num_roots + (root_idx - 1) * config.num_leaves_per_root + leaf_idx
+
+                # Get logits and compute cross-entropy
+                leaf_logits = logits[batch_idx, seq_pos, :]
+                loss = Flux.crossentropy(leaf_logits, label)
+
+                total_loss += loss
+                count += 1
             end
         end
     end
 
-    return total_masked > 0 ? loss / total_masked : 0.0
+    return count > 0 ? total_loss / count : 0.0f0
 end
 
 """
-    create_mnm_batch(graphs::Vector{LeafyChainGraph}, masked_positions_list::Vector{Vector{Tuple{Int,Int}}},
-                    original_tokens_list::Vector{Vector{Int}}, config::MNMConfig)
-
-Create MNM training batch from multiple graphs.
-
-# Arguments
-- `graphs::Vector{LeafyChainGraph}`: Batch of graphs
-- `masked_positions_list::Vector{Vector{Tuple{Int,Int}}}`: Masked positions for each graph
-- `original_tokens_list::Vector{Vector{Int}}`: Original tokens for each graph
-- `config::MNMConfig`: MNM configuration
-
-# Returns
-- `MNMBatch`: Batch ready for MNM training
-"""
-function create_mnm_batch(
-    graphs::Vector{LeafyChainGraph},
-    masked_positions_list::Vector{Vector{Tuple{Int,Int}}},
-    original_tokens_list::Vector{Vector{Int}},
-    config::MNMConfig,
-)
-    batch_size = length(graphs)
-    seq_len = size(graphs[1].adjacency_matrix, 1)
-
-    # Convert graphs to sequences
-    sequences = [graph_to_sequence(graph) for graph in graphs]
-
-    # Create 3D attention masks (batch_size × seq_len × seq_len)
-    attention_masks = Array{Bool,3}(undef, batch_size, seq_len, seq_len)
-    for i = 1:batch_size
-        attention_masks[i, :, :] = create_attention_mask(graphs[i])
-    end
-
-    # Create relation IDs (simplified - would be more sophisticated in full implementation)
-    relation_ids = zeros(Int, batch_size, config.num_leaves)
-
-    return MNMBatch(
-        Matrix(hcat(sequences...)'),  # graph_sequence (batch_size × seq_len) - transpose and convert to Matrix
-        attention_masks,     # attention_mask (batch_size × seq_len × seq_len)
-        masked_positions_list,  # masked_leaf_spans
-        original_tokens_list,  # original_leaf_tokens
-        relation_ids,  # relation_ids
+    forward_pass_mnm(
+        model::GraphMERTModel,
+        masked_graph::LeafyChainGraph
     )
-end
 
+Forward pass through GraphMERT for MNM.
+
+Key: Even though leaves are masked, H-GAT still fuses them with:
+- Relation embeddings (being trained)
+- Head token embeddings (from roots)
 """
-    train_mnm_step(model::GraphMERTModel, batch::MNMBatch, optimizer, config::MNMConfig)
-
-Perform one MNM training step.
-
-# Arguments
-- `model::GraphMERTModel`: Model to train
-- `batch::MNMBatch`: Training batch
-- `optimizer`: Optimizer for parameter updates
-- `config::MNMConfig`: MNM configuration
-
-# Returns
-- `Float64`: Loss value for this step
-"""
-function train_mnm_step(
+function forward_pass_mnm(
     model::GraphMERTModel,
-    batch::MNMBatch,
-    optimizer,
-    config::MNMConfig,
-)
-    # Calculate loss
-    loss = calculate_mnm_loss(model, batch, vcat(batch.masked_leaf_spans...))
+    masked_graph::LeafyChainGraph
+)::Array{Float32, 3}  # Returns logits [batch, seq_len, vocab_size]
 
-    # Compute gradients
-    grads = gradient(model) do m
-        calculate_mnm_loss(m, batch, vcat(batch.masked_leaf_spans...))
-    end
+    # 1. Convert graph to sequence
+    input_ids = graph_to_sequence(masked_graph)  # [1024]
 
-    # Apply relation dropout if configured
-    if config.relation_dropout > 0
-        # Apply dropout to relation embeddings during training
-        # This helps prevent overfitting on relation patterns
-        dropout_mask = rand(size(batch.relation_ids)...) .> config.relation_dropout
-        batch.relation_ids .*= dropout_mask
-    end
+    # 2. Get token embeddings
+    token_embeddings = model.embeddings(input_ids)  # [1024, hidden_dim]
 
-    # Update parameters
-    Flux.update!(optimizer, model, grads[1])
-
-    return loss
-end
-
-"""
-    evaluate_mnm(model::GraphMERTModel, test_batch::MNMBatch, config::MNMConfig)
-
-Evaluate MNM performance on test data.
-
-# Arguments
-- `model::GraphMERTModel`: Trained model
-- `test_batch::MNMBatch`: Test batch
-- `config::MNMConfig`: MNM configuration
-
-# Returns
-- `Dict{String, Float64}`: Evaluation metrics
-"""
-function evaluate_mnm(model::GraphMERTModel, test_batch::MNMBatch, config::MNMConfig)
-    loss = calculate_mnm_loss(model, test_batch, vcat(test_batch.masked_leaf_spans...))
-
-    # Calculate accuracy (simplified - would be more comprehensive)
-    total_predictions = sum(length(positions) for positions in test_batch.masked_leaf_spans)
-    accuracy = total_predictions > 0 ? 1.0 - loss : 0.0  # Simplified metric
-
-    return Dict(
-        "mnm_loss" => loss,
-        "mnm_accuracy" => accuracy,
-        "total_masked" => total_predictions,
+    # 3. Apply H-GAT to fuse relation information into masked leaves
+    # This is where relation embeddings get updated via backprop!
+    fused_embeddings = apply_hgat_fusion(
+        model.hgat,
+        token_embeddings,
+        masked_graph
     )
+
+    # 4. Pass through transformer layers
+    hidden_states = model.transformer(fused_embeddings)
+
+    # 5. Project to vocabulary
+    logits = model.lm_head(hidden_states)  # [1024, vocab_size]
+
+    return logits
 end
 
 """
-    validate_gradient_flow(model::GraphMERTModel, batch::MNMBatch, config::MNMConfig)
+    train_joint_mlm_mnm_step(
+        model::GraphMERTModel,
+        graph::LeafyChainGraph,
+        mlm_config::MLMConfig,
+        mnm_config::MNMConfig,
+        optimizer,
+        μ::Float64 = 1.0
+    )
 
-Validate that gradients flow properly through the H-GAT (Hierarchical Graph Attention) mechanism.
-
-# Arguments
-- `model::GraphMERTModel`: Model to validate
-- `batch::MNMBatch`: Batch for gradient validation
-- `config::MNMConfig`: MNM configuration
-
-# Returns
-- `Dict{String, Bool}`: Validation results for different components
-"""
-function validate_gradient_flow(model::GraphMERTModel, batch::MNMBatch, config::MNMConfig)
-    validation_results = Dict{String,Bool}()
-
-    # Test gradient flow through the model
-    grads = gradient(model) do m
-        calculate_mnm_loss(m, batch, vcat(batch.masked_leaf_spans...))
-    end
-
-    # Check if gradients are non-zero (indicating proper flow)
-    has_gradients = grads[1] !== nothing
-    validation_results["has_gradients"] = has_gradients
-
-    # Check gradient magnitudes (should be reasonable, not too small or too large)
-    if has_gradients
-        grad_norm = norm(grads[1])
-        reasonable_magnitude = 1e-6 < grad_norm < 1e2
-        validation_results["reasonable_gradient_magnitude"] = reasonable_magnitude
-
-        # Check for gradient explosion/vanishing
-        no_explosion = grad_norm < 1e2
-        no_vanishing = grad_norm > 1e-6
-        validation_results["no_gradient_explosion"] = no_explosion
-        validation_results["no_gradient_vanishing"] = no_vanishing
-    else
-        validation_results["reasonable_gradient_magnitude"] = false
-        validation_results["no_gradient_explosion"] = false
-        validation_results["no_gradient_vanishing"] = false
-    end
-
-    # Test H-GAT specific gradient flow
-    # In a full implementation, this would check gradients through attention layers
-    validation_results["hgat_gradient_flow"] = has_gradients
-
-    return validation_results
-end
-
-"""
-    train_joint_mlm_mnm_step(model::GraphMERTModel, mlm_batch, mnm_batch::MNMBatch, 
-                            mlm_config::MLMConfig, mnm_config::MNMConfig, optimizer)
-
-Perform one joint MLM+MNM training step combining both objectives.
-
-# Arguments
-- `model::GraphMERTModel`: Model to train
-- `mlm_batch`: MLM training batch
-- `mnm_batch::MNMBatch`: MNM training batch
-- `mlm_config::MLMConfig`: MLM configuration
-- `mnm_config::MNMConfig`: MNM configuration
-- `optimizer`: Optimizer for parameter updates
-
-# Returns
-- `Dict{String, Float64}`: Combined loss and individual losses
+Perform one joint training step with both MLM and MNM objectives.
 """
 function train_joint_mlm_mnm_step(
     model::GraphMERTModel,
-    mlm_batch,
-    mnm_batch::MNMBatch,
+    graph::LeafyChainGraph,
     mlm_config::MLMConfig,
     mnm_config::MNMConfig,
     optimizer,
-)
-    # Calculate MLM loss
-    # Note: This assumes mlm_batch has the required fields for MLM loss calculation
-    # In a full implementation, this would be more sophisticated
-    mlm_loss = 0.5  # Placeholder - would use calculate_total_mlm_loss in full implementation
+    μ::Float64 = 1.0,
+    rng::AbstractRNG = Random.GLOBAL_RNG
+)::Tuple{Float32, Float32, Float32}
 
-    # Calculate MNM loss
-    mnm_loss = calculate_mnm_loss(model, mnm_batch, vcat(mnm_batch.masked_leaf_spans...))
+    # === MLM Masking (Syntactic Space) ===
 
-    # Combine losses with weights
-    combined_loss =
-        mlm_config.boundary_loss_weight * mlm_loss + mnm_config.loss_weight * mnm_loss
-
-    # Compute gradients for combined loss
-    grads = gradient(model) do m
-        mlm_loss_val = 0.5  # Placeholder - would use calculate_total_mlm_loss in full implementation
-        mnm_loss_val =
-            calculate_mnm_loss(m, mnm_batch, vcat(mnm_batch.masked_leaf_spans...))
-        return mlm_config.boundary_loss_weight * mlm_loss_val +
-               mnm_config.loss_weight * mnm_loss_val
-    end
-
-    # Apply relation dropout if configured
-    if mnm_config.relation_dropout > 0
-        dropout_mask = rand(size(mnm_batch.relation_ids)...) .> mnm_config.relation_dropout
-        mnm_batch.relation_ids .*= dropout_mask
-    end
-
-    # Update parameters
-    Flux.update!(optimizer, model, grads[1])
-
-    return Dict(
-        "combined_loss" => combined_loss,
-        "mlm_loss" => mlm_loss,
-        "mnm_loss" => mnm_loss,
-        "mlm_weight" => mlm_config.boundary_loss_weight,
-        "mnm_weight" => mnm_config.loss_weight,
+    # Select root spans to mask
+    masked_root_positions, root_span_boundaries = select_roots_to_mask(
+        graph, mlm_config.mask_probability, rng
     )
+
+    # Apply MLM masks
+    mlm_masked_graph, mlm_labels = apply_mlm_masks(
+        graph, masked_root_positions, mlm_config.mask_token_id, mlm_config.vocab_size, rng
+    )
+
+    # === MNM Masking (Semantic Space) ===
+
+    # Select leaf spans to mask
+    masked_leaf_positions = select_leaves_to_mask(
+        mlm_masked_graph,  # Already has MLM masks applied
+        mnm_config.mask_probability,
+        rng
+    )
+
+    # Apply MNM masks (on top of MLM masks)
+    joint_masked_graph, mnm_labels = apply_mnm_masks(
+        mlm_masked_graph,
+        masked_leaf_positions,
+        mnm_config.mask_token_id,
+        mnm_config.vocab_size,
+        rng
+    )
+
+    # === Forward Pass ===
+
+    logits = forward_pass_mnm(model, joint_masked_graph)
+
+    # === Loss Calculation ===
+
+    # MLM Loss (with boundary loss)
+    mlm_loss, boundary_loss = calculate_mlm_loss_with_boundary(
+        logits,
+        mlm_labels,
+        root_span_boundaries,
+        joint_masked_graph,
+        mlm_config
+    )
+
+    # MNM Loss
+    mnm_loss = calculate_mnm_loss(
+        logits,
+        mnm_labels,
+        create_attention_mask(joint_masked_graph),
+        joint_masked_graph
+    )
+
+    # Joint Loss
+    total_loss = mlm_loss + μ * mnm_loss
+
+    # === Backward Pass ===
+
+    grads = gradient(() -> total_loss, Flux.params(model))
+    Flux.update!(optimizer, Flux.params(model), grads)
+
+    return total_loss, mlm_loss, mnm_loss
 end
 
 # Export functions for external use
 export select_leaves_to_mask,
-    apply_mnm_masks,
-    calculate_mnm_loss,
-    create_mnm_batch,
-    train_mnm_step,
-    evaluate_mnm,
-    validate_gradient_flow,
-    train_joint_mlm_mnm_step
+apply_mnm_masks,
+calculate_mnm_loss,
+forward_pass_mnm,
+train_joint_mlm_mnm_step
