@@ -22,7 +22,7 @@ using DocStringExtensions
 
 Represents the position of text in a document.
 
-$(FIELDS)
+
 
 """
 struct TextPosition
@@ -41,7 +41,7 @@ end
 
 Represents a knowledge entity in the knowledge graph.
 
-$(FIELDS)
+
 """
 struct KnowledgeEntity
   id::String
@@ -70,7 +70,7 @@ end
 
 Represents a relation between two knowledge entities.
 
-$(FIELDS)
+
 """
 struct KnowledgeRelation
   head::String
@@ -99,53 +99,53 @@ end
 """
     KnowledgeGraph
 
-Represents a knowledge graph with entities and relations.
+Knowledge graph containing entities and relations extracted from text.
 
-$(FIELDS)
+
 """
 struct KnowledgeGraph
-  entities::Vector{KnowledgeEntity}
-  relations::Vector{KnowledgeRelation}
-  metadata::Dict{String,Any}
-  created_at::DateTime
+    entities::Vector{KnowledgeEntity}
+    relations::Vector{KnowledgeRelation}
+    metadata::Dict{String,Any}
+    created_at::DateTime
 
-  function KnowledgeGraph(
-    entities::Vector{KnowledgeEntity},
-    relations::Vector{KnowledgeRelation},
-    metadata::Dict{String,Any}=Dict{String,Any}(),
-    created_at::DateTime=now(),
-  )
-    new(entities, relations, metadata, created_at)
-  end
+    function KnowledgeGraph(
+        entities::Vector{KnowledgeEntity},
+        relations::Vector{KnowledgeRelation},
+        metadata::Dict{String,Any}=Dict{String,Any}(),
+        created_at::DateTime=now(),
+    )
+        new(entities, relations, metadata, created_at)
+    end
 end
 
 # ============================================================================
-# Biomedical Knowledge Graph
+# Generic Knowledge Graph Entities
 # ============================================================================
 
 """
-    BiomedicalEntity
+    Entity
 
-Represents a biomedical entity with UMLS mappings and semantic types.
+Represents a generic knowledge graph entity with domain-specific attributes.
 
-$(FIELDS)
+
 """
-struct BiomedicalEntity
+struct Entity
   id::String
   text::String
   label::String
-  cui::Union{String,Nothing}  # UMLS Concept Unique Identifier
-  semantic_types::Vector{String}  # UMLS semantic types
+  entity_type::String  # Domain-specific entity type (e.g., "DISEASE", "PERSON", "CONCEPT")
+  attributes::Dict{String,Any}  # Domain-specific attributes (cui, semantic_types, etc.)
   position::TextPosition
   confidence::Float64
   provenance::String  # Source text or document
 
-  function BiomedicalEntity(
+  function Entity(
     id::String,
     text::String,
     label::String,
-    cui::Union{String,Nothing} = nothing,
-    semantic_types::Vector{String} = String[],
+    entity_type::String = "UNKNOWN",
+    attributes::Dict{String,Any} = Dict{String,Any}(),
     position::TextPosition = TextPosition(0, 0, 0, 0),
     confidence::Float64 = 0.5,
     provenance::String = "",
@@ -153,18 +153,18 @@ struct BiomedicalEntity
     @assert !isempty(id) "Entity ID cannot be empty"
     @assert !isempty(text) "Entity text cannot be empty"
     @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
-    new(id, text, label, cui, semantic_types, position, confidence, provenance)
+    new(id, text, label, entity_type, attributes, position, confidence, provenance)
   end
 end
 
 """
-    BiomedicalRelation
+    Relation
 
-Represents a biomedical relation between entities.
+Represents a generic relation between entities.
 
-$(FIELDS)
+
 """
-struct BiomedicalRelation
+struct Relation
   id::String
   head::String  # Head entity ID
   tail::String  # Tail entity ID
@@ -172,14 +172,16 @@ struct BiomedicalRelation
   confidence::Float64
   provenance::String  # Source text or document
   evidence::String  # Supporting evidence text
+  attributes::Dict{String,Any}  # Domain-specific relation attributes
 
-  function BiomedicalRelation(
+  function Relation(
     head::String,
     tail::String,
     relation_type::String,
     confidence::Float64,
     provenance::String = "",
     evidence::String = "",
+    attributes::Dict{String,Any} = Dict{String,Any}(),
     id::String = "",
   )
     @assert !isempty(head) "Head entity ID cannot be empty"
@@ -191,8 +193,172 @@ struct BiomedicalRelation
       id = "$(head)_$(relation_type)_$(tail)"
     end
 
-    new(id, head, tail, relation_type, confidence, provenance, evidence)
+    new(id, head, tail, relation_type, confidence, provenance, evidence, attributes)
   end
+end
+
+# ============================================================================
+# Domain-Specific Entity Specializations
+# ============================================================================
+
+"""
+    BiomedicalEntity
+
+Specialization of Entity for biomedical domain with UMLS mappings.
+
+
+"""
+struct BiomedicalEntity
+  entity::Entity  # Base generic entity
+
+  function BiomedicalEntity(
+    id::String,
+    text::String,
+    label::String,
+    cui::Union{String,Nothing} = nothing,
+    semantic_types::Vector{String} = String[],
+    position::TextPosition = TextPosition(0, 0, 0, 0),
+    confidence::Float64 = 0.5,
+    provenance::String = "",
+  )
+    # Create attributes dict with biomedical-specific fields
+    attributes = Dict{String,Any}()
+    if cui !== nothing
+      attributes["cui"] = cui
+    end
+    if !isempty(semantic_types)
+      attributes["semantic_types"] = semantic_types
+    end
+
+    entity = Entity(id, text, label, label, attributes, position, confidence, provenance)
+    new(entity)
+  end
+end
+
+# Convenience accessors for biomedical entities
+Base.getproperty(be::BiomedicalEntity, prop::Symbol) = begin
+  if prop === :id
+    be.entity.id
+  elseif prop === :text
+    be.entity.text
+  elseif prop === :label
+    be.entity.label
+  elseif prop === :cui
+    get(be.entity.attributes, "cui", nothing)
+  elseif prop === :semantic_types
+    get(be.entity.attributes, "semantic_types", String[])
+  elseif prop === :position
+    be.entity.position
+  elseif prop === :confidence
+    be.entity.confidence
+  elseif prop === :provenance
+    be.entity.provenance
+  else
+    getfield(be, prop)
+  end
+end
+
+"""
+    BiomedicalRelation
+
+Specialization of Relation for biomedical domain.
+
+
+"""
+struct BiomedicalRelation
+  relation::Relation  # Base generic relation
+
+  function BiomedicalRelation(
+    head::String,
+    tail::String,
+    relation_type::String,
+    confidence::Float64,
+    provenance::String = "",
+    evidence::String = "",
+    id::String = "",
+  )
+    relation = Relation(head, tail, relation_type, confidence, provenance, evidence, Dict{String,Any}(), id)
+    new(relation)
+  end
+end
+
+# Convenience accessors for biomedical relations
+Base.getproperty(br::BiomedicalRelation, prop::Symbol) = begin
+  if prop === :id
+    br.relation.id
+  elseif prop === :head
+    br.relation.head
+  elseif prop === :tail
+    br.relation.tail
+  elseif prop === :relation_type
+    br.relation.relation_type
+  elseif prop === :confidence
+    br.relation.confidence
+  elseif prop === :provenance
+    br.relation.provenance
+  elseif prop === :evidence
+    br.relation.evidence
+  else
+    getfield(br, prop)
+  end
+end
+
+# ============================================================================
+# Knowledge Graph
+# ============================================================================
+
+# ============================================================================
+# Domain-Specific Entity Specializations
+# ============================================================================
+
+# ============================================================================
+# Entity Type System
+# ============================================================================
+
+struct EntityTypeRegistry
+  types::Dict{String, Dict{String, Any}}
+
+  function EntityTypeRegistry()
+    new(Dict{String, Dict{String, Any}}())
+  end
+end
+
+"""
+    register_entity_type!(registry::EntityTypeRegistry, type_name::String, attributes::Dict{String, Any})
+
+Register a new entity type in the registry.
+"""
+function register_entity_type!(registry::EntityTypeRegistry, type_name::String, attributes::Dict{String, Any} = Dict{String, Any}())
+  registry.types[type_name] = attributes
+end
+
+"""
+    get_entity_type_info(registry::EntityTypeRegistry, type_name::String)
+
+Get information about an entity type.
+"""
+function get_entity_type_info(registry::EntityTypeRegistry, type_name::String)
+  get(registry.types, type_name, Dict{String, Any}())
+end
+
+# Global registry for entity types
+const ENTITY_TYPE_REGISTRY = EntityTypeRegistry()
+
+"""
+    EntityType
+
+Abstract type for entity type representations.
+"""
+abstract type EntityType end
+
+"""
+    GenericEntityType <: EntityType
+
+Generic entity type that can represent any domain-specific type.
+"""
+struct GenericEntityType <: EntityType
+  name::String
+  attributes::Dict{String, Any}
 end
 
 # ============================================================================
@@ -204,7 +370,7 @@ end
 
 Configuration for GraphMERT model.
 
-$(FIELDS)
+
 """
 struct GraphMERTConfig
   model_path::String
@@ -229,6 +395,10 @@ struct GraphMERTConfig
   output_attentions::Bool
   output_hidden_states::Bool
   return_dict::Bool
+  # Domain configuration
+  entity_types::Vector{String}
+  relation_types::Vector{String}
+  domain::String
 
   function GraphMERTConfig(;
     model_path::String="",
@@ -253,6 +423,10 @@ struct GraphMERTConfig
     output_attentions::Bool=false,
     output_hidden_states::Bool=false,
     return_dict::Bool=true,
+    # Domain configuration
+    entity_types::Vector{String}=String[],
+    relation_types::Vector{String}=String[],
+    domain::String="general",
   )
     new(
       model_path,
@@ -277,6 +451,9 @@ struct GraphMERTConfig
       output_attentions,
       output_hidden_states,
       return_dict,
+      entity_types,
+      relation_types,
+      domain,
     )
   end
 end
@@ -286,7 +463,7 @@ end
 
 Options for text processing and knowledge graph extraction.
 
-$(FIELDS)
+
 """
 struct ProcessingOptions
   max_length::Int
@@ -331,24 +508,6 @@ end
 # Model Structures
 # ============================================================================
 
-"""
-    GraphMERTModel
-
-Main GraphMERT model structure.
-
-$(FIELDS)
-"""
-mutable struct GraphMERTModel
-  config::GraphMERTConfig
-  roberta::Any
-  hgat::Any
-  classifier::Any
-  is_training::Bool
-
-  function GraphMERTModel(config::GraphMERTConfig)
-    new(config, nothing, nothing, nothing, false)
-  end
-end
 
 # ============================================================================
 # Evaluation Metrics
@@ -359,7 +518,7 @@ end
 
 FActScore evaluation metric.
 
-$(FIELDS)
+
 """
 struct FActScore
   score::Float64
@@ -388,7 +547,7 @@ end
 
 ValidityScore evaluation metric.
 
-$(FIELDS)
+
 """
 struct ValidityScore
   score::Float64
@@ -411,7 +570,7 @@ end
 
 GraphRAG evaluation metric.
 
-$(FIELDS)
+
 """
 struct GraphRAG
   score::Float64
@@ -438,7 +597,7 @@ end
 
 Represents a single node in the leafy chain graph.
 
-$(FIELDS)
+
 """
 struct ChainGraphNode
     # Node identification
@@ -482,7 +641,7 @@ end
 
 Configuration for leafy chain graph construction.
 
-$(FIELDS)
+
 """
 struct ChainGraphConfig
     num_roots::Int                    # Fixed: 128
@@ -518,7 +677,7 @@ end
 
 Complete leafy chain graph structure for GraphMERT.
 
-$(FIELDS)
+
 """
 mutable struct LeafyChainGraph
     # Graph structure
@@ -568,7 +727,7 @@ end
 
 Configuration for Masked Node Modeling training objective.
 
-$(FIELDS)
+
 """
 struct MNMConfig
   vocab_size::Int
@@ -635,7 +794,7 @@ end
 
 Represents a knowledge graph triple for seed injection.
 
-$(FIELDS)
+
 """
 struct SemanticTriple
   head::String
@@ -670,7 +829,7 @@ end
 
 Configuration for seed KG injection algorithm.
 
-$(FIELDS)
+
 """
 struct SeedInjectionConfig
   entity_linking_threshold::Float64
@@ -718,7 +877,7 @@ end
 
 Request to helper LLM.
 
-$(FIELDS)
+
 """
 struct LLMRequest
   prompt::String
@@ -747,7 +906,7 @@ end
 
 Response from helper LLM.
 
-$(FIELDS)
+
 """
 struct LLMResponse
   raw_response::String
@@ -773,7 +932,7 @@ end
 
 Result of entity linking to UMLS.
 
-$(FIELDS)
+
 """
 struct EntityLinkingResult
   entity_text::String
@@ -805,7 +964,7 @@ end
 
 Batch data for MNM training.
 
-$(FIELDS)
+
 """
 struct MNMBatch
   graph_sequence::Matrix{Int}

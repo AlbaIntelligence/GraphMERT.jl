@@ -149,15 +149,15 @@ function filter_triples_by_confidence(kg::KnowledgeGraph, threshold::Float64)
 end
 
 """
-    get_triple_context(text::String, head_entity::BiomedicalEntity,
-                      tail_entity::BiomedicalEntity, max_sentences::Int)
+    get_triple_context(text::String, head_entity::Entity,
+                      tail_entity::Entity, max_sentences::Int)
 
 Extract context sentences containing both head and tail entities.
 
 # Arguments
 - `text::String`: Original source text
-- `head_entity::BiomedicalEntity`: Head entity
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `tail_entity::Entity`: Tail entity
 - `max_sentences::Int`: Maximum number of context sentences
 
 # Returns
@@ -165,8 +165,8 @@ Extract context sentences containing both head and tail entities.
 """
 function get_triple_context(
     text::String,
-    head_entity::BiomedicalEntity,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    tail_entity::Entity,
     max_sentences::Int,
 )
     sentences = split(text, r"[\.\!\?]+")
@@ -214,16 +214,16 @@ function get_triple_context(
 end
 
 """
-    evaluate_triple_support(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                           tail_entity::BiomedicalEntity, context::Vector{String},
+    evaluate_triple_support(head_entity::Entity, relation::Relation,
+                           tail_entity::Entity, context::Vector{String},
                            llm_client::Union{HelperLLMClient, Nothing})
 
 Evaluate whether a triple is supported by its context.
 
 # Arguments
-- `head_entity::BiomedicalEntity`: Head entity
-- `relation::BiomedicalRelation`: Relation
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `relation::Relation`: Relation
+- `tail_entity::Entity`: Tail entity
 - `context::Vector{String}`: Context sentences
 - `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client
 
@@ -231,9 +231,9 @@ Evaluate whether a triple is supported by its context.
 - `Bool`: True if triple is supported by context
 """
 function evaluate_triple_support(
-    head_entity::BiomedicalEntity,
-    relation::BiomedicalRelation,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    relation::Relation,
+    tail_entity::Entity,
     context::Vector{String},
     llm_client::Union{HelperLLMClient,Nothing},
 )
@@ -252,16 +252,16 @@ function evaluate_triple_support(
 end
 
 """
-    evaluate_triple_with_llm(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                            tail_entity::BiomedicalEntity, context::Vector{String},
+    evaluate_triple_with_llm(head_entity::Entity, relation::Relation,
+                            tail_entity::Entity, context::Vector{String},
                             llm_client::HelperLLMClient)
 
 Evaluate triple support using LLM.
 
 # Arguments
-- `head_entity::BiomedicalEntity`: Head entity
-- `relation::BiomedicalRelation`: Relation
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `relation::Relation`: Relation
+- `tail_entity::Entity`: Tail entity
 - `context::Vector{String}`: Context sentences
 - `llm_client::HelperLLMClient`: LLM client
 
@@ -269,9 +269,9 @@ Evaluate triple support using LLM.
 - `Bool`: LLM evaluation result
 """
 function evaluate_triple_with_llm(
-    head_entity::BiomedicalEntity,
-    relation::BiomedicalRelation,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    relation::Relation,
+    tail_entity::Entity,
     context::Vector{String},
     llm_client::HelperLLMClient,
 )
@@ -303,24 +303,24 @@ function evaluate_triple_with_llm(
 end
 
 """
-    evaluate_triple_heuristic(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                             tail_entity::BiomedicalEntity, context::Vector{String})
+    evaluate_triple_heuristic(head_entity::Entity, relation::Relation,
+    tail_entity::Entity, context::Vector{String})
 
 Simple heuristic evaluation of triple support.
 
 # Arguments
-- `head_entity::BiomedicalEntity`: Head entity
-- `relation::BiomedicalRelation`: Relation
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `relation::Relation`: Relation
+- `tail_entity::Entity`: Tail entity
 - `context::Vector{String}`: Context sentences
 
 # Returns
 - `Bool`: Heuristic evaluation result
 """
 function evaluate_triple_heuristic(
-    head_entity::BiomedicalEntity,
-    relation::BiomedicalRelation,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    relation::Relation,
+    tail_entity::Entity,
     context::Vector{String},
 )
     # Simple heuristic: check if both entities appear in the same context

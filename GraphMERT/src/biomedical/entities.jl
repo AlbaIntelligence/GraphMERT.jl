@@ -1,26 +1,124 @@
 """
 Biomedical entity types for GraphMERT.jl
 
-This module defines biomedical entity types and their classification
+This module registers biomedical entity types in the global entity type registry
 as specified in the GraphMERT paper for biomedical knowledge graph construction.
 """
 
 using Dates
 using Random
+# ENTITY_TYPE_REGISTRY and register_entity_type! are defined in types.jl
 
 # ============================================================================
-# Biomedical Entity Types
+# Biomedical Entity Type Registration
+# ============================================================================
+
+"""
+Initialize biomedical entity types in the global registry.
+"""
+function __init__()
+  # Biomedical entity types
+  biomedical_types = [
+    "DISEASE" => Dict("domain" => "biomedical", "category" => "pathology", "umls_group" => "DISO"),
+    "DRUG" => Dict("domain" => "biomedical", "category" => "chemical", "umls_group" => "CHEM"),
+    "PROTEIN" => Dict("domain" => "biomedical", "category" => "molecule", "umls_group" => "CHEM"),
+    "GENE" => Dict("domain" => "biomedical", "category" => "genetic", "umls_group" => "GENE"),
+    "ANATOMY" => Dict("domain" => "biomedical", "category" => "anatomy", "umls_group" => "ANAT"),
+    "SYMPTOM" => Dict("domain" => "biomedical", "category" => "phenotype", "umls_group" => "SIGN"),
+    "PROCEDURE" => Dict("domain" => "biomedical", "category" => "procedure", "umls_group" => "PROC"),
+    "ORGANISM" => Dict("domain" => "biomedical", "category" => "organism", "umls_group" => "LIVB"),
+    "CHEMICAL" => Dict("domain" => "biomedical", "category" => "chemical", "umls_group" => "CHEM"),
+    "CELL_LINE" => Dict("domain" => "biomedical", "category" => "cell", "umls_group" => "CELL"),
+    "CELL_TYPE" => Dict("domain" => "biomedical", "category" => "cell", "umls_group" => "CELL"),
+    "MOLECULAR_FUNCTION" => Dict("domain" => "biomedical", "category" => "function", "umls_group" => "FUNC"),
+    "BIOLOGICAL_PROCESS" => Dict("domain" => "biomedical", "category" => "process", "umls_group" => "PROC"),
+    "CELLULAR_COMPONENT" => Dict("domain" => "biomedical", "category" => "component", "umls_group" => "COMP"),
+  ]
+
+  # General knowledge entity types
+  general_types = [
+    "PERSON" => Dict("domain" => "general", "category" => "entity"),
+    "ORGANIZATION" => Dict("domain" => "general", "category" => "entity"),
+    "LOCATION" => Dict("domain" => "general", "category" => "place"),
+    "CONCEPT" => Dict("domain" => "general", "category" => "abstract"),
+    "EVENT" => Dict("domain" => "general", "category" => "temporal"),
+    "TECHNOLOGY" => Dict("domain" => "general", "category" => "artifact"),
+    "ARTWORK" => Dict("domain" => "general", "category" => "artifact"),
+    "PERIOD" => Dict("domain" => "general", "category" => "temporal"),
+    "THEORY" => Dict("domain" => "general", "category" => "abstract"),
+    "METHOD" => Dict("domain" => "general", "category" => "process"),
+    "INSTITUTION" => Dict("domain" => "general", "category" => "organization"),
+    "COUNTRY" => Dict("domain" => "general", "category" => "place"),
+    "UNKNOWN" => Dict("domain" => "general", "category" => "unknown"),
+  ]
+
+  # Register all types
+  for (type_name, attributes) in biomedical_types
+    register_entity_type!(ENTITY_TYPE_REGISTRY, type_name, Dict{String, Any}(attributes))
+  end
+
+  for (type_name, attributes) in general_types
+    register_entity_type!(ENTITY_TYPE_REGISTRY, type_name, Dict{String, Any}(attributes))
+  end
+end
+
+"""
+    get_entity_type_name(entity_type::String)
+
+Get the display name of an entity type.
+"""
+function get_entity_type_name(entity_type::String)
+  return entity_type  # For now, just return the type name
+end
+
+"""
+    parse_entity_type(type_name::String)
+
+Parse a string to an entity type (returns the string for the generic system).
+"""
+function parse_entity_type(type_name::String)
+  return type_name  # For the generic system, we just return the string
+end
+
+"""
+    get_entity_type_category(entity_type::String)
+
+Get the category of an entity type.
+"""
+function get_entity_type_category(entity_type::String)
+  info = get_entity_type_info(ENTITY_TYPE_REGISTRY, entity_type)
+  return get(info, "category", "unknown")
+end
+
+"""
+    get_entity_type_domain(entity_type::String)
+
+Get the domain of an entity type.
+"""
+function get_entity_type_domain(entity_type::String)
+  info = get_entity_type_info(ENTITY_TYPE_REGISTRY, entity_type)
+  return get(info, "domain", "unknown")
+end
+
+"""
+    is_biomedical_entity_type(entity_type::String)
+
+Check if an entity type is biomedical.
+"""
+function is_biomedical_entity_type(entity_type::String)
+  return get_entity_type_domain(entity_type) == "biomedical"
+end
+
+# ============================================================================
+# Legacy Compatibility
 # ============================================================================
 
 """
     BiomedicalEntityType
 
-Enumeration of supported biomedical entity types.
-
-$(FIELDS)
+Legacy enum for backward compatibility. Use the generic system instead.
 """
 @enum BiomedicalEntityType begin
-  # Biomedical entity types
   DISEASE
   DRUG
   PROTEIN
@@ -35,7 +133,6 @@ $(FIELDS)
   MOLECULAR_FUNCTION
   BIOLOGICAL_PROCESS
   CELLULAR_COMPONENT
-  # General knowledge entity types for Wikipedia
   PERSON
   ORGANIZATION
   LOCATION
@@ -54,7 +151,7 @@ end
 """
     get_entity_type_name(entity_type::BiomedicalEntityType)
 
-Get the string name of an entity type.
+Get the string name of an entity type (legacy compatibility).
 """
 function get_entity_type_name(entity_type::BiomedicalEntityType)
   return string(entity_type)
@@ -63,41 +160,13 @@ end
 """
     parse_entity_type(type_name::String)
 
-Parse a string to a biomedical entity type.
+Parse a string to a biomedical entity type (legacy compatibility).
 """
 function parse_entity_type(type_name::String)
   type_name_upper = uppercase(type_name)
 
   if type_name_upper == "DISEASE"
     return DISEASE
-  elseif type_name_upper == "DRUG"
-    return DRUG
-  elseif type_name_upper == "PROTEIN"
-    return PROTEIN
-  elseif type_name_upper == "GENE"
-    return GENE
-  elseif type_name_upper == "ANATOMY"
-    return ANATOMY
-  elseif type_name_upper == "SYMPTOM"
-    return SYMPTOM
-  elseif type_name_upper == "PROCEDURE"
-    return PROCEDURE
-  elseif type_name_upper == "ORGANISM"
-    return ORGANISM
-  elseif type_name_upper == "CHEMICAL"
-    return CHEMICAL
-  elseif type_name_upper == "CELL_LINE"
-    return CELL_LINE
-  elseif type_name_upper == "CELL_TYPE"
-    return CELL_TYPE
-  elseif type_name_upper == "MOLECULAR_FUNCTION"
-    return MOLECULAR_FUNCTION
-  elseif type_name_upper == "BIOLOGICAL_PROCESS"
-    return BIOLOGICAL_PROCESS
-  elseif type_name_upper == "CELLULAR_COMPONENT"
-    return CELLULAR_COMPONENT
-  elseif type_name_upper == "PERSON"
-    return PERSON
   elseif type_name_upper == "ORGANIZATION"
     return ORGANIZATION
   elseif type_name_upper == "LOCATION"

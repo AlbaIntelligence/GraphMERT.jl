@@ -119,17 +119,17 @@ function evaluate_validity(
 end
 
 """
-    evaluate_triple_validity(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                            tail_entity::BiomedicalEntity,
+    evaluate_triple_validity(head_entity::Entity, relation::Relation,
+    tail_entity::Entity,
                             llm_client::Union{HelperLLMClient, Nothing},
                             umls_client::Union{UMLSClient, Nothing})
 
 Evaluate the ontological validity of a triple.
 
 # Arguments
-- `head_entity::BiomedicalEntity`: Head entity
-- `relation::BiomedicalRelation`: Relation
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `relation::Relation`: Relation
+- `tail_entity::Entity`: Tail entity
 - `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client
 - `umls_client::Union{UMLSClient, Nothing}`: Optional UMLS client
 
@@ -137,9 +137,9 @@ Evaluate the ontological validity of a triple.
 - `Tuple{Symbol, String}`: (validity, justification)
 """
 function evaluate_triple_validity(
-    head_entity::BiomedicalEntity,
-    relation::BiomedicalRelation,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    relation::Relation,
+    tail_entity::Entity,
     llm_client::Union{HelperLLMClient,Nothing},
     umls_client::Union{UMLSClient,Nothing},
 )
@@ -172,18 +172,18 @@ end
 Evaluate triple validity using LLM.
 
 # Arguments
-- `head_entity::BiomedicalEntity`: Head entity
-- `relation::BiomedicalRelation`: Relation
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `relation::Relation`: Relation
+- `tail_entity::Entity`: Tail entity
 - `llm_client::HelperLLMClient`: LLM client
 
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
 function evaluate_triple_with_llm(
-    head_entity::BiomedicalEntity,
-    relation::BiomedicalRelation,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    relation::Relation,
+    tail_entity::Entity,
     llm_client::HelperLLMClient,
 )
     prompt = """
@@ -226,23 +226,23 @@ end
 Evaluate triple validity using UMLS ontology.
 
 # Arguments
-- `head_entity::BiomedicalEntity`: Head entity
-- `relation::BiomedicalRelation`: Relation
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `relation::Relation`: Relation
+- `tail_entity::Entity`: Tail entity
 - `umls_client::UMLSClient`: UMLS client
 
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
 function evaluate_triple_with_umls(
-    head_entity::BiomedicalEntity,
-    relation::BiomedicalRelation,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    relation::Relation,
+    tail_entity::Entity,
     umls_client::UMLSClient,
 )
     # Check if entities are linked to UMLS
-    head_cui = head_entity.cui
-    tail_cui = tail_entity.cui
+    head_cui = get(head_entity.attributes, "cui", nothing)
+    tail_cui = get(tail_entity.attributes, "cui", nothing)
 
     if head_cui === nothing || tail_cui === nothing
         return :unknown, "Entities not linked to UMLS"
@@ -308,17 +308,17 @@ end
 Simple heuristic evaluation of triple validity.
 
 # Arguments
-- `head_entity::BiomedicalEntity`: Head entity
-- `relation::BiomedicalRelation`: Relation
-- `tail_entity::BiomedicalEntity`: Tail entity
+- `head_entity::Entity`: Head entity
+- `relation::Relation`: Relation
+- `tail_entity::Entity`: Tail entity
 
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
 function evaluate_triple_heuristic_validity(
-    head_entity::BiomedicalEntity,
-    relation::BiomedicalRelation,
-    tail_entity::BiomedicalEntity,
+    head_entity::Entity,
+    relation::Relation,
+    tail_entity::Entity,
 )
     # Simple heuristic based on entity and relation types
     head_type = lowercase(head_entity.label)

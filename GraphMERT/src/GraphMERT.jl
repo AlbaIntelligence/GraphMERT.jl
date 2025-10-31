@@ -61,10 +61,12 @@ If you use GraphMERT.jl in your research, please cite the original paper:
 ```
 """
 
+__precompile__(false)
+
 module GraphMERT
 
 using Dates
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # Core modules
 include("types.jl")
@@ -88,8 +90,8 @@ include("models/persistence.jl")
 
 # Biomedical domain
 include("biomedical/umls.jl")
-include("biomedical/entities.jl")
-include("biomedical/relations.jl")
+# include("biomedical/entities.jl")  # Temporarily disabled
+# include("biomedical/relations.jl")  # Temporarily disabled
 include("text/pubmed.jl")
 include("text/tokenizer.jl")
 
@@ -230,12 +232,12 @@ function extract_knowledge_graph(
   knowledge_relations = Vector{KnowledgeRelation}()
   for (key, rel_data) in relations
     relation = KnowledgeRelation(
-      head=rel_data["entity1"],
-      tail=rel_data["entity2"],
-      relation_type=rel_data["relation"],
-      confidence=0.5,
-      attributes=Dict{String,Any}("context" => processed_text),
-      created_at=Dates.now(),
+      rel_data["entity1"],
+      rel_data["entity2"],
+      rel_data["relation"],
+      0.5,
+      Dict{String,Any}("context" => processed_text),
+      Dates.now(),
     )
     push!(knowledge_relations, relation)
   end
@@ -264,14 +266,20 @@ Load a pre-trained GraphMERT model.
 
 # Example
 ```julia
-model = load_graphmert_model("path/to/model.onnx")
+model = load_model("path/to/model.onnx")
 ```
 """
-function load_graphmert_model(model_path::String)
-  # Placeholder implementation
-  # TODO: Implement actual model loading
-  config = GraphMERTConfig(model_path=model_path)
-  return GraphMERTModel(config)
+function load_model(model_path::String)
+  # Basic implementation: create a GraphMERT model from scratch
+  # In a full implementation, this would load pre-trained weights from model_path
+
+  # Use default configuration for now
+  config = GraphMERTConfig()
+
+  # Use the existing create_graphmert_model function
+  model = create_graphmert_model(config)
+
+  return model
 end
 
 """
@@ -298,6 +306,77 @@ function preprocess_text_for_graphmert(text::String; max_length::Int=512)
     text = text[1:max_length]
   end
   return String(text)  # Ensure we return a String, not SubString
+end
+
+# ============================================================================
+# Fallback Implementation Functions
+# ============================================================================
+
+"""
+    fallback_entity_recognition(text::String)
+
+Fallback entity recognition using simple pattern matching when ML models are not available.
+"""
+function fallback_entity_recognition(text::String)
+    # Use the same biomedical term extraction as before
+    biomedical_terms = extract_biomedical_terms(text)
+
+    # Extract just the term text from the tuples
+    entities = [term for (term, position) in biomedical_terms]
+
+    return entities
+end
+
+"""
+    fallback_relation_matching(entities::Vector{String}, text::String)
+
+Fallback relation matching using simple co-occurrence and pattern matching.
+"""
+function fallback_relation_matching(entities::Vector{String}, text::String)
+    relations = Dict{String, Dict{String, Any}}()
+
+    # Simple co-occurrence based relations
+    for i in 1:length(entities)
+        for j in (i+1):length(entities)
+            entity1 = entities[i]
+            entity2 = entities[j]
+
+            # Check if entities appear close to each other
+            pos1 = findfirst(entity1, text)
+            pos2 = findfirst(entity2, text)
+
+            if pos1 !== nothing && pos2 !== nothing
+                distance = abs(first(pos1) - first(pos2))
+
+                # If entities are close (within 200 characters), create a relation
+                if distance < 200
+                    # Determine relation type based on simple heuristics
+                    relation_type = "ASSOCIATED_WITH"
+
+                    # Check for specific patterns
+                    text_lower = lowercase(text)
+                    if occursin("treat", text_lower) && (occursin(lowercase(entity1), text_lower) && occursin(lowercase(entity2), text_lower))
+                        relation_type = "TREATS"
+                    elseif occursin("cause", text_lower) || occursin("caus", text_lower)
+                        relation_type = "CAUSES"
+                    elseif occursin("prevent", text_lower)
+                        relation_type = "PREVENTS"
+                    end
+
+                    key = "$(entity1)_$(relation_type)_$(entity2)"
+                    relations[key] = Dict(
+                        "entity1" => entity1,
+                        "entity2" => entity2,
+                        "relation" => relation_type,
+                        "confidence" => 0.5,
+                        "distance" => distance,
+                    )
+                end
+            end
+        end
+    end
+
+    return relations
 end
 
 # ============================================================================
