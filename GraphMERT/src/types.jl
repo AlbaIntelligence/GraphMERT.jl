@@ -7,7 +7,7 @@ the GraphMERT implementation.
 
 using Dates
 using SparseArrays
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # New Types for GraphMERT Enhancement
@@ -301,6 +301,38 @@ Base.getproperty(br::BiomedicalRelation, prop::Symbol) = begin
   else
     getfield(br, prop)
   end
+end
+
+# ============================================================================
+# Attention Configuration
+# ============================================================================
+
+"""
+    SpatialAttentionConfig
+
+Configuration for spatial attention decay mechanism.
+"""
+struct SpatialAttentionConfig
+    max_distance::Int
+    decay_lambda::Float64
+    decay_p_init::Float64
+    use_distance_bias::Bool
+    distance_bias_weight::Float64
+
+    function SpatialAttentionConfig(;
+        max_distance::Int = 512,
+        decay_lambda::Float64 = 0.6,
+        decay_p_init::Float64 = 1.0,
+        use_distance_bias::Bool = true,
+        distance_bias_weight::Float64 = 0.1,
+    )
+        @assert max_distance > 0 "max_distance must be positive"
+        @assert decay_lambda > 0 "decay_lambda must be positive"
+        @assert decay_p_init >= 0 "decay_p_init must be non-negative"
+        @assert distance_bias_weight >= 0 "distance_bias_weight must be non-negative"
+
+        new(max_distance, decay_lambda, decay_p_init, use_distance_bias, distance_bias_weight)
+    end
 end
 
 # ============================================================================
@@ -773,8 +805,6 @@ end
     default_mnm_config()
 
 Create default MNM configuration for GraphMERT training.
-
-$(TYPEDSIGNATURES)
 """
 function default_mnm_config()
     return MNMConfig(

@@ -7,7 +7,7 @@ for the GraphMERT implementation.
 
 using JSON
 using Logging
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 # ProcessingOptions will be available from main module
 
 # ============================================================================
@@ -19,7 +19,6 @@ using DocStringExtensions
 
 Get the default configuration for GraphMERT.
 
-$(TYPEDSIGNATURES)
 """
 function get_default_config()
   return Dict{String,Any}(
@@ -79,7 +78,6 @@ end
 
 Load configuration from a JSON file.
 
-$(TYPEDSIGNATURES)
 """
 function load_config(config_path::String)
   try
@@ -102,7 +100,6 @@ end
 
 Merge user configuration with default configuration.
 
-$(TYPEDSIGNATURES)
 """
 function merge_config(default::Dict{String,Any}, user::Dict{String,Any})
   result = deepcopy(default)
@@ -127,7 +124,6 @@ end
 
 Validate configuration parameters.
 
-$(TYPEDSIGNATURES)
 """
 function validate_config(config::Dict{String,Any})
   errors = String[]
@@ -220,7 +216,6 @@ end
 
 Save configuration to a JSON file.
 
-$(TYPEDSIGNATURES)
 """
 function save_config(config::Dict{String,Any}, config_path::String)
   try
@@ -239,7 +234,6 @@ end
 
 Get a configuration value using dot notation (e.g., "model.hidden_size").
 
-$(TYPEDSIGNATURES)
 """
 function get_config_value(
   config::Dict{String,Any},
@@ -265,7 +259,6 @@ end
 
 Set a configuration value using dot notation.
 
-$(TYPEDSIGNATURES)
 """
 function set_config_value!(config::Dict{String,Any}, key_path::String, value::Any)
   keys = split(key_path, ".")
@@ -296,7 +289,6 @@ end
 
 Create default processing options for GraphMERT.
 
-$(TYPEDSIGNATURES)
 """
 function default_processing_options(;
   batch_size::Int=32,

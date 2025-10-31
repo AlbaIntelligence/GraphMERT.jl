@@ -8,7 +8,7 @@ including request formatting, response parsing, and error handling.
 using JSON
 using HTTP
 using Dates
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # Request Helper Functions
@@ -19,7 +19,6 @@ using DocStringExtensions
 
 Format request body as JSON string.
 
-$(TYPEDSIGNATURES)
 """
 function format_request_body(data::Dict{String,Any})
   return JSON.json(data)
@@ -30,7 +29,6 @@ end
 
 Create HTTP headers for API requests.
 
-$(TYPEDSIGNATURES)
 """
 function create_http_headers(api_key::Union{String,Nothing}, content_type::String="application/json")
   headers = Dict{String,String}()
@@ -51,7 +49,6 @@ end
 
 Parse HTTP response and extract JSON data.
 
-$(TYPEDSIGNATURES)
 """
 function parse_response(response::HTTP.Response)
   if response.status >= 200 && response.status < 300
@@ -75,7 +72,6 @@ end
 
 Exception for HTTP-related errors.
 
-$(FIELDS)
 """
 struct HTTPException <: Exception
   status_code::Int
@@ -87,7 +83,6 @@ end
 
 Handle API errors and throw appropriate exceptions.
 
-$(TYPEDSIGNATURES)
 """
 function handle_api_error(response::HTTP.Response)
   if response.status >= 400
@@ -111,7 +106,6 @@ end
 
 Validate request data has required fields.
 
-$(TYPEDSIGNATURES)
 """
 function validate_request_data(data::Dict{String,Any}, required_fields::Vector{String})
   missing_fields = String[]
@@ -134,7 +128,6 @@ end
 
 Create ISO 8601 timestamp string.
 
-$(TYPEDSIGNATURES)
 """
 function create_timestamp()
   return Dates.format(now(), Dates.ISO8601Format)
@@ -145,7 +138,6 @@ end
 
 Sanitize text for API requests.
 
-$(TYPEDSIGNATURES)
 """
 function sanitize_text(text::String, max_length::Int=1000)
   # Remove control characters

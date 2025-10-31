@@ -10,14 +10,13 @@ representations in a unified structure that enables joint training.
 
 # Import from main module (will be available after types.jl is included)
 
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 """
     create_empty_chain_graph(tokens::Vector{Int}, token_texts::Vector{String}, config::ChainGraphConfig)
 
 Create a leafy chain graph with all leaves set to <pad>.
 
-$(TYPEDSIGNATURES)
 """
 function create_empty_chain_graph(
     tokens::Vector{Int},
@@ -101,7 +100,6 @@ end
 
 Build the fixed adjacency matrix for leafy chain graph structure.
 
-$(TYPEDSIGNATURES)
 """
 function build_adjacency_matrix(config::ChainGraphConfig)::SparseMatrixCSC{Float32}
     N = config.max_sequence_length
@@ -160,7 +158,6 @@ end
 
 Compute all-pairs shortest paths using Floyd-Warshall algorithm.
 
-$(TYPEDSIGNATURES)
 """
 function floyd_warshall(adj::SparseMatrixCSC{Float32})::Matrix{Int}
     N = size(adj, 1)
@@ -195,7 +192,6 @@ end
 
 Inject a semantic triple into the graph at specified leaf position.
 
-$(TYPEDSIGNATURES)
 """
 function inject_triple!(
     graph::LeafyChainGraph,
@@ -256,7 +252,6 @@ end
 
 Convert leafy chain graph to 1D token sequence for transformer input.
 
-$(TYPEDSIGNATURES)
 """
 function graph_to_sequence(graph::LeafyChainGraph)::Vector{Int}
     config = graph.config
@@ -282,7 +277,6 @@ end
 
 Create attention mask (1 for real tokens, 0 for padding).
 
-$(TYPEDSIGNATURES)
 """
 function create_attention_mask(graph::LeafyChainGraph)::Vector{Int}
     config = graph.config
@@ -314,7 +308,6 @@ end
 
 Create position IDs for the sequence (0-indexed).
 
-$(TYPEDSIGNATURES)
 """
 function create_position_ids(graph::LeafyChainGraph)::Vector{Int}
     return collect(0:(graph.config.max_sequence_length - 1))

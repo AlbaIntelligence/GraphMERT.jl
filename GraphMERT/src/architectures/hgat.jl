@@ -8,7 +8,7 @@ as specified in the GraphMERT paper, designed to work with RoBERTa embeddings.
 using Flux
 using LinearAlgebra
 using SparseArrays
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # H-GAT Configuration
@@ -19,7 +19,6 @@ using DocStringExtensions
 
 Configuration for Hierarchical Graph Attention Network.
 
-$(FIELDS)
 """
 struct HGATConfig
   input_dim::Int
@@ -74,7 +73,6 @@ end
 
 Multi-head attention mechanism for H-GAT.
 
-$(FIELDS)
 """
 struct HGATAttention
   query_projection::Dense
@@ -112,7 +110,6 @@ end
 
 Feed-forward network for H-GAT.
 
-$(FIELDS)
 """
 struct HGATFeedForward
   input_projection::Dense
@@ -137,7 +134,6 @@ end
 
 Single layer of H-GAT.
 
-$(FIELDS)
 """
 struct HGATLayer
   attention::HGATAttention
@@ -172,7 +168,6 @@ end
 
 Complete H-GAT model for GraphMERT.
 
-$(FIELDS)
 """
 struct HGATModel
   layers::Vector{HGATLayer}
@@ -198,7 +193,6 @@ end
 
 Forward pass for H-GAT attention mechanism.
 
-$(TYPEDSIGNATURES)
 """
 function (attention::HGATAttention)(
   node_features::Matrix{Float32},
@@ -252,7 +246,6 @@ end
 
 Forward pass for a single H-GAT layer.
 
-$(TYPEDSIGNATURES)
 """
 function (layer::HGATLayer)(
   node_features::Matrix{Float32},
@@ -295,7 +288,6 @@ end
 
 Forward pass for complete H-GAT model.
 
-$(TYPEDSIGNATURES)
 """
 function (model::HGATModel)(
   node_features::Matrix{Float32},
@@ -324,7 +316,6 @@ end
 
 Create adjacency matrix from edge list.
 
-$(TYPEDSIGNATURES)
 """
 function create_adjacency_matrix(edges::Vector{Tuple{Int,Int}}, num_nodes::Int)
   # Create sparse adjacency matrix
@@ -358,7 +349,6 @@ end
 
 Create hierarchical adjacency matrix for multi-level attention.
 
-$(TYPEDSIGNATURES)
 """
 function create_hierarchical_adjacency_matrix(
   edges::Vector{Tuple{Int,Int}},
@@ -391,7 +381,6 @@ end
 
 Get attention weights for visualization.
 
-$(TYPEDSIGNATURES)
 """
 function get_attention_weights(
   model::HGATModel,
@@ -454,6 +443,43 @@ function get_attention_weights(
 end
 
 # ============================================================================
+# Attention Mechanisms
+# ============================================================================
+
+"""
+    create_attention_decay_mask(distance_matrix::Matrix{Float32}, config::SpatialAttentionConfig)
+
+Create exponential decay attention mask based on graph distances.
+"""
+function create_attention_decay_mask(distance_matrix::Matrix{Float32}, config::SpatialAttentionConfig)
+    # Exponential decay: exp(-λ * distance)
+    decay_mask = exp.(-config.decay_lambda * distance_matrix)
+
+    # Apply distance bias if enabled
+    if config.use_distance_bias
+        distance_bias = config.distance_bias_weight * distance_matrix
+        decay_mask = decay_mask .+ distance_bias
+    end
+
+    return decay_mask
+end
+
+"""
+    apply_spatial_attention_decay!(attention_scores::Array{Float32, 3}, decay_mask::Matrix{Float32})
+
+Apply spatial decay to attention scores.
+"""
+function apply_spatial_attention_decay!(attention_scores::Array{Float32, 3}, decay_mask::Matrix{Float32})
+    batch_size, seq_len, _ = size(attention_scores)
+
+    for b in 1:batch_size
+        attention_scores[b, :, :] .*= decay_mask
+    end
+
+    return attention_scores
+end
+
+# ============================================================================
 # Model Utilities
 # ============================================================================
 
@@ -492,7 +518,6 @@ end
 
 Load a pre-trained H-GAT model from files.
 
-$(TYPEDSIGNATURES)
 """
 function load_hgat_model(config_path::String, weights_path::String)
   # This would load the actual model from files
@@ -507,7 +532,6 @@ end
 
 Save an H-GAT model to files.
 
-$(TYPEDSIGNATURES)
 """
 function save_hgat_model(model::HGATModel, config_path::String, weights_path::String)
   # This would save the actual model to files

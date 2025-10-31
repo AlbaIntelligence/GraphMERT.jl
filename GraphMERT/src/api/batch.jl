@@ -15,14 +15,13 @@ over sequential processing while maintaining memory efficiency.
 
 using Base.Threads
 using Statistics: mean, std
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 """
     BatchProcessingConfig
 
 Configuration for batch processing operations.
 
-$(FIELDS)
 """
 struct BatchProcessingConfig
   batch_size::Int
@@ -39,7 +38,6 @@ end
 
 Result of batch processing operation.
 
-$(FIELDS)
 """
 struct BatchProcessingResult
   knowledge_graphs::Vector{KnowledgeGraph}
@@ -58,7 +56,6 @@ end
 
 Progress tracking for batch processing.
 
-$(FIELDS)
 """
 mutable struct BatchProgress
   total_batches::Int
@@ -84,7 +81,6 @@ end
 
 Create configuration for batch processing.
 
-$(TYPEDSIGNATURES)
 """
 function create_batch_processing_config(;
   batch_size::Int=32,
@@ -114,7 +110,6 @@ end
 
 Extract knowledge graphs from a batch of documents efficiently.
 
-$(TYPEDSIGNATURES)
 """
 function extract_knowledge_graph_batch(
   documents::Vector{String};
@@ -227,7 +222,6 @@ end
 
 Calculate optimal batch size based on available memory, document count, and system resources.
 
-$(TYPEDSIGNATURES)
 """
 function calculate_optimal_batch_size(total_docs::Int, config::BatchProcessingConfig)
   # Get current system memory usage
@@ -271,7 +265,6 @@ end
 
 Estimate memory usage per document based on document count and system characteristics.
 
-$(TYPEDSIGNATURES)
 """
 function estimate_memory_per_document(total_docs::Int)
   # Base memory estimate
@@ -305,7 +298,6 @@ end
 
 Dynamically optimize batch size based on observed performance.
 
-$(TYPEDSIGNATURES)
 """
 function optimize_batch_size_dynamically(
   processing_times::Vector{Float64},
@@ -355,7 +347,6 @@ end
 
 Create batches of documents for processing.
 
-$(TYPEDSIGNATURES)
 """
 function create_document_batches(documents::Vector{String}, batch_size::Int)
   batches = Vector{String}[]
@@ -375,7 +366,6 @@ end
 
 Process a single batch of documents.
 
-$(TYPEDSIGNATURES)
 """
 function process_single_batch(
   documents::Vector{String},
@@ -435,7 +425,6 @@ end
 
 Merge multiple knowledge graphs into a single graph.
 
-$(TYPEDSIGNATURES)
 """
 function merge_knowledge_graphs(
   knowledge_graphs::Vector{KnowledgeGraph},
@@ -508,7 +497,6 @@ end
 
 Update and display progress information.
 
-$(TYPEDSIGNATURES)
 """
 function update_progress_display(progress::BatchProgress)
   elapsed = progress.last_update_time - progress.start_time

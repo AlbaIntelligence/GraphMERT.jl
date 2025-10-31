@@ -23,7 +23,6 @@ using Statistics: mean, std, var
 
 Result of ValidityScore evaluation containing detailed metrics.
 
-$(FIELDS)
 """
 struct ValidityScoreResult
     triple_validity::Vector{Symbol}

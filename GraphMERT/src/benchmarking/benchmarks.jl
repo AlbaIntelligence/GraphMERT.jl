@@ -8,7 +8,7 @@ of GraphMERT components and the complete pipeline.
 using BenchmarkTools
 using Statistics
 using Dates
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # Benchmark Configuration
@@ -19,7 +19,6 @@ using DocStringExtensions
 
 Configuration for benchmark runs.
 
-$(FIELDS)
 """
 struct BenchmarkConfig
   samples::Int
@@ -46,7 +45,6 @@ end
 
 Results from a benchmark run.
 
-$(FIELDS)
 """
 struct BenchmarkResult
   name::String
@@ -78,7 +76,6 @@ end
 
 Benchmark a function with the given configuration.
 
-$(TYPEDSIGNATURES)
 """
 function benchmark_function(f::Function, config::BenchmarkConfig, name::String="unnamed")
   suite = BenchmarkGroup()
@@ -102,7 +99,6 @@ end
 
 Benchmark the knowledge graph extraction pipeline.
 
-$(TYPEDSIGNATURES)
 """
 function benchmark_extraction_pipeline(text::String, config::BenchmarkConfig)
   # This would benchmark the actual extraction pipeline
@@ -122,7 +118,6 @@ end
 
 Benchmark a single training step.
 
-$(TYPEDSIGNATURES)
 """
 function benchmark_training_step(batch_size::Int, config::BenchmarkConfig)
   # This would benchmark the actual training step
@@ -142,7 +137,6 @@ end
 
 Benchmark model inference.
 
-$(TYPEDSIGNATURES)
 """
 function benchmark_model_inference(input_size::Int, config::BenchmarkConfig)
   # This would benchmark the actual model inference
@@ -166,7 +160,6 @@ end
 
 Analyze benchmark results and generate summary.
 
-$(TYPEDSIGNATURES)
 """
 function analyze_benchmark_results(results::Vector{BenchmarkResult})
   if isempty(results)
@@ -193,7 +186,6 @@ end
 
 Create default benchmark configuration.
 
-$(TYPEDSIGNATURES)
 """
 function default_benchmark_config()
   return BenchmarkConfig()

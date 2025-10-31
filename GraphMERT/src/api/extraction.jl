@@ -15,14 +15,13 @@ The extraction pipeline follows the 5-stage process from the paper:
 # Types will be available from main module
 # using ..Types: KnowledgeGraph, BiomedicalEntity, BiomedicalRelation, TextPosition
 
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 """
     extract_biomedical_terms(text::String)
 
 Extract biomedical terms from text with their positions.
 
-$(TYPEDSIGNATURES)
 
 # Example
 ```julia
@@ -82,7 +81,6 @@ end
 
 Calculate confidence score for an entity based on term characteristics.
 
-$(TYPEDSIGNATURES)
 """
 function calculate_entity_confidence(term::String, text::String)
   # Simple confidence calculation based on term characteristics
@@ -114,7 +112,6 @@ end
 
 Stage 1: Head Discovery - Extract entities from text.
 
-$(TYPEDSIGNATURES)
 """
 function discover_head_entities(text::String, umls_client::Union{Any,Nothing}=nothing)
 entities = Vector{GraphMERT.Entity}()
@@ -206,7 +203,6 @@ end
 
 Stage 2: Relation Matching - Match entities to relations.
 
-$(TYPEDSIGNATURES)
 """
 function match_relations_for_entities(
   entities::Vector{GraphMERT.Entity},
@@ -237,7 +233,6 @@ end
 
 Determine the relationship type between two entities based on their context in the text.
 
-$(TYPEDSIGNATURES)
 """
 function determine_relation_type(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
   # Simple heuristic-based relation determination
@@ -267,7 +262,6 @@ end
 
 Calculate the confidence score for a relation between two entities.
 
-$(TYPEDSIGNATURES)
 """
 function calculate_relation_confidence(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
   # Simple confidence calculation based on entity proximity and text context
@@ -308,7 +302,6 @@ end
 
 Stage 3: Tail Prediction - Use GraphMERT to predict tail tokens.
 
-$(TYPEDSIGNATURES)
 """
 function predict_tail_tokens(
   model::GraphMERT.GraphMERTModel,
@@ -348,7 +341,6 @@ end
 
 Stage 4: Tail Formation - Combine tokens into coherent tails.
 
-$(TYPEDSIGNATURES)
 """
 function form_tail_from_tokens(
   tokens::Vector{Tuple{Int,Float64}},
@@ -379,7 +371,6 @@ end
 
 Stage 5: Filtering - Apply similarity and deduplication filters.
 
-$(TYPEDSIGNATURES)
 """
 function filter_and_deduplicate_triples(
   triples::Vector{Tuple{GraphMERT.Entity,String,String,Float64}},
@@ -418,7 +409,6 @@ Main knowledge graph extraction function.
 
 Extracts structured knowledge from biomedical text using a trained GraphMERT model.
 
-$(TYPEDSIGNATURES)
 """
 function extract_knowledge_graph(
   text::String,
@@ -479,7 +469,6 @@ end
 
 Enhanced head entity discovery using both UMLS and LLM.
 
-$(TYPEDSIGNATURES)
 """
 function discover_head_entities_enhanced(
   text::String,
@@ -536,7 +525,6 @@ end
 
 Enhanced relation matching using LLM for better relation detection.
 
-$(TYPEDSIGNATURES)
 """
 function match_relations_for_entities_enhanced(
   entities::Vector{GraphMERT.Entity},

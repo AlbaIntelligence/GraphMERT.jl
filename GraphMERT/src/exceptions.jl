@@ -5,7 +5,7 @@ This module defines custom exceptions used throughout
 the GraphMERT implementation.
 """
 
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # Base Exceptions
@@ -16,7 +16,6 @@ using DocStringExtensions
 
 Base exception for all GraphMERT-related errors.
 
-$(FIELDS)
 """
 struct GraphMERTException <: Exception
   message::String
@@ -39,7 +38,6 @@ Base.showerror(io::IO, e::GraphMERTException) =
 
 Exception raised when model loading fails.
 
-$(FIELDS)
 """
 struct ModelLoadException <: Exception
   model_path::String
@@ -61,7 +59,6 @@ Base.showerror(io::IO, e::ModelLoadException) =
 
 Exception raised when model saving fails.
 
-$(FIELDS)
 """
 struct ModelSaveException <: Exception
   model_path::String
@@ -87,7 +84,6 @@ Base.showerror(io::IO, e::ModelSaveException) =
 
 Exception raised when data loading fails.
 
-$(FIELDS)
 """
 struct DataLoadException <: Exception
   data_path::String
@@ -110,7 +106,6 @@ Base.showerror(io::IO, e::DataLoadException) =
 
 Exception raised when API calls fail.
 
-$(FIELDS)
 """
 struct APIException <: Exception
   api_name::String
@@ -140,7 +135,6 @@ Base.showerror(io::IO, e::APIException) = print(
 
 Exception raised when text processing fails.
 
-$(FIELDS)
 """
 struct TextProcessingException <: Exception
   text::String
@@ -168,7 +162,6 @@ Base.showerror(io::IO, e::TextProcessingException) = print(
 
 Wrap an original exception with a custom message.
 
-$(TYPEDSIGNATURES)
 """
 function wrap_exception(original::Exception, message::String)
   return GraphMERTException(message, original)
@@ -179,7 +172,6 @@ end
 
 Check a condition and throw an exception if it fails.
 
-$(TYPEDSIGNATURES)
 """
 function check_condition(condition::Bool, exception_type::Type{<:Exception}, args...)
   if !condition

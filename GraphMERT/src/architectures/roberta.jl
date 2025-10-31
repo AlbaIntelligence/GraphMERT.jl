@@ -8,7 +8,7 @@ as specified in the GraphMERT paper, optimized for biomedical knowledge graph co
 using Flux
 using LinearAlgebra
 using SparseArrays
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # RoBERTa Configuration
@@ -19,7 +19,6 @@ using DocStringExtensions
 
 Configuration for RoBERTa encoder architecture.
 
-$(FIELDS)
 """
 struct RoBERTaConfig
   vocab_size::Int
@@ -80,7 +79,6 @@ end
 
 Embedding layer for RoBERTa encoder.
 
-$(FIELDS)
 """
 struct RoBERTaEmbeddings
   word_embeddings::Embedding
@@ -111,7 +109,6 @@ end
 
 Self-attention mechanism for RoBERTa.
 
-$(FIELDS)
 """
 struct RoBERTaSelfAttention
   query::Dense
@@ -167,7 +164,6 @@ end
 
 Complete attention mechanism for RoBERTa.
 
-$(FIELDS)
 """
 struct RoBERTaAttention
   self::RoBERTaSelfAttention
@@ -203,7 +199,6 @@ end
 
 Output layer for RoBERTa.
 
-$(FIELDS)
 """
 struct RoBERTaOutput
   dense::Dense
@@ -224,7 +219,6 @@ end
 
 Single layer of RoBERTa encoder.
 
-$(FIELDS)
 """
 struct RoBERTaLayer
   attention::RoBERTaAttention
@@ -249,7 +243,6 @@ end
 
 Complete RoBERTa encoder architecture.
 
-$(FIELDS)
 """
 struct RoBERTaEncoder
   layers::Vector{RoBERTaLayer}
@@ -266,7 +259,6 @@ end
 
 Complete RoBERTa model for GraphMERT.
 
-$(FIELDS)
 """
 struct RoBERTaModel
   embeddings::RoBERTaEmbeddings
@@ -292,7 +284,6 @@ end
 
 Forward pass for RoBERTa embeddings.
 
-$(TYPEDSIGNATURES)
 """
 function (embeddings::RoBERTaEmbeddings)(
   input_ids::Matrix{Int},
@@ -327,7 +318,6 @@ end
 
 Forward pass for RoBERTa self-attention.
 
-$(TYPEDSIGNATURES)
 """
 function (attention::RoBERTaSelfAttention)(
   hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
@@ -386,7 +376,6 @@ end
 
 Forward pass for a single RoBERTa layer.
 
-$(TYPEDSIGNATURES)
 """
 function (layer::RoBERTaLayer)(
   hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
@@ -423,7 +412,6 @@ end
 
 Forward pass for RoBERTa encoder.
 
-$(TYPEDSIGNATURES)
 """
 function (encoder::RoBERTaEncoder)(
   hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
@@ -440,7 +428,6 @@ end
 
 Forward pass for complete RoBERTa model.
 
-$(TYPEDSIGNATURES)
 """
 function (model::RoBERTaModel)(
   input_ids::Matrix{Int},  # (seq_len, batch_size)
@@ -470,7 +457,6 @@ end
 
 Create attention mask from input IDs.
 
-$(TYPEDSIGNATURES)
 """
 function create_attention_mask(input_ids::Matrix{Int})
   # input_ids: (seq_len, batch_size)
@@ -505,7 +491,6 @@ end
 
 Create position IDs for input sequence.
 
-$(TYPEDSIGNATURES)
 """
 function create_position_ids(seq_length::Int, batch_size::Int)
   # Return (seq_length, batch_size) matrix
@@ -518,7 +503,6 @@ end
 
 Create token type IDs for input sequence.
 
-$(TYPEDSIGNATURES)
 """
 function create_token_type_ids(seq_length::Int, batch_size::Int)
   # For RoBERTa, token type IDs are all zeros
@@ -531,7 +515,6 @@ end
 
 Get the number of parameters in the model.
 
-$(TYPEDSIGNATURES)
 """
 function get_model_parameters(model::RoBERTaModel)
   # This would calculate the actual number of parameters
@@ -544,7 +527,6 @@ end
 
 Load a pre-trained RoBERTa model from files.
 
-$(TYPEDSIGNATURES)
 """
 function load_roberta_model(config_path::String, weights_path::String)
   # This would load the actual model from files
@@ -559,7 +541,6 @@ end
 
 Save a RoBERTa model to files.
 
-$(TYPEDSIGNATURES)
 """
 function save_roberta_model(model::RoBERTaModel, config_path::String, weights_path::String)
   # This would save the actual model to files

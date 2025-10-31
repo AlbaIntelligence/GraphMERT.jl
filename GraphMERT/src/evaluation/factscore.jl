@@ -23,7 +23,6 @@ using Distributions: Normal, quantile
 
 Result of FActScore* evaluation containing detailed metrics.
 
-$(FIELDS)
 """
 struct FActScoreResult
     triple_scores::Vector{Bool}

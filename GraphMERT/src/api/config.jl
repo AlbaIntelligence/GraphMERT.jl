@@ -7,7 +7,7 @@ including endpoint configuration, authentication, and request handling.
 
 using JSON
 using HTTP
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # API Configuration Types
@@ -18,7 +18,6 @@ using DocStringExtensions
 
 Configuration for GraphMERT API endpoints.
 
-$(FIELDS)
 """
 struct APIConfig
   base_url::String
@@ -47,7 +46,6 @@ end
 
 Configuration for individual API requests.
 
-$(FIELDS)
 """
 struct RequestConfig
   headers::Dict{String,String}
@@ -73,7 +71,6 @@ end
 
 Create default API configuration.
 
-$(TYPEDSIGNATURES)
 """
 function default_api_config()
   return APIConfig()
@@ -84,7 +81,6 @@ end
 
 Create request configuration from API configuration.
 
-$(TYPEDSIGNATURES)
 """
 function create_request_config(api_config::APIConfig, additional_headers::Dict{String,String}=Dict{String,String}())
   headers = copy(additional_headers)
@@ -109,7 +105,6 @@ end
 
 Validate API configuration.
 
-$(TYPEDSIGNATURES)
 """
 function validate_api_config(config::APIConfig)
   errors = String[]
@@ -138,7 +133,6 @@ end
 
 Load API configuration from JSON file.
 
-$(TYPEDSIGNATURES)
 """
 function load_api_config_from_file(filepath::String)
   if !isfile(filepath)

@@ -7,7 +7,7 @@ the performance of GraphMERT components and the complete pipeline.
 
 using Base.Threads
 using Statistics
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # Optimization Configuration
@@ -18,7 +18,6 @@ using DocStringExtensions
 
 Configuration for speed optimization strategies.
 
-$(FIELDS)
 """
 struct SpeedOptimizationConfig
   use_threading::Bool
@@ -47,7 +46,6 @@ end
 
 Results from speed optimization.
 
-$(FIELDS)
 """
 struct OptimizationResult
   original_time::Float64
@@ -77,7 +75,6 @@ end
 
 Optimize batch processing with threading and caching.
 
-$(TYPEDSIGNATURES)
 """
 function optimize_batch_processing(data::Vector, config::SpeedOptimizationConfig)
   if config.use_threading && config.num_threads > 1
@@ -92,7 +89,6 @@ end
 
 Optimize processing using multi-threading.
 
-$(TYPEDSIGNATURES)
 """
 function optimize_with_threading(data::Vector, config::SpeedOptimizationConfig)
   # Split data into chunks for parallel processing
@@ -114,7 +110,6 @@ end
 
 Optimize processing using sequential optimization.
 
-$(TYPEDSIGNATURES)
 """
 function optimize_sequential(data::Vector, config::SpeedOptimizationConfig)
   # Process data in optimized batches
@@ -138,7 +133,6 @@ end
 
 Process a single chunk of data.
 
-$(TYPEDSIGNATURES)
 """
 function process_chunk(chunk::Vector, config::SpeedOptimizationConfig)
   # This would contain the actual processing logic
@@ -151,7 +145,6 @@ end
 
 Process a single batch of data.
 
-$(TYPEDSIGNATURES)
 """
 function process_batch(batch::Vector, config::SpeedOptimizationConfig)
   # This would contain the actual processing logic
@@ -164,7 +157,6 @@ end
 
 Combine processing results.
 
-$(TYPEDSIGNATURES)
 """
 function combine_results(results::Vector)
   # This would contain the actual combination logic
@@ -181,7 +173,6 @@ end
 
 Analyze performance improvements.
 
-$(TYPEDSIGNATURES)
 """
 function analyze_performance(original_time::Float64, optimized_time::Float64, memory_usage::Float64)
   speedup = original_time / optimized_time
@@ -201,7 +192,6 @@ end
 
 Create default speed optimization configuration.
 
-$(TYPEDSIGNATURES)
 """
 function default_speed_optimization_config()
   return SpeedOptimizationConfig()

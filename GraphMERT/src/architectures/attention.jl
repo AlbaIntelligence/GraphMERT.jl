@@ -17,7 +17,6 @@ using SparseArrays
 
 Represents an attention decay mask for spatial distance encoding.
 
-$(FIELDS)
 """
 struct AttentionDecayMask
     mask::Matrix{Float32}
@@ -44,7 +43,6 @@ end
 
 Configuration for spatial attention mechanisms.
 
-$(FIELDS)
 """
 struct SpatialAttentionConfig
     max_distance::Int
@@ -78,7 +76,6 @@ end
 
 Exponential decay function for attention.
 
-$(TYPEDSIGNATURES)
 """
 function exponential_decay(distance::Int, decay_rate::Float32)
     return exp(-decay_rate * distance)
@@ -89,7 +86,6 @@ end
 
 Linear decay function for attention.
 
-$(TYPEDSIGNATURES)
 """
 function linear_decay(distance::Int, decay_rate::Float32)
     return max(0.0f0, 1.0f0 - decay_rate * distance)
@@ -100,7 +96,6 @@ end
 
 Quadratic decay function for attention.
 
-$(TYPEDSIGNATURES)
 """
 function quadratic_decay(distance::Int, decay_rate::Float32)
     return max(0.0f0, 1.0f0 - decay_rate * distance^2)
@@ -111,7 +106,6 @@ end
 
 Get the appropriate decay function for the given type.
 
-$(TYPEDSIGNATURES)
 """
 function get_decay_function(decay_type::Symbol)
     if decay_type == :exponential
@@ -134,7 +128,6 @@ end
 
 Create an attention decay mask for a sequence of given length.
 
-$(TYPEDSIGNATURES)
 """
 function create_attention_decay_mask(seq_length::Int, config::SpatialAttentionConfig)
     mask = zeros(Float32, seq_length, seq_length)
@@ -161,7 +154,6 @@ end
 
 Create an attention mask for a graph structure.
 
-$(TYPEDSIGNATURES)
 """
 function create_graph_attention_mask(
     adjacency_matrix::SparseMatrixCSC{Float32},
@@ -195,7 +187,6 @@ end
 
 Create a hierarchical attention mask for multi-level graph structures.
 
-$(TYPEDSIGNATURES)
 """
 function create_hierarchical_attention_mask(
     adjacency_matrices::Vector{SparseMatrixCSC{Float32}},
@@ -231,7 +222,6 @@ end
 
 Compute shortest path distances between all pairs of nodes.
 
-$(TYPEDSIGNATURES)
 """
 function compute_shortest_path_distances(adjacency_matrix::SparseMatrixCSC{Float32})
     num_nodes = size(adjacency_matrix, 1)
@@ -270,7 +260,6 @@ end
 
 Compute attention distances using the decay mask.
 
-$(TYPEDSIGNATURES)
 """
 function compute_attention_distances(
     attention_scores::Matrix{Float32},
@@ -296,7 +285,6 @@ end
 
 Apply attention decay mask to attention scores.
 
-$(TYPEDSIGNATURES)
 """
 function apply_attention_decay(attention_scores::Matrix{Float32}, mask::AttentionDecayMask)
     return attention_scores .* mask.mask
@@ -307,7 +295,6 @@ end
 
 Apply spatial bias to attention scores based on positions.
 
-$(TYPEDSIGNATURES)
 """
 function apply_spatial_bias(
     attention_scores::Matrix{Float32},
@@ -337,7 +324,6 @@ end
 
 Create a causal attention mask for autoregressive models.
 
-$(TYPEDSIGNATURES)
 """
 function create_causal_attention_mask(seq_length::Int)
     mask = zeros(Float32, seq_length, seq_length)
@@ -360,7 +346,6 @@ end
 
 Create an attention mask for padding tokens.
 
-$(TYPEDSIGNATURES)
 """
 function create_padding_attention_mask(attention_mask::Vector{Bool})
     seq_length = length(attention_mask)
@@ -388,7 +373,6 @@ end
 
 Multi-head attention mechanism with decay mask support.
 
-$(FIELDS)
 """
 struct MultiHeadAttentionWithDecay
     query_projection::Dense
@@ -431,7 +415,6 @@ end
 
 Forward pass for multi-head attention with decay mask.
 
-$(TYPEDSIGNATURES)
 """
 function (attention::MultiHeadAttentionWithDecay)(
     query::Matrix{Float32},
@@ -490,7 +473,6 @@ end
 
 Create a visualization of the attention mask.
 
-$(TYPEDSIGNATURES)
 """
 function visualize_attention_mask(mask::AttentionDecayMask)
     # This would create a heatmap visualization
@@ -509,7 +491,6 @@ end
 
 Get statistics about the attention mask.
 
-$(TYPEDSIGNATURES)
 """
 function get_attention_statistics(mask::AttentionDecayMask)
     return Dict{String,Any}(

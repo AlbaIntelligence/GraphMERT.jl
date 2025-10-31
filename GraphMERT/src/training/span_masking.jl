@@ -6,7 +6,7 @@ the GraphMERT model with masked language modeling objectives.
 """
 
 using Random
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # Span Masking Configuration
@@ -17,7 +17,6 @@ using DocStringExtensions
 
 Configuration for span masking operations.
 
-$(FIELDS)
 """
 struct SpanMaskingConfig
   min_span_length::Int
@@ -48,7 +47,6 @@ end
 
 Create span masks for a sequence of given length.
 
-$(TYPEDSIGNATURES)
 """
 function create_span_masks(sequence_length::Int, config::SpanMaskingConfig)
   if config.random_seed !== nothing
@@ -86,7 +84,6 @@ end
 
 Apply span masking to tokens using the provided masks.
 
-$(TYPEDSIGNATURES)
 """
 function apply_span_masking(tokens::Vector{Int}, masks::BitVector, mask_token_id::Int)
   @assert length(tokens) == length(masks) "Tokens and masks must have same length"
@@ -102,7 +99,6 @@ end
 
 Get the boundaries of masked spans.
 
-$(TYPEDSIGNATURES)
 """
 function get_span_boundaries(masks::BitVector)
   boundaries = Vector{Tuple{Int,Int}}()
@@ -130,7 +126,6 @@ end
 
 Create default span masking configuration.
 
-$(TYPEDSIGNATURES)
 """
 function default_span_masking_config()
   return SpanMaskingConfig()

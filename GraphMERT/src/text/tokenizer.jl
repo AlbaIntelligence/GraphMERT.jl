@@ -6,7 +6,7 @@ Currently implements a basic tokenizer that can be replaced with a full
 BioMedBERT tokenizer implementation.
 """
 
-using DocStringExtensions
+# using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
 # Tokenizer Configuration

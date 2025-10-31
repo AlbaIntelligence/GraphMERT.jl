@@ -19,7 +19,6 @@ using LinearAlgebra
 
 Configuration for MLM training objective.
 
-$(FIELDS)
 """
 struct MLMConfig
     vocab_size::Int
@@ -64,7 +63,6 @@ end
 
 Create default MLM configuration for GraphMERT training.
 
-$(TYPEDSIGNATURES)
 """
 function default_mlm_config()
     return MLMConfig(
@@ -111,7 +109,6 @@ end
 
 Create MLM training batch from texts.
 
-$(TYPEDSIGNATURES)
 """
 function create_mlm_batch(texts::Vector{String}, config::MLMConfig; rng::AbstractRNG=Random.GLOBAL_RNG)
     batch_size = length(texts)

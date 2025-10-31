@@ -8,6 +8,8 @@ leafy chain graph structure, enabling learning of semantic space representations
 and vocabulary transfer between syntactic and semantic spaces.
 """
 
+using Random
+
 # Types will be available from main module after all includes
 
 """

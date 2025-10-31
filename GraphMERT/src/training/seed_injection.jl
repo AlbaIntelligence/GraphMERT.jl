@@ -14,6 +14,11 @@ Algorithm Overview:
 
 # Types will be available from main module after types.jl is included
 
+# Global caches
+const ENTITY_LINKING_CACHE = Dict{String, Vector{EntityLinkingResult}}()
+const TRIPLE_CACHE = Dict{String, Vector{SemanticTriple}}()
+const CACHE_MAX_SIZE = 10000
+
 """
     link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
 
@@ -30,6 +35,11 @@ Stage 2: Character 3-gram Jaccard similarity filtering
 - `Vector{EntityLinkingResult}`: Ranked list of potential UMLS matches
 """
 function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
+    # Check cache first
+    if haskey(ENTITY_LINKING_CACHE, entity_text)
+        return ENTITY_LINKING_CACHE[entity_text]
+    end
+
     results = Vector{EntityLinkingResult}()
 
     # Stage 1: SapBERT embedding-based retrieval (simplified implementation)
@@ -37,7 +47,8 @@ function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
     # For demo, we'll simulate with string similarity
 
     # Stage 2: Character 3-gram string matching with Jaccard similarity
-    entity_3grams = Set([entity_text[i:(i+2)] for i = 1:(length(entity_text)-2)])
+    entity_lower = lowercase(entity_text)
+    entity_3grams = Set([entity_lower[i:(i+2)] for i = 1:(length(entity_lower)-2)])
 
     # Simulate UMLS lookup (would be actual UMLS API calls)
     candidate_concepts = [
@@ -49,7 +60,8 @@ function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
 
     for (cui, preferred_name, semantic_types) in candidate_concepts
         # Calculate Jaccard similarity
-        concept_3grams = Set([preferred_name[i:(i+2)] for i = 1:(length(preferred_name)-2)])
+        concept_lower = lowercase(preferred_name)
+        concept_3grams = Set([concept_lower[i:(i+2)] for i = 1:(length(concept_lower)-2)])
         intersection = length(entity_3grams ∩ concept_3grams)
         union_size = length(entity_3grams ∪ concept_3grams)
 
@@ -79,7 +91,29 @@ function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
     sort!(results, by = r -> r.similarity_score, rev = true)
 
     # Return top-k candidates
-    return results[1:min(config.top_k_candidates, length(results))]
+    final_results = results[1:min(config.top_k_candidates, length(results))]
+
+    # Cache the results
+    if length(ENTITY_LINKING_CACHE) < CACHE_MAX_SIZE
+        ENTITY_LINKING_CACHE[entity_text] = final_results
+    end
+
+    return final_results
+end
+
+"""
+    link_entities_batch(entities::Vector{String}, config::SeedInjectionConfig)
+
+Batch version of entity linking for improved efficiency.
+"""
+function link_entities_batch(entities::Vector{String}, config::SeedInjectionConfig)
+    results = Vector{Vector{EntityLinkingResult}}()
+
+    for entity in entities
+        push!(results, link_entity_sapbert(entity, config))
+    end
+
+    return results
 end
 
 """
@@ -95,6 +129,11 @@ Select relevant triples from seed KG for a given entity.
 - `Vector{SemanticTriple}`: Top-n triples involving this entity
 """
 function select_triples_for_entity(entity_cui::String, config::SeedInjectionConfig)
+    # Check cache first
+    if haskey(TRIPLE_CACHE, entity_cui)
+        return TRIPLE_CACHE[entity_cui]
+    end
+
     triples = Vector{SemanticTriple}()
 
     # Simulate UMLS triple retrieval (would be actual UMLS API calls)
@@ -125,7 +164,14 @@ function select_triples_for_entity(entity_cui::String, config::SeedInjectionConf
 
     # Sort by score and return top-n
     sort!(triples, by = t -> t.score, rev = true)
-    return triples[1:min(config.top_n_triples_per_entity, length(triples))]
+    final_triples = triples[1:min(config.top_n_triples_per_entity, length(triples))]
+
+    # Cache the results
+    if length(TRIPLE_CACHE) < CACHE_MAX_SIZE
+        TRIPLE_CACHE[entity_cui] = final_triples
+    end
+
+    return final_triples
 end
 
 """
@@ -400,6 +446,7 @@ end
 
 # Export functions for external use
 export link_entity_sapbert,
+    link_entities_batch,
     select_triples_for_entity,
     inject_seed_kg,
     select_triples_for_injection,
