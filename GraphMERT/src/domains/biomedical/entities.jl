@@ -34,7 +34,11 @@ Extract biomedical entities from text.
 function extract_biomedical_entities(text::String, config::Any, domain::Any)
     # Use the existing extraction function
     # Convert to Entity objects
-    entities = Vector{Entity}()
+    # Use GraphMERT.Entity from Main scope
+    EntityType = Main.GraphMERT.Entity
+    TextPositionType = Main.GraphMERT.TextPosition
+    
+    entities = Vector{EntityType}()
     
     # Simple extraction using patterns
     # Get all biomedical entity types
@@ -51,7 +55,7 @@ function extract_biomedical_entities(text::String, config::Any, domain::Any)
         start_pos = pos !== nothing ? first(pos) : 1
         end_pos = pos !== nothing ? last(pos) : length(entity_text)
         
-        entity = Entity(
+        entity = EntityType(
             "entity_$(i)_$(hash(entity_text))",
             entity_text,
             entity_text,
@@ -61,7 +65,7 @@ function extract_biomedical_entities(text::String, config::Any, domain::Any)
                 "entity_type_enum" => entity_type,
                 "confidence" => confidence,
             ),
-            TextPosition(start_pos, end_pos, 1, 1),
+            TextPositionType(start_pos, end_pos, 1, 1),
             confidence,
             text,
         )

@@ -531,6 +531,7 @@ struct ProcessingOptions
     cache_enabled::Bool=true,
     parallel_processing::Bool=false,
     verbose::Bool=false,
+    domain::String="biomedical",  # Default domain for backward compatibility
   )
     new(
       max_length,
@@ -543,6 +544,7 @@ struct ProcessingOptions
       cache_enabled,
       parallel_processing,
       verbose,
+      domain,
     )
   end
 end
