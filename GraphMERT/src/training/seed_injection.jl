@@ -6,13 +6,17 @@ The algorithm injects relevant knowledge graph triples into training data to ena
 vocabulary transfer from semantic space to syntactic space.
 
 Algorithm Overview:
-1. Entity linking: Map text entities to UMLS concepts using SapBERT embeddings
+1. Entity linking: Map text entities to knowledge base concepts using domain-specific linking
 2. Triple selection: Retrieve relevant triples from seed KG based on entities
 3. Injection algorithm: Select diverse, high-quality triples for injection
 4. Validation: Ensure semantic consistency with source text
+
+This module is domain-agnostic and delegates domain-specific operations to DomainProvider instances.
 """
 
 # Types will be available from main module after types.jl is included
+# Domain provider functions (link_entity, create_seed_triples, extract_entities, get_domain_name, get_default_domain)
+# are available from the domains module included in GraphMERT.jl
 
 # Global caches
 const ENTITY_LINKING_CACHE = Dict{String, Vector{EntityLinkingResult}}()
@@ -20,68 +24,91 @@ const TRIPLE_CACHE = Dict{String, Vector{SemanticTriple}}()
 const CACHE_MAX_SIZE = 10000
 
 """
-    link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
+    link_entity_sapbert(entity_text::String, config::SeedInjectionConfig, domain::DomainProvider)
 
-Link entity to UMLS using SapBERT embeddings and string matching.
+Link entity to knowledge base using domain-specific entity linking.
 
-Stage 1: SapBERT embedding-based candidate retrieval
-Stage 2: Character 3-gram Jaccard similarity filtering
+This function delegates to the domain provider's `link_entity` method and converts
+the result to `EntityLinkingResult` format for backward compatibility.
 
 # Arguments
 - `entity_text::String`: Entity mention from text
 - `config::SeedInjectionConfig`: Injection configuration
+- `domain::DomainProvider`: Domain provider instance for domain-specific linking
 
 # Returns
-- `Vector{EntityLinkingResult}`: Ranked list of potential UMLS matches
+- `Vector{EntityLinkingResult}`: Ranked list of potential knowledge base matches
 """
-function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
-    # Check cache first
-    if haskey(ENTITY_LINKING_CACHE, entity_text)
-        return ENTITY_LINKING_CACHE[entity_text]
+function link_entity_sapbert(
+    entity_text::String,
+    config::SeedInjectionConfig,
+    domain::Any,  # DomainProvider
+)
+    # Check cache first (cache key includes domain to avoid cross-domain conflicts)
+    cache_key = "$(get_domain_name(domain)):$entity_text"
+    if haskey(ENTITY_LINKING_CACHE, cache_key)
+        return ENTITY_LINKING_CACHE[cache_key]
     end
 
     results = Vector{EntityLinkingResult}()
 
-    # Stage 1: SapBERT embedding-based retrieval (simplified implementation)
-    # In full implementation, would use SapBERT embeddings + ANN search
-    # For demo, we'll simulate with string similarity
+    # Delegate to domain provider's link_entity method
+    linking_result = link_entity(domain, entity_text, config)
+    
+    if linking_result === nothing || !isa(linking_result, Dict)
+        # Domain doesn't support entity linking or returned invalid format
+        # Return empty results
+        return results
+    end
 
-    # Stage 2: Character 3-gram string matching with Jaccard similarity
-    entity_lower = lowercase(entity_text)
-    entity_3grams = Set([entity_lower[i:(i+2)] for i = 1:(length(entity_lower)-2)])
-
-    # Simulate UMLS lookup (would be actual UMLS API calls)
-    candidate_concepts = [
-        ("C0011849", "Diabetes Mellitus", ["Disease", "Endocrine System Disease"]),
-        ("C0025598", "Metformin", ["Pharmacologic Substance", "Organic Chemical"]),
-        ("C0032961", "Pregnancy", ["Physiologic Function"]),
-        ("C0008976", "Clopidogrel", ["Pharmacologic Substance"]),
-    ]
-
-    for (cui, preferred_name, semantic_types) in candidate_concepts
-        # Calculate Jaccard similarity
-        concept_lower = lowercase(preferred_name)
-        concept_3grams = Set([concept_lower[i:(i+2)] for i = 1:(length(concept_lower)-2)])
-        intersection = length(entity_3grams ∩ concept_3grams)
-        union_size = length(entity_3grams ∪ concept_3grams)
-
-        if union_size > 0
-            jaccard_sim = intersection / union_size
-        else
-            jaccard_sim = 0.0
+    # Convert domain provider's Dict result to EntityLinkingResult format
+    # Domain providers should return a Dict with keys:
+    # - :candidates (Vector of Dicts with :kb_id, :name, :types, :score, :source)
+    #   or :candidate (single Dict) for single result
+    if haskey(linking_result, :candidates) && isa(linking_result[:candidates], Vector)
+        for candidate in linking_result[:candidates]
+            if isa(candidate, Dict)
+                kb_id = get(candidate, :kb_id, "")  # CUI for biomedical, QID for Wikidata, etc.
+                name = get(candidate, :name, entity_text)
+                types = get(candidate, :types, String[])
+                score = get(candidate, :score, 0.0)
+                source = get(candidate, :source, get_domain_name(domain))
+                
+                # Filter by threshold
+                if score ≥ config.entity_linking_threshold && !isempty(kb_id)
+                    push!(
+                        results,
+                        EntityLinkingResult(
+                            entity_text,
+                            kb_id,
+                            name,
+                            types,
+                            score,
+                            source,
+                        ),
+                    )
+                end
+            end
         end
-
-        # Filter by threshold
-        if jaccard_sim ≥ config.entity_linking_threshold
+    elseif haskey(linking_result, :candidate) && isa(linking_result[:candidate], Dict)
+        # Single candidate result
+        candidate = linking_result[:candidate]
+        kb_id = get(candidate, :kb_id, "")
+        name = get(candidate, :name, entity_text)
+        types = get(candidate, :types, String[])
+        score = get(candidate, :score, 0.0)
+        source = get(candidate, :source, get_domain_name(domain))
+        
+        if score ≥ config.entity_linking_threshold && !isempty(kb_id)
             push!(
                 results,
                 EntityLinkingResult(
                     entity_text,
-                    cui,
-                    preferred_name,
-                    semantic_types,
-                    jaccard_sim,
-                    "jaccard_similarity",
+                    kb_id,
+                    name,
+                    types,
+                    score,
+                    source,
                 ),
             )
         end
@@ -95,70 +122,112 @@ function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
 
     # Cache the results
     if length(ENTITY_LINKING_CACHE) < CACHE_MAX_SIZE
-        ENTITY_LINKING_CACHE[entity_text] = final_results
+        ENTITY_LINKING_CACHE[cache_key] = final_results
     end
 
     return final_results
 end
 
+# Backward compatibility: version without domain parameter (uses default domain)
+function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
+    domain = get_default_domain()
+    if domain === nothing
+        error("No default domain set. Please register a domain or pass domain explicitly.")
+    end
+    return link_entity_sapbert(entity_text, config, domain)
+end
+
 """
-    link_entities_batch(entities::Vector{String}, config::SeedInjectionConfig)
+    link_entities_batch(entities::Vector{String}, config::SeedInjectionConfig, domain::DomainProvider)
 
 Batch version of entity linking for improved efficiency.
 """
-function link_entities_batch(entities::Vector{String}, config::SeedInjectionConfig)
+function link_entities_batch(
+    entities::Vector{String},
+    config::SeedInjectionConfig,
+    domain::Any,  # DomainProvider
+)
     results = Vector{Vector{EntityLinkingResult}}()
 
     for entity in entities
-        push!(results, link_entity_sapbert(entity, config))
+        push!(results, link_entity_sapbert(entity, config, domain))
     end
 
     return results
 end
 
-"""
-    select_triples_for_entity(entity_cui::String, config::SeedInjectionConfig)
+# Backward compatibility: version without domain parameter
+function link_entities_batch(entities::Vector{String}, config::SeedInjectionConfig)
+    domain = get_default_domain()
+    if domain === nothing
+        error("No default domain set. Please register a domain or pass domain explicitly.")
+    end
+    return link_entities_batch(entities, config, domain)
+end
 
-Select relevant triples from seed KG for a given entity.
+"""
+    select_triples_for_entity(entity_kb_id::String, config::SeedInjectionConfig, domain::DomainProvider)
+
+Select relevant triples from seed KG for a given entity using domain-specific knowledge base.
 
 # Arguments
-- `entity_cui::String`: UMLS CUI of the entity
+- `entity_kb_id::String`: Knowledge base ID of the entity (e.g., CUI for biomedical, QID for Wikidata)
 - `config::SeedInjectionConfig`: Injection configuration
+- `domain::DomainProvider`: Domain provider instance for domain-specific triple retrieval
 
 # Returns
 - `Vector{SemanticTriple}`: Top-n triples involving this entity
 """
-function select_triples_for_entity(entity_cui::String, config::SeedInjectionConfig)
-    # Check cache first
-    if haskey(TRIPLE_CACHE, entity_cui)
-        return TRIPLE_CACHE[entity_cui]
+function select_triples_for_entity(
+    entity_kb_id::String,
+    config::SeedInjectionConfig,
+    domain::Any,  # DomainProvider
+)
+    # Check cache first (cache key includes domain to avoid cross-domain conflicts)
+    cache_key = "$(get_domain_name(domain)):$entity_kb_id"
+    if haskey(TRIPLE_CACHE, cache_key)
+        return TRIPLE_CACHE[cache_key]
     end
 
     triples = Vector{SemanticTriple}()
 
-    # Simulate UMLS triple retrieval (would be actual UMLS API calls)
-    # In practice, would query UMLS for triples involving this CUI
-    candidate_triples = [
-        ("C0011849", "treats", "C0025598", 0.95),  # diabetes treats metformin
-        ("C0011849", "complicates", "C0032961", 0.87),  # diabetes complicates pregnancy
-        ("C0025598", "inhibits", "C0011849", 0.92),  # metformin inhibits diabetes
-        ("C0025598", "metabolized_by", "C0032961", 0.78),  # metformin metabolized by pregnancy
-    ]
-
-    for (head_cui, relation, tail_cui, score) in candidate_triples
-        if head_cui == entity_cui
-            # Get tail entity name (would be UMLS lookup)
-            tail_name = get_entity_name_from_cui(tail_cui)
-            triple = SemanticTriple(
-                entity_cui,
-                head_cui,
-                relation,
-                tail_name,
-                tokenize_entity_name(tail_name),
-                score,
-                "UMLS",
-            )
-            push!(triples, triple)
+    # Delegate to domain provider's create_seed_triples method
+    # Note: We need to get entity text from kb_id, but create_seed_triples takes entity_text
+    # For now, we'll use the kb_id as a fallback. Domains should handle this appropriately.
+    seed_triples = create_seed_triples(domain, entity_kb_id, config)
+    
+    if !isempty(seed_triples) && isa(seed_triples, Vector)
+        # Filter triples where this entity is the head
+        for triple in seed_triples
+            if isa(triple, SemanticTriple)
+                if triple.head_cui === entity_kb_id || triple.head == entity_kb_id
+                    push!(triples, triple)
+                end
+            elseif isa(triple, Dict)
+                # Convert Dict format to SemanticTriple if needed
+                head = get(triple, :head, "")
+                head_kb_id = get(triple, :head_kb_id, nothing)
+                relation = get(triple, :relation, "")
+                tail = get(triple, :tail, "")
+                tail_tokens = get(triple, :tail_tokens, Int[])
+                score = get(triple, :score, 0.0)
+                source = get(triple, :source, get_domain_name(domain))
+                
+                if (head_kb_id === entity_kb_id || head == entity_kb_id) && !isempty(head) && !isempty(relation) && !isempty(tail)
+                    push!(
+                        triples,
+                        SemanticTriple(
+                            head,
+                            head_kb_id,
+                            relation,
+                            tail,
+                            tail_tokens,
+                            score,
+                            source,
+                        ),
+                    )
+                end
+            end
         end
     end
 
@@ -168,15 +237,24 @@ function select_triples_for_entity(entity_cui::String, config::SeedInjectionConf
 
     # Cache the results
     if length(TRIPLE_CACHE) < CACHE_MAX_SIZE
-        TRIPLE_CACHE[entity_cui] = final_triples
+        TRIPLE_CACHE[cache_key] = final_triples
     end
 
     return final_triples
 end
 
+# Backward compatibility: version without domain parameter
+function select_triples_for_entity(entity_kb_id::String, config::SeedInjectionConfig)
+    domain = get_default_domain()
+    if domain === nothing
+        error("No default domain set. Please register a domain or pass domain explicitly.")
+    end
+    return select_triples_for_entity(entity_kb_id, config, domain)
+end
+
 """
     inject_seed_kg(sequences::Vector{String}, seed_kg::Vector{SemanticTriple},
-                   config::SeedInjectionConfig)
+                   config::SeedInjectionConfig, domain::DomainProvider)
 
 Main seed KG injection algorithm (Algorithm 1 from paper).
 
@@ -187,6 +265,7 @@ vocabulary transfer and semantic grounding.
 - `sequences::Vector{String}`: Training text sequences
 - `seed_kg::Vector{SemanticTriple}`: Seed knowledge graph triples
 - `config::SeedInjectionConfig`: Injection configuration
+- `domain::DomainProvider`: Domain provider instance for domain-specific entity extraction and linking
 
 # Returns
 - `Vector{Tuple{String, Vector{SemanticTriple}}}`: Sequences with injected triples
@@ -195,35 +274,29 @@ function inject_seed_kg(
     sequences::Vector{String},
     seed_kg::Vector{SemanticTriple},
     config::SeedInjectionConfig,
+    domain::Any,  # DomainProvider
 )
     injected_sequences = Vector{Tuple{String,Vector{SemanticTriple}}}()
 
     # For demo purposes, inject into a fixed percentage of sequences
     num_to_inject = round(Int, config.injection_ratio * length(sequences))
 
-    # Simple entity extraction for demo (would be more sophisticated)
-    function extract_entities(text::String)
-        entities = String[]
-        if occursin("diabetes", lowercase(text))
-            push!(entities, "diabetes")
-        end
-        if occursin("metformin", lowercase(text))
-            push!(entities, "metformin")
-        end
-        if occursin("pregnancy", lowercase(text))
-            push!(entities, "pregnancy")
-        end
-        return entities
-    end
+    # Use domain provider's extract_entities method for entity extraction
+    # Create a temporary ProcessingOptions for entity extraction
+    options = ProcessingOptions(domain=get_domain_name(domain))
 
     for (i, sequence) in enumerate(sequences)
-        entities = extract_entities(sequence)
+        # Extract entities using domain provider
+        entities = extract_entities(domain, sequence, options)
+        
+        # Extract entity text strings for linking
+        entity_texts = [e.text for e in entities]
 
-        if !isempty(entities) && i ≤ num_to_inject
-            # Link entities to UMLS
+        if !isempty(entity_texts) && i ≤ num_to_inject
+            # Link entities to knowledge base
             linked_entities = Vector{EntityLinkingResult}()
-            for entity in entities
-                linked = link_entity_sapbert(entity, config)
+            for entity_text in entity_texts
+                linked = link_entity_sapbert(entity_text, config, domain)
                 append!(linked_entities, linked)
             end
 
@@ -243,6 +316,19 @@ function inject_seed_kg(
     end
 
     return injected_sequences
+end
+
+# Backward compatibility: version without domain parameter
+function inject_seed_kg(
+    sequences::Vector{String},
+    seed_kg::Vector{SemanticTriple},
+    config::SeedInjectionConfig,
+)
+    domain = get_default_domain()
+    if domain === nothing
+        error("No default domain set. Please register a domain or pass domain explicitly.")
+    end
+    return inject_seed_kg(sequences, seed_kg, config, domain)
 end
 
 """
@@ -267,7 +353,7 @@ function select_triples_for_injection(
 )
     selected_triples = Vector{SemanticTriple}()
 
-    # Filter triples by entity CUIs
+    # Filter triples by entity knowledge base IDs (e.g., CUI for biomedical, QID for Wikidata)
     relevant_triples = filter(t -> t.head_cui in [e.cui for e in linked_entities], seed_kg)
 
     # Filter by score threshold

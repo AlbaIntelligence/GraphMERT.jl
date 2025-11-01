@@ -295,4 +295,4 @@ export discover_head_entities,
 # Deprecated: extract_biomedical_terms - use domain provider instead
 # Deprecated: discover_head_entities_enhanced - use discover_head_entities with domain provider
 # Deprecated: match_relations_for_entities_enhanced - use match_relations_for_entities with domain provider
-ons_for_entities_enhanced - use match_relations_for_entities with domain provider
+# Deprecated: classify_entity_type - use domain provider's extract_entities instead
