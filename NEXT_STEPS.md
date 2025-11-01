@@ -126,7 +126,12 @@
   - ✅ Shows default domain behavior
 
 **Remaining Tasks**:
-- [ ] Update remaining biomedical examples (`examples/biomedical/02_*.jl` through `14_*.jl`)
+- [x] Update `02_relation_extraction.jl` to use domain system
+  - ✅ Updated to load and register biomedical domain
+  - ✅ Uses `extract_entities` and `extract_relations` from domain provider
+  - ✅ Updated relation display to work with Relation objects
+  - ✅ Added relation statistics and improved output formatting
+- [ ] Update remaining biomedical examples (`examples/biomedical/03_*.jl` through `14_*.jl`)
   - Update to use domain system where applicable
   - Test that they still work
   - Update documentation
