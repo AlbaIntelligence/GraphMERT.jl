@@ -137,7 +137,18 @@
   - ✅ Creates `KnowledgeGraph` directly with generic Entity/Relation types
   - ✅ Removed dependency on old BiomedicalEntity/BiomedicalRelation types
   - ✅ Added domain-specific evaluation metrics demonstration
-- [ ] Update remaining biomedical examples (`examples/biomedical/04_*.jl` through `14_*.jl`)
+- [x] Update `04_seed_injection_demo.jl` to use domain system
+  - ✅ Load and register biomedical domain
+  - ✅ Pass domain parameter to seed injection functions
+- [x] Update `06_diabetes_extraction_demo.jl` to use domain system
+  - ✅ Load and register biomedical domain
+  - ✅ Use domain system for extraction
+- [x] Update `09_batch_processing_demo.jl` to use domain system
+  - ✅ Replace BiomedicalEntity/BiomedicalRelation with Entity/Relation
+- [x] Update `14_diabetes_evaluation_demo.jl` to use domain system
+  - ✅ Replace BiomedicalEntity/BiomedicalRelation with Entity/Relation
+  - ✅ Add domain_name parameter to evaluation functions
+- [ ] Update remaining biomedical examples (`examples/biomedical/05_*.jl`, `07_*.jl`, `08_*.jl`, `09_llm_*.jl`, `10_*.jl`, `11_*.jl`, `12_*.jl`, `13_*.jl`)
   - Update to use domain system where applicable
   - Test that they still work
   - Update documentation

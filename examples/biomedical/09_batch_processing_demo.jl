@@ -195,58 +195,57 @@ This function mimics the behavior of the actual GraphMERT extraction pipeline.
 """
 function simulate_pubmed_extraction(abstract::String)
   # Extract key entities and relations based on content
-  entities = GraphMERT.BiomedicalEntity[]
-  relations = GraphMERT.BiomedicalRelation[]
+  entities = GraphMERT.Entity[]
+  relations = GraphMERT.Relation[]
 
   # Extract disease entities
   if occursin("diabetes", lowercase(abstract))
-    push!(entities, GraphMERT.BiomedicalEntity(
-      "diabetes", "C0011849", "Disease", 0.95,
+    push!(entities, GraphMERT.Entity(
+      "entity_1", "diabetes", "diabetes", "DISEASE", "biomedical",
+      Dict{String,Any}("cui" => "C0011849", "icd_code" => "E11", "type" => "disease"),
       GraphMERT.TextPosition(1, 10, 1, 1),
-      Dict{String,Any}("icd_code" => "E11", "type" => "disease"),
-      now()
+      0.95, ""
     ))
   end
 
   if occursin("type 2 diabetes", lowercase(abstract))
-    push!(entities, GraphMERT.BiomedicalEntity(
-      "type 2 diabetes", "C0011860", "Disease", 0.92,
+    push!(entities, GraphMERT.Entity(
+      "entity_2", "type 2 diabetes", "type 2 diabetes", "DISEASE", "biomedical",
+      Dict{String,Any}("cui" => "C0011860", "icd_code" => "E11", "type" => "disease"),
       GraphMERT.TextPosition(1, 15, 1, 1),
-      Dict{String,Any}("icd_code" => "E11", "type" => "disease"),
-      now()
+      0.92, ""
     ))
   end
 
   if occursin("metformin", lowercase(abstract))
-    push!(entities, GraphMERT.BiomedicalEntity(
-      "metformin", "C0025234", "Drug", 0.88,
+    push!(entities, GraphMERT.Entity(
+      "entity_3", "metformin", "metformin", "DRUG", "biomedical",
+      Dict{String,Any}("cui" => "C0025234", "drug_class" => "biguanide", "type" => "drug"),
       GraphMERT.TextPosition(1, 10, 1, 1),
-      Dict{String,Any}("drug_class" => "biguanide", "type" => "drug"),
-      now()
+      0.88, ""
     ))
   end
 
   if occursin("insulin", lowercase(abstract))
-    push!(entities, GraphMERT.BiomedicalEntity(
-      "insulin", "C0021641", "Drug", 0.90,
+    push!(entities, GraphMERT.Entity(
+      "entity_4", "insulin", "insulin", "DRUG", "biomedical",
+      Dict{String,Any}("cui" => "C0021641", "drug_class" => "hormone", "type" => "drug"),
       GraphMERT.TextPosition(1, 10, 1, 1),
-      Dict{String,Any}("drug_class" => "hormone", "type" => "drug"),
-      now()
+      0.90, ""
     ))
   end
 
   # Extract relations
   if length(entities) >= 2
     # Find treatment relations
-    disease_entities = filter(e -> e.label == "Disease", entities)
-    drug_entities = filter(e -> e.label == "Drug", entities)
+    disease_entities = filter(e -> e.entity_type == "DISEASE", entities)
+    drug_entities = filter(e -> e.entity_type == "DRUG", entities)
 
     for disease in disease_entities
       for drug in drug_entities
-        push!(relations, GraphMERT.BiomedicalRelation(
-          disease.text, drug.text, "treats", 0.85,
-          Dict{String,Any}("evidence" => "clinical_trial", "confidence" => "high"),
-          now()
+        push!(relations, GraphMERT.Relation(
+          disease.id, drug.id, "TREATS", "biomedical", 0.85,
+          "", "", Dict{String,Any}("evidence" => "clinical_trial", "confidence" => "high")
         ))
       end
     end
