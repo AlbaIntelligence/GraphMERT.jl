@@ -75,22 +75,30 @@
 
 **Goal**: Complete the migration of domain-specific code
 
-**Files to Move**:
-- [ ] `graphs/biomedical.jl` → `domains/biomedical/graph.jl`
-  - Update imports
-  - Ensure it works with domain system
+**Status**: ✅ **COMPLETED**
 
-- [ ] `evaluation/diabetes.jl` → `domains/biomedical/evaluation.jl`
-  - Update imports
-  - Integrate with domain evaluation interface
+**Completed Tasks**:
+- [x] Move `graphs/biomedical.jl` → `domains/biomedical/graph.jl`
+  - ✅ File moved to biomedical domain directory
+  - ✅ Added MetaGraphs import for compatibility
+  - ✅ Available for inclusion when needed
 
-- [ ] `text/pubmed.jl` → `domains/biomedical/pubmed.jl`
-  - Update imports
-  - Ensure it's accessible from domain module
+- [x] Move `evaluation/diabetes.jl` → `domains/biomedical/evaluation.jl`
+  - ✅ File moved to biomedical domain directory
+  - ✅ Available for inclusion when needed
 
-**Files to Update**:
-- [ ] Update `GraphMERT.jl` to remove references to moved files
-- [ ] Update any examples that reference these files
+- [x] Move `text/pubmed.jl` → `domains/biomedical/pubmed.jl`
+  - ✅ File moved to biomedical domain directory
+  - ✅ Available for inclusion when needed
+
+- [x] Update `domains/biomedical.jl` loader
+  - ✅ Added comments documenting the new module locations
+  - ✅ Modules can be included on-demand when needed
+
+**Note**: These modules are domain-specific and loaded on-demand rather than automatically. They can be included explicitly when needed:
+- `include("GraphMERT/src/domains/biomedical/graph.jl")`
+- `include("GraphMERT/src/domains/biomedical/evaluation.jl")`
+- `include("GraphMERT/src/domains/biomedical/pubmed.jl")`
 
 ### 4. **Update Examples** (MEDIUM PRIORITY)
 

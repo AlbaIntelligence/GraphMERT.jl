@@ -9,6 +9,17 @@ This file should be included from within the GraphMERT module context.
 # Path is relative to this file: domains/biomedical.jl -> biomedical/domain.jl
 include("biomedical/domain.jl")
 
+# Load optional biomedical domain modules
+# These are loaded on-demand when needed, but can be included here for convenience
+# include("biomedical/graph.jl")      # Biomedical knowledge graph structures
+# include("biomedical/evaluation.jl") # Diabetes evaluation benchmarks
+# include("biomedical/pubmed.jl")     # PubMed text processing
+
+# Note: These modules can be included explicitly when needed:
+# include("GraphMERT/src/domains/biomedical/graph.jl")
+# include("GraphMERT/src/domains/biomedical/evaluation.jl")
+# include("GraphMERT/src/domains/biomedical/pubmed.jl")
+
 """
     load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing)
 
