@@ -37,7 +37,9 @@ end
     evaluate_factscore(kg::KnowledgeGraph, text::String;
                       llm_client::Union{HelperLLMClient, Nothing}=nothing,
                       confidence_threshold::Float64=0.5,
-                      max_context_sentences::Int=5)
+                      max_context_sentences::Int=5,
+                      domain_name::Union{String, Nothing}=nothing,
+                      include_domain_metrics::Bool=true)
 
 Calculate FActScore* for a knowledge graph.
 
@@ -50,6 +52,8 @@ and validity (is the triple ontologically consistent?) of extracted triples.
 - `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client for validation
 - `confidence_threshold::Float64`: Minimum confidence for triple inclusion
 - `max_context_sentences::Int`: Maximum context sentences to consider
+- `domain_name::Union{String, Nothing}`: Optional domain name to use for domain-specific metrics (if not provided, will try to infer from kg.metadata)
+- `include_domain_metrics::Bool`: Whether to include domain-specific metrics in the result
 
 # Returns
 - `FActScoreResult`: Detailed evaluation results
@@ -69,6 +73,8 @@ function evaluate_factscore(
     llm_client::Union{HelperLLMClient,Nothing} = nothing,
     confidence_threshold::Float64 = 0.5,
     max_context_sentences::Int = 5,
+    domain_name::Union{String,Nothing} = nothing,
+    include_domain_metrics::Bool = true,
 )
     @info "Starting FActScore* evaluation for $(length(kg.entities)) entities and $(length(kg.relations)) relations"
 
@@ -104,17 +110,43 @@ function evaluate_factscore(
 
     @info "FActScore* = $(round(factscore, digits=4)) ($supported_triples/$total_triples supported)"
 
+    # Build metadata dictionary
+    metadata = Dict(
+        "confidence_threshold" => confidence_threshold,
+        "max_context_sentences" => max_context_sentences,
+        "evaluation_method" => llm_client !== nothing ? "llm" : "heuristic",
+    )
+    
+    # Add domain-specific metrics if requested
+    if include_domain_metrics
+        # Try to get domain name from metadata or parameter
+        domain = domain_name
+        if domain === nothing && haskey(kg.metadata, "domain")
+            domain = kg.metadata["domain"]
+        end
+        
+        if domain !== nothing
+            try
+                # Try to get domain provider from registry
+                domain_provider = GraphMERT.get_domain(string(domain))
+                if domain_provider !== nothing
+                    domain_metrics = GraphMERT.create_evaluation_metrics(domain_provider, kg)
+                    metadata["domain_metrics"] = domain_metrics
+                    metadata["domain"] = domain
+                end
+            catch e
+                @warn "Failed to get domain metrics for domain '$domain': $e"
+            end
+        end
+    end
+
     return FActScoreResult(
         triple_scores,
         triple_contexts,
         factscore,
         supported_triples,
         total_triples,
-        Dict(
-            "confidence_threshold" => confidence_threshold,
-            "max_context_sentences" => max_context_sentences,
-            "evaluation_method" => llm_client !== nothing ? "llm" : "heuristic",
-        ),
+        metadata,
     )
 end
 

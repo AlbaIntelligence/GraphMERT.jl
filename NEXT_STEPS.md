@@ -174,10 +174,24 @@
   - Test entity linking with real Wikidata entities
   - Test triple retrieval with real Wikidata relations
 
-- [ ] **Domain-specific evaluation metrics**
-  - Implement `create_evaluation_metrics` for biomedical
-  - Implement `create_evaluation_metrics` for Wikipedia
-  - Update evaluation modules to use domain metrics
+- [x] **Domain-specific evaluation metrics**
+  - ✅ Implemented `create_evaluation_metrics` for biomedical
+    - Computes UMLS entity linking coverage
+    - Entity and relation type distributions
+    - UMLS validation scores (when UMLS client available)
+    - Domain-specific entity/relation type metrics
+    - Graph connectivity metrics
+  - ✅ Implemented `create_evaluation_metrics` for Wikipedia
+    - Computes Wikidata entity linking coverage
+    - Entity and relation type distributions
+    - Wikidata validation scores (when Wikidata client available)
+    - Entity linking quality metrics
+    - Graph connectivity metrics
+  - ✅ Updated evaluation modules to use domain metrics
+    - `evaluate_validity` now includes domain metrics in metadata
+    - `evaluate_factscore` now includes domain metrics in metadata
+    - Both functions accept `domain_name` and `include_domain_metrics` parameters
+    - Domain metrics automatically retrieved from domain registry when available
 
 ### 6. **Documentation & Examples** (LOW PRIORITY)
 

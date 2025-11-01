@@ -39,18 +39,22 @@ end
     evaluate_validity(kg::KnowledgeGraph;
                      llm_client::Union{HelperLLMClient, Nothing}=nothing,
                      umls_client::Union{Any, Nothing}=nothing,  # UMLSClient type will be available when biomedical domain is loaded
-                     confidence_threshold::Float64=0.5)
+                     confidence_threshold::Float64=0.5,
+                     domain_name::Union{String, Nothing}=nothing,
+                     include_domain_metrics::Bool=true)
 
 Calculate ValidityScore for a knowledge graph.
 
 ValidityScore evaluates whether extracted triples are ontologically valid
-by checking alignment with established biomedical knowledge.
+by checking alignment with established knowledge bases.
 
 # Arguments
 - `kg::KnowledgeGraph`: Knowledge graph to evaluate
 - `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client for validation
-- `umls_client::Union{Any, Nothing}`: Optional knowledge base client (UMLS for biomedical domain)
+- `umls_client::Union{Any, Nothing}`: Optional knowledge base client (UMLS for biomedical domain, Wikidata for Wikipedia domain)
 - `confidence_threshold::Float64`: Minimum confidence for triple inclusion
+- `domain_name::Union{String, Nothing}`: Optional domain name to use for domain-specific metrics (if not provided, will try to infer from kg.metadata)
+- `include_domain_metrics::Bool`: Whether to include domain-specific metrics in the result
 
 # Returns
 - `ValidityScoreResult`: Detailed evaluation results
@@ -65,6 +69,8 @@ function evaluate_validity(
     llm_client::Union{HelperLLMClient,Nothing} = nothing,
     umls_client::Union{Any,Nothing} = nothing,  # UMLSClient type will be available when biomedical domain is loaded
     confidence_threshold::Float64 = 0.5,
+    domain_name::Union{String,Nothing} = nothing,
+    include_domain_metrics::Bool = true,
 )
     @info "Starting ValidityScore evaluation for $(length(kg.entities)) entities and $(length(kg.relations)) relations"
 
@@ -102,18 +108,44 @@ function evaluate_validity(
 
     @info "ValidityScore = $(round(validity_score, digits=4)) ($valid_triples/$total_triples valid)"
 
+    # Build metadata dictionary
+    metadata = Dict(
+        "confidence_threshold" => confidence_threshold,
+        "valid_count" => valid_triples,
+        "maybe_count" => count(v -> v == :maybe, triple_validity),
+        "no_count" => count(v -> v == :no, triple_validity),
+    )
+    
+    # Add domain-specific metrics if requested
+    if include_domain_metrics
+        # Try to get domain name from metadata or parameter
+        domain = domain_name
+        if domain === nothing && haskey(kg.metadata, "domain")
+            domain = kg.metadata["domain"]
+        end
+        
+        if domain !== nothing
+            try
+                # Try to get domain provider from registry
+                domain_provider = GraphMERT.get_domain(string(domain))
+                if domain_provider !== nothing
+                    domain_metrics = GraphMERT.create_evaluation_metrics(domain_provider, kg)
+                    metadata["domain_metrics"] = domain_metrics
+                    metadata["domain"] = domain
+                end
+            catch e
+                @warn "Failed to get domain metrics for domain '$domain': $e"
+            end
+        end
+    end
+
     return ValidityScoreResult(
         triple_validity,
         justifications,
         validity_score,
         valid_triples,
         total_triples,
-        Dict(
-            "confidence_threshold" => confidence_threshold,
-            "valid_count" => valid_triples,
-            "maybe_count" => count(v -> v == :maybe, triple_validity),
-            "no_count" => count(v -> v == :no, triple_validity),
-        ),
+        metadata,
     )
 end
 

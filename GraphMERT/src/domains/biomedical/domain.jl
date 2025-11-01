@@ -435,5 +435,180 @@ function get_domain_config(domain::BiomedicalDomain)
     return domain.config
 end
 
+"""
+    create_evaluation_metrics(domain::BiomedicalDomain, kg::KnowledgeGraph)
+
+Create domain-specific evaluation metrics for a biomedical knowledge graph.
+
+This function computes biomedical-specific metrics including:
+- UMLS entity linking coverage
+- Entity type distribution
+- Relation type distribution
+- UMLS validation scores (if UMLS client is available)
+- Biomedical ontology alignment scores
+
+# Arguments
+- `domain::BiomedicalDomain`: Domain provider instance
+- `kg::KnowledgeGraph`: Knowledge graph to evaluate
+
+# Returns
+- `Dict{String, Any}`: Dictionary containing domain-specific metrics
+"""
+function create_evaluation_metrics(domain::BiomedicalDomain, kg::Any)
+    metrics = Dict{String, Any}()
+    
+    # Basic KG statistics
+    total_entities = length(kg.entities)
+    total_relations = length(kg.relations)
+    
+    metrics["total_entities"] = total_entities
+    metrics["total_relations"] = total_relations
+    
+    # Entity type distribution
+    entity_type_counts = Dict{String, Int}()
+    for entity in kg.entities
+        entity_type = get(entity.attributes, "entity_type", entity.label)
+        entity_type_counts[entity_type] = get(entity_type_counts, entity_type, 0) + 1
+    end
+    metrics["entity_type_distribution"] = entity_type_counts
+    
+    # Relation type distribution
+    relation_type_counts = Dict{String, Int}()
+    for relation in kg.relations
+        relation_type_counts[relation.relation_type] = get(relation_type_counts, relation.relation_type, 0) + 1
+    end
+    metrics["relation_type_distribution"] = relation_type_counts
+    
+    # UMLS entity linking metrics
+    umls_linked_count = 0
+    umls_cuis = Set{String}()
+    semantic_types = Set{String}()
+    
+    for entity in kg.entities
+        if haskey(entity.attributes, "cui") && !isempty(string(entity.attributes["cui"]))
+            umls_linked_count += 1
+            push!(umls_cuis, string(entity.attributes["cui"]))
+        end
+        if haskey(entity.attributes, "semantic_types")
+            entity_types = entity.attributes["semantic_types"]
+            if isa(entity_types, Vector)
+                for st in entity_types
+                    push!(semantic_types, string(st))
+                end
+            end
+        end
+    end
+    
+    metrics["umls_linking_coverage"] = total_entities > 0 ? umls_linked_count / total_entities : 0.0
+    metrics["umls_linked_entities"] = umls_linked_count
+    metrics["unique_umls_cuis"] = length(umls_cuis)
+    metrics["unique_semantic_types"] = length(semantic_types)
+    metrics["semantic_types_list"] = collect(semantic_types)
+    
+    # Average confidence scores
+    if total_entities > 0
+        avg_entity_confidence = sum(e.confidence for e in kg.entities) / total_entities
+        metrics["average_entity_confidence"] = avg_entity_confidence
+    else
+        metrics["average_entity_confidence"] = 0.0
+    end
+    
+    if total_relations > 0
+        avg_relation_confidence = sum(r.confidence for r in kg.relations) / total_relations
+        metrics["average_relation_confidence"] = avg_relation_confidence
+    else
+        metrics["average_relation_confidence"] = 0.0
+    end
+    
+    # UMLS validation score (if UMLS client is available)
+    if domain.umls_client !== nothing && total_relations > 0
+        validated_count = 0
+        for relation in kg.relations
+            # Find head and tail entities
+            head_entity = nothing
+            tail_entity = nothing
+            
+            for entity in kg.entities
+                if entity.id == relation.head
+                    head_entity = entity
+                elseif entity.id == relation.tail
+                    tail_entity = entity
+                end
+            end
+            
+            if head_entity !== nothing && tail_entity !== nothing
+                # Check if both are linked to UMLS
+                head_cui = get(head_entity.attributes, "cui", nothing)
+                tail_cui = get(tail_entity.attributes, "cui", nothing)
+                
+                if head_cui !== nothing && tail_cui !== nothing
+                    # Validate relation using domain validation
+                    context = Dict{String, Any}(
+                        "head_cui" => head_cui,
+                        "tail_cui" => tail_cui,
+                    )
+                    if validate_relation(domain, head_entity.text, relation.relation_type, tail_entity.text, context)
+                        validated_count += 1
+                    end
+                end
+            end
+        end
+        metrics["umls_validated_relations"] = validated_count
+        metrics["umls_validation_rate"] = validated_count / total_relations
+    else
+        metrics["umls_validated_relations"] = 0
+        metrics["umls_validation_rate"] = 0.0
+    end
+    
+    # Domain-specific entity type metrics
+    domain_entity_types = ["DISEASE", "DRUG", "PROTEIN", "GENE", "SYMPTOM", "PROCEDURE"]
+    for entity_type in domain_entity_types
+        count = get(entity_type_counts, entity_type, 0)
+        metrics["entity_type_$(lowercase(entity_type))_count"] = count
+        if total_entities > 0
+            metrics["entity_type_$(lowercase(entity_type))_percentage"] = count / total_entities
+        else
+            metrics["entity_type_$(lowercase(entity_type))_percentage"] = 0.0
+        end
+    end
+    
+    # Domain-specific relation type metrics
+    domain_relation_types = ["TREATS", "CAUSES", "ASSOCIATED_WITH", "PREVENTS", "INDICATES"]
+    for relation_type in domain_relation_types
+        count = get(relation_type_counts, relation_type, 0)
+        metrics["relation_type_$(lowercase(relation_type))_count"] = count
+        if total_relations > 0
+            metrics["relation_type_$(lowercase(relation_type))_percentage"] = count / total_relations
+        else
+            metrics["relation_type_$(lowercase(relation_type))_percentage"] = 0.0
+        end
+    end
+    
+    # Graph connectivity metrics
+    if total_entities > 0 && total_relations > 0
+        # Average relations per entity
+        metrics["average_relations_per_entity"] = total_relations / total_entities
+        
+        # Entities with relations
+        entities_with_relations = Set{String}()
+        for relation in kg.relations
+            push!(entities_with_relations, relation.head)
+            push!(entities_with_relations, relation.tail)
+        end
+        metrics["entities_with_relations"] = length(entities_with_relations)
+        metrics["entities_with_relations_percentage"] = length(entities_with_relations) / total_entities
+    else
+        metrics["average_relations_per_entity"] = 0.0
+        metrics["entities_with_relations"] = 0
+        metrics["entities_with_relations_percentage"] = 0.0
+    end
+    
+    # Add timestamp
+    metrics["evaluation_timestamp"] = now()
+    metrics["domain"] = "biomedical"
+    
+    return metrics
+end
+
 # Export
 export BiomedicalDomain

@@ -385,5 +385,197 @@ function get_domain_config(domain::WikipediaDomain)
     return domain.config
 end
 
+"""
+    create_evaluation_metrics(domain::WikipediaDomain, kg::KnowledgeGraph)
+
+Create domain-specific evaluation metrics for a Wikipedia/general knowledge graph.
+
+This function computes Wikipedia-specific metrics including:
+- Wikidata entity linking coverage
+- Entity type distribution
+- Relation type distribution
+- Wikidata validation scores (if Wikidata client is available)
+- Entity linking quality metrics
+
+# Arguments
+- `domain::WikipediaDomain`: Domain provider instance
+- `kg::KnowledgeGraph`: Knowledge graph to evaluate
+
+# Returns
+- `Dict{String, Any}`: Dictionary containing domain-specific metrics
+"""
+function create_evaluation_metrics(domain::WikipediaDomain, kg::Any)
+    metrics = Dict{String, Any}()
+    
+    # Basic KG statistics
+    total_entities = length(kg.entities)
+    total_relations = length(kg.relations)
+    
+    metrics["total_entities"] = total_entities
+    metrics["total_relations"] = total_relations
+    
+    # Entity type distribution
+    entity_type_counts = Dict{String, Int}()
+    for entity in kg.entities
+        entity_type = get(entity.attributes, "entity_type", entity.label)
+        entity_type_counts[entity_type] = get(entity_type_counts, entity_type, 0) + 1
+    end
+    metrics["entity_type_distribution"] = entity_type_counts
+    
+    # Relation type distribution
+    relation_type_counts = Dict{String, Int}()
+    for relation in kg.relations
+        relation_type_counts[relation.relation_type] = get(relation_type_counts, relation.relation_type, 0) + 1
+    end
+    metrics["relation_type_distribution"] = relation_type_counts
+    
+    # Wikidata entity linking metrics
+    wikidata_linked_count = 0
+    wikidata_qids = Set{String}()
+    entity_types = Set{String}()
+    
+    for entity in kg.entities
+        # Check for QID (Wikidata ID)
+        qid = get(entity.attributes, "qid", get(entity.attributes, "wikidata_id", nothing))
+        if qid !== nothing && !isempty(string(qid))
+            wikidata_linked_count += 1
+            push!(wikidata_qids, string(qid))
+        end
+        
+        # Collect entity types
+        entity_type = get(entity.attributes, "entity_type", entity.label)
+        if !isempty(entity_type)
+            push!(entity_types, entity_type)
+        end
+    end
+    
+    metrics["wikidata_linking_coverage"] = total_entities > 0 ? wikidata_linked_count / total_entities : 0.0
+    metrics["wikidata_linked_entities"] = wikidata_linked_count
+    metrics["unique_wikidata_qids"] = length(wikidata_qids)
+    metrics["unique_entity_types"] = length(entity_types)
+    metrics["entity_types_list"] = collect(entity_types)
+    
+    # Average confidence scores
+    if total_entities > 0
+        avg_entity_confidence = sum(e.confidence for e in kg.entities) / total_entities
+        metrics["average_entity_confidence"] = avg_entity_confidence
+    else
+        metrics["average_entity_confidence"] = 0.0
+    end
+    
+    if total_relations > 0
+        avg_relation_confidence = sum(r.confidence for r in kg.relations) / total_relations
+        metrics["average_relation_confidence"] = avg_relation_confidence
+    else
+        metrics["average_relation_confidence"] = 0.0
+    end
+    
+    # Wikidata validation score (if Wikidata client is available)
+    if domain.wikidata_client !== nothing && total_relations > 0
+        validated_count = 0
+        for relation in kg.relations
+            # Find head and tail entities
+            head_entity = nothing
+            tail_entity = nothing
+            
+            for entity in kg.entities
+                if entity.id == relation.head
+                    head_entity = entity
+                elseif entity.id == relation.tail
+                    tail_entity = entity
+                end
+            end
+            
+            if head_entity !== nothing && tail_entity !== nothing
+                # Check if both are linked to Wikidata
+                head_qid = get(head_entity.attributes, "qid", get(head_entity.attributes, "wikidata_id", nothing))
+                tail_qid = get(tail_entity.attributes, "qid", get(tail_entity.attributes, "wikidata_id", nothing))
+                
+                if head_qid !== nothing && tail_qid !== nothing
+                    # Validate relation using domain validation
+                    context = Dict{String, Any}(
+                        "head_qid" => head_qid,
+                        "tail_qid" => tail_qid,
+                    )
+                    if validate_relation(domain, head_entity.text, relation.relation_type, tail_entity.text, context)
+                        validated_count += 1
+                    end
+                end
+            end
+        end
+        metrics["wikidata_validated_relations"] = validated_count
+        metrics["wikidata_validation_rate"] = validated_count / total_relations
+    else
+        metrics["wikidata_validated_relations"] = 0
+        metrics["wikidata_validation_rate"] = 0.0
+    end
+    
+    # Domain-specific entity type metrics
+    domain_entity_types = ["PERSON", "ORGANIZATION", "LOCATION", "CONCEPT", "EVENT", "TECHNOLOGY"]
+    for entity_type in domain_entity_types
+        count = get(entity_type_counts, entity_type, 0)
+        metrics["entity_type_$(lowercase(entity_type))_count"] = count
+        if total_entities > 0
+            metrics["entity_type_$(lowercase(entity_type))_percentage"] = count / total_entities
+        else
+            metrics["entity_type_$(lowercase(entity_type))_percentage"] = 0.0
+        end
+    end
+    
+    # Domain-specific relation type metrics
+    domain_relation_types = ["CREATED_BY", "BORN_IN", "WORKED_AT", "FOUNDED", "RELATED_TO"]
+    for relation_type in domain_relation_types
+        count = get(relation_type_counts, relation_type, 0)
+        metrics["relation_type_$(lowercase(relation_type))_count"] = count
+        if total_relations > 0
+            metrics["relation_type_$(lowercase(relation_type))_percentage"] = count / total_relations
+        else
+            metrics["relation_type_$(lowercase(relation_type))_percentage"] = 0.0
+        end
+    end
+    
+    # Graph connectivity metrics
+    if total_entities > 0 && total_relations > 0
+        # Average relations per entity
+        metrics["average_relations_per_entity"] = total_relations / total_entities
+        
+        # Entities with relations
+        entities_with_relations = Set{String}()
+        for relation in kg.relations
+            push!(entities_with_relations, relation.head)
+            push!(entities_with_relations, relation.tail)
+        end
+        metrics["entities_with_relations"] = length(entities_with_relations)
+        metrics["entities_with_relations_percentage"] = length(entities_with_relations) / total_entities
+    else
+        metrics["average_relations_per_entity"] = 0.0
+        metrics["entities_with_relations"] = 0
+        metrics["entities_with_relations_percentage"] = 0.0
+    end
+    
+    # Entity linking quality metrics
+    if total_entities > 0
+        # Entities with high confidence linking
+        high_confidence_linked = 0
+        for entity in kg.entities
+            linking_score = get(entity.attributes, "linking_score", get(entity.attributes, "wikidata_score", 0.0))
+            if linking_score > 0.7  # High confidence threshold
+                high_confidence_linked += 1
+            end
+        end
+        metrics["high_confidence_linked_entities"] = high_confidence_linked
+        metrics["high_confidence_linking_rate"] = high_confidence_linked / total_entities
+    else
+        metrics["high_confidence_linked_entities"] = 0
+        metrics["high_confidence_linking_rate"] = 0.0
+    end
+    
+    # Add timestamp
+    metrics["evaluation_timestamp"] = now()
+    metrics["domain"] = "wikipedia"
+    
+    return metrics
+end
+
 # Export
 export WikipediaDomain
