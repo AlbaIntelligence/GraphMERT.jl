@@ -12,7 +12,7 @@ Extract a knowledge graph from input text using a GraphMERT model.
 
 - `text::Union{String, Vector{String}}` - Input text or batch of texts
 - `model::Union{GraphMERTModel, String}` - Model instance or path to model
-- `options::ProcessingOptions` - Processing configuration (optional)
+- `options::ProcessingOptions` - Processing configuration (optional, must include `domain` field)
 
 **Returns:**
 
@@ -21,7 +21,15 @@ Extract a knowledge graph from input text using a GraphMERT model.
 **Example:**
 
 ```julia
-graph = extract_knowledge_graph("Diabetes affects blood sugar levels.", model)
+# Load and register domain
+include("GraphMERT/src/domains/biomedical.jl")
+bio_domain = load_biomedical_domain()
+register_domain!("biomedical", bio_domain)
+
+# Extract with domain
+text = "Diabetes affects blood sugar levels."
+options = ProcessingOptions(domain="biomedical")
+graph = extract_knowledge_graph(text, model; options=options)
 ```
 
 ### `load_model(model_path, config)`
@@ -50,11 +58,34 @@ Preprocess text for GraphMERT processing.
 **Parameters:**
 
 - `text::String` - Input text
-- `options::ProcessingOptions` - Processing options
+- `options::ProcessingOptions` - Processing options (must include `domain` field)
 
 **Returns:**
 
 - `PreprocessedText` - Preprocessed text ready for processing
+
+## Domain System API
+
+See [Domain API Reference](domain.md) for complete domain system documentation.
+
+**Key Functions:**
+- `register_domain!(domain_name, provider)` - Register a domain
+- `get_domain(domain_name)` - Get a domain provider
+- `list_domains()` - List all registered domains
+- `set_default_domain(domain_name)` - Set default domain
+- `get_default_domain()` - Get default domain
+
+**Domain Provider Methods:**
+- `extract_entities(domain, text, config)` - Extract domain-specific entities
+- `extract_relations(domain, entities, text, config)` - Extract domain-specific relations
+- `validate_entity(domain, entity_text, entity_type, context)` - Validate entities
+- `validate_relation(domain, head, relation_type, tail, context)` - Validate relations
+- `calculate_entity_confidence(domain, entity_text, entity_type, context)` - Calculate confidence
+- `calculate_relation_confidence(domain, head, relation_type, tail, context)` - Calculate confidence
+- `link_entity(domain, entity_text, config)` - Link to knowledge base (optional)
+- `create_seed_triples(domain, entity_text, config)` - Create seed triples (optional)
+- `create_evaluation_metrics(domain, kg)` - Create domain metrics (optional)
+- `create_prompt(domain, task_type, context)` - Generate LLM prompts (optional)
 
 ## Data Structures
 
@@ -64,57 +95,73 @@ Main output structure containing the complete knowledge graph.
 
 **Fields:**
 
-- `entities::Vector{BiomedicalEntity}` - List of extracted entities
-- `relations::Vector{BiomedicalRelation}` - List of extracted relations
-- `metadata::GraphMetadata` - Graph-level metadata
-- `confidence_threshold::Float64` - Minimum confidence threshold
+- `entities::Vector{Entity}` - List of extracted entities (generic, domain-agnostic)
+- `relations::Vector{Relation}` - List of extracted relations (generic, domain-agnostic)
+- `metadata::Dict{String, Any}` - Graph-level metadata (includes `domain` field)
 - `created_at::DateTime` - Creation timestamp
-- `model_info::GraphMERTModelInfo` - Model information
-- `umls_mappings::Dict{String, String}` - UMLS CUI mappings
-- `fact_score::Float64` - FActScore for the graph
-- `validity_score::Float64` - ValidityScore for the graph
 
-### `BiomedicalEntity`
+**Note:** Entities and relations are now generic (`Entity`, `Relation`) rather than domain-specific (`BiomedicalEntity`, `BiomedicalRelation`). The `domain` field in metadata indicates which domain was used for extraction.
 
-Represents an extracted biomedical entity.
+### `Entity` (Generic, Domain-Agnostic)
+
+Represents an extracted entity (works for all domains).
 
 **Fields:**
 
 - `id::String` - Unique identifier
 - `text::String` - Original text
-- `label::String` - Entity type (DISEASE, DRUG, etc.)
+- `label::String` - Entity label
+- `entity_type::String` - Domain-specific entity type (e.g., "DISEASE", "PERSON")
+- `domain::String` - Domain identifier (e.g., "biomedical", "wikipedia")
+- `attributes::Dict{String, Any}` - Domain-specific attributes (e.g., CUI, QID)
+- `position::TextPosition` - Position in text
 - `confidence::Float64` - Confidence score (0.0-1.0)
-- `position::EntityPosition` - Position in text
-- `attributes::Dict{String, Any}` - Additional attributes
-- `created_at::DateTime` - Extraction timestamp
+- `provenance::String` - Source text
 
-### `BiomedicalRelation`
+### `Relation` (Generic, Domain-Agnostic)
 
-Represents an extracted biomedical relation.
+Represents an extracted relation (works for all domains).
 
 **Fields:**
 
-- `head::String` - Head entity
-- `tail::String` - Tail entity
-- `relation_type::String` - Relation type (TREATS, CAUSES, etc.)
+- `head::String` - Head entity ID
+- `tail::String` - Tail entity ID
+- `relation_type::String` - Domain-specific relation type (e.g., "TREATS", "BORN_IN")
 - `confidence::Float64` - Confidence score (0.0-1.0)
-- `attributes::Dict{String, Any}` - Additional attributes
-- `created_at::DateTime` - Extraction timestamp
+- `attributes::Dict{String, Any}` - Domain-specific attributes
+- `created_at::DateTime` - Creation timestamp
 
 ## Configuration
 
-### `ProcessingOptions`
+### `ProcessingOptions` (Updated for Domain System)
 
-Configuration for text processing.
+Configuration for text processing with domain support.
 
 **Fields:**
 
+- `domain::String` - **Required**: Domain identifier (e.g., "biomedical", "wikipedia")
 - `confidence_threshold::Float64` - Minimum confidence for inclusion
 - `max_entities::Int` - Maximum number of entities to extract
 - `max_relations::Int` - Maximum number of relations to extract
-- `umls_enabled::Bool` - Enable UMLS integration
+- `use_umls::Bool` - Enable UMLS integration (biomedical domain only)
 - `helper_llm_enabled::Bool` - Enable helper LLM
 - `performance_mode::Symbol` - Performance mode (:fast, :balanced, :accurate)
+
+**Example:**
+```julia
+# Biomedical domain
+options_bio = ProcessingOptions(
+    domain="biomedical",
+    confidence_threshold=0.8,
+    use_umls=true
+)
+
+# Wikipedia domain
+options_wiki = ProcessingOptions(
+    domain="wikipedia",
+    confidence_threshold=0.7
+)
+```
 
 ### `GraphMERTConfig`
 
@@ -123,37 +170,73 @@ Comprehensive configuration for GraphMERT.
 **Fields:**
 
 - `model_path::String` - Path to model file
-- `umls_enabled::Bool` - Enable UMLS integration
-- `helper_llm_enabled::Bool` - Enable helper LLM
-- `performance_mode::Symbol` - Performance mode
+- `processing_options::ProcessingOptions` - Processing options (includes domain)
+- `performance_config::PerformanceConfig` - Performance settings
 - `memory_limit::Int` - Memory limit in MB
 - `batch_size::Int` - Batch size for processing
 
 ## Evaluation Functions
 
-### `calculate_factscore(graph)`
+### `evaluate_factscore` (Updated for Domain System)
 
-Calculate FActScore for a knowledge graph.
+```julia
+evaluate_factscore(kg::KnowledgeGraph, text::String;
+                   domain_name::Union{String, Nothing}=nothing,
+                   include_domain_metrics::Bool=true,
+                   ...) -> FActScoreResult
+```
 
-**Parameters:**
-
-- `graph::KnowledgeGraph` - Knowledge graph to evaluate
-
-**Returns:**
-
-- `Float64` - FActScore (0.0-1.0)
-
-### `calculate_validity_score(graph)`
-
-Calculate ValidityScore for a knowledge graph.
+Calculate FActScore for a knowledge graph with optional domain-specific metrics.
 
 **Parameters:**
 
-- `graph::KnowledgeGraph` - Knowledge graph to evaluate
+- `kg::KnowledgeGraph` - Knowledge graph to evaluate
+- `text::String` - Original source text
+- `domain_name::Union{String, Nothing}` - Optional domain name (inferred from `kg.metadata["domain"]` if not provided)
+- `include_domain_metrics::Bool` - Whether to include domain-specific metrics in result
 
 **Returns:**
 
-- `Float64` - ValidityScore (0.0-1.0)
+- `FActScoreResult` with `metadata["domain_metrics"]` if domain metrics are included
+
+**Example:**
+```julia
+result = evaluate_factscore(kg, text, domain_name="biomedical")
+if haskey(result.metadata, "domain_metrics")
+    domain_metrics = result.metadata["domain_metrics"]
+    println("UMLS linking coverage: ", domain_metrics["umls_linking_coverage"])
+end
+```
+
+### `evaluate_validity` (Updated for Domain System)
+
+```julia
+evaluate_validity(kg::KnowledgeGraph;
+                  domain_name::Union{String, Nothing}=nothing,
+                  include_domain_metrics::Bool=true,
+                  ...) -> ValidityScoreResult
+```
+
+Calculate ValidityScore for a knowledge graph with optional domain-specific metrics.
+
+**Parameters:**
+
+- `kg::KnowledgeGraph` - Knowledge graph to evaluate
+- `domain_name::Union{String, Nothing}` - Optional domain name (inferred from `kg.metadata["domain"]` if not provided)
+- `include_domain_metrics::Bool` - Whether to include domain-specific metrics in result
+
+**Returns:**
+
+- `ValidityScoreResult` with `metadata["domain_metrics"]` if domain metrics are included
+
+**Example:**
+```julia
+result = evaluate_validity(kg, domain_name="biomedical")
+if haskey(result.metadata, "domain_metrics")
+    domain_metrics = result.metadata["domain_metrics"]
+    println("UMLS validation rate: ", domain_metrics["umls_validation_rate"])
+end
+```
 
 ### `evaluate_with_graphrag(graph, questions)`
 
@@ -225,6 +308,10 @@ Error during entity extraction.
 
 Error during relation extraction.
 
+### Domain Registration Errors
+
+When a domain is not registered, clear error messages are provided with instructions on how to register the domain.
+
 ## Performance Monitoring
 
 ### `monitor_performance(f, args...)`
@@ -255,3 +342,10 @@ Get current processing speed.
 **Returns:**
 
 - `Float64` - Tokens per second
+
+## Related Documentation
+
+- [Domain API Reference](domain.md) - Complete domain system API
+- [Core API Reference](core.md) - Core GraphMERT functions
+- [Domain Usage Guide](../../DOMAIN_USAGE_GUIDE.md) - User guide for domains
+- [Domain Developer Guide](../../DOMAIN_DEVELOPER_GUIDE.md) - Guide for creating custom domains

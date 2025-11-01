@@ -10,20 +10,27 @@ This page documents the core functions and data structures in GraphMERT.jl.
 extract_knowledge_graph(text::String; kwargs...) -> KnowledgeGraph
 ```
 
-Extract a knowledge graph from biomedical text.
+Extract a knowledge graph from text using domain-specific providers.
 
 **Arguments:**
-- `text::String`: Input biomedical text
-- `config::GraphMERTConfig`: Configuration options (optional)
-- `monitor::PerformanceMonitor`: Performance monitoring (optional)
+- `text::String`: Input text
+- `model::GraphMERTModel`: GraphMERT model instance
+- `options::ProcessingOptions`: Processing options (must include `domain` field)
 
 **Returns:**
 - `KnowledgeGraph`: Extracted knowledge graph
 
 **Example:**
 ```julia
+# Load and register domain
+include("GraphMERT/src/domains/biomedical.jl")
+bio_domain = load_biomedical_domain()
+register_domain!("biomedical", bio_domain)
+
+# Extract with domain
 text = "Diabetes is treated with insulin."
-graph = extract_knowledge_graph(text)
+options = ProcessingOptions(domain="biomedical")
+graph = extract_knowledge_graph(text, model; options=options)
 ```
 
 ### `extract_knowledge_graph_batch`
@@ -54,45 +61,59 @@ result = extract_knowledge_graph_batch(documents, config)
 
 ```julia
 struct KnowledgeGraph
-    entities::Vector{BiomedicalEntity}
-    relations::Vector{BiomedicalRelation}
-    metadata::Dict{String, Any}
+    entities::Vector{Entity}           # Generic entities (domain-agnostic)
+    relations::Vector{Relation}         # Generic relations (domain-agnostic)
+    metadata::Dict{String, Any}         # Graph metadata (includes domain field)
     created_at::DateTime
 end
 ```
 
-Main data structure representing a knowledge graph.
+Main data structure representing a knowledge graph. Uses generic `Entity` and `Relation` types that work with all domains.
 
-### `BiomedicalEntity`
+**Note:** The `metadata` field includes a `domain` field indicating which domain was used for extraction.
+
+### `Entity` (Generic, Domain-Agnostic)
 
 ```julia
-struct BiomedicalEntity
+struct Entity
+    id::String
     text::String
     label::String
-    id::String
-    confidence::Float64
-    position::TextPosition
+    entity_type::String      # Domain-specific entity type
+    domain::String          # Domain identifier
     attributes::Dict{String, Any}
-    created_at::DateTime
+    position::TextPosition
+    confidence::Float64
+    provenance::String
 end
 ```
 
-Represents a biomedical entity with confidence and metadata.
+Generic entity structure used by all domains.
 
-### `BiomedicalRelation`
+**Key Fields:**
+- `entity_type::String` - Domain-specific entity type (e.g., "DISEASE", "PERSON")
+- `domain::String` - Domain identifier (e.g., "biomedical", "wikipedia")
+- `attributes::Dict{String, Any}` - Domain-specific attributes (e.g., CUI for biomedical, QID for Wikipedia)
+
+### `Relation` (Generic, Domain-Agnostic)
 
 ```julia
-struct BiomedicalRelation
-    head::String
-    tail::String
-    relation_type::String
+struct Relation
+    head::String             # Entity ID of head entity
+    tail::String             # Entity ID of tail entity
+    relation_type::String    # Domain-specific relation type
     confidence::Float64
     attributes::Dict{String, Any}
     created_at::DateTime
 end
 ```
 
-Represents a relationship between two entities.
+Generic relation structure used by all domains.
+
+**Key Fields:**
+- `relation_type::String` - Domain-specific relation type (e.g., "TREATS", "BORN_IN")
+- `head::String` - Entity ID of head entity
+- `tail::String` - Entity ID of tail entity
 
 ### `TextPosition`
 
@@ -109,32 +130,57 @@ Represents the position of text in the original document.
 
 ## Configuration
 
-### `GraphMERTConfig`
+### `ProcessingOptions` (Updated for Domain System)
 
 ```julia
-struct GraphMERTConfig
-    min_confidence::Float64
-    max_entities::Int
-    enable_umls::Bool
-    umls_threshold::Float64
-    enable_llm::Bool
-    llm_model::String
+struct ProcessingOptions
+    domain::String                    # Required: Domain identifier
+    max_length::Int
     batch_size::Int
-    memory_limit::Float64
+    use_umls::Bool                   # Domain-specific (biomedical)
+    use_helper_llm::Bool
+    confidence_threshold::Float64
+    entity_types::Vector{String}
+    relation_types::Vector{String}
+    cache_enabled::Bool
+    parallel_processing::Bool
+    verbose::Bool
 end
 ```
 
-Configuration options for knowledge graph extraction.
+Configuration options for GraphMERT processing with domain support.
+
+**Key Field:**
+- `domain::String` - **Required**: Domain identifier (e.g., "biomedical", "wikipedia")
 
 **Fields:**
-- `min_confidence`: Minimum confidence threshold (default: 0.7)
-- `max_entities`: Maximum entities to extract (default: 100)
-- `enable_umls`: Enable UMLS integration (default: true)
-- `umls_threshold`: UMLS matching threshold (default: 0.8)
-- `enable_llm`: Enable LLM assistance (default: false)
-- `llm_model`: LLM model to use (default: "gpt-3.5-turbo")
-- `batch_size`: Batch size for processing (default: 10)
-- `memory_limit`: Memory limit in GB (default: 4.0)
+- `domain::String` - Domain identifier (must match registered domain)
+- `confidence_threshold::Float64` - Minimum confidence threshold (default: 0.5)
+- `max_entities::Int` - Maximum entities to extract
+- `max_relations::Int` - Maximum relations to extract
+- `use_umls::Bool` - Enable UMLS integration (biomedical domain only)
+- `use_helper_llm::Bool` - Enable helper LLM
+- `batch_size::Int` - Batch size for processing (default: 32)
+- `max_length::Int` - Maximum text length (default: 512)
+- `cache_enabled::Bool` - Enable caching (default: true)
+- `parallel_processing::Bool` - Enable parallel processing (default: false)
+- `verbose::Bool` - Enable verbose output (default: false)
+
+**Example:**
+```julia
+# Biomedical domain
+options_bio = ProcessingOptions(
+    domain="biomedical",
+    confidence_threshold=0.8,
+    use_umls=true
+)
+
+# Wikipedia domain
+options_wiki = ProcessingOptions(
+    domain="wikipedia",
+    confidence_threshold=0.7
+)
+```
 
 ### `BatchProcessingConfig`
 
@@ -223,54 +269,69 @@ end
 
 Custom error type for GraphMERT operations.
 
-## Constants
+### Entity Types (Domain-Specific)
 
-### Entity Types
+Entity types are domain-specific. Common types include:
 
-```julia
-const DISEASE = "DISEASE"
-const DRUG = "DRUG"
-const PROTEIN = "PROTEIN"
-const GENE = "GENE"
-const ANATOMY = "ANATOMY"
-const SYMPTOM = "SYMPTOM"
-const PROCEDURE = "PROCEDURE"
-const ORGANISM = "ORGANISM"
-const CHEMICAL = "CHEMICAL"
-const CELL_TYPE = "CELL_TYPE"
-```
+**Biomedical Domain:**
+- `DISEASE`, `DRUG`, `PROTEIN`, `GENE`, `ANATOMY`, `SYMPTOM`, `PROCEDURE`, etc.
 
-### Relation Types
+**Wikipedia Domain:**
+- `PERSON`, `ORGANIZATION`, `LOCATION`, `CONCEPT`, `EVENT`, `TECHNOLOGY`, etc.
 
-```julia
-const TREATS = "TREATS"
-const CAUSES = "CAUSES"
-const INDICATES = "INDICATES"
-const LOCATED_IN = "LOCATED_IN"
-const PART_OF = "PART_OF"
-const REGULATES = "REGULATES"
-const INTERACTS_WITH = "INTERACTS_WITH"
-const ADMINISTERED_FOR = "ADMINISTERED_FOR"
-```
+### Relation Types (Domain-Specific)
+
+Relation types are domain-specific. Common types include:
+
+**Biomedical Domain:**
+- `TREATS`, `CAUSES`, `ASSOCIATED_WITH`, `PREVENTS`, `INDICATES`, etc.
+
+**Wikipedia Domain:**
+- `BORN_IN`, `DIED_IN`, `WORKED_AT`, `FOUNDED`, `CREATED_BY`, etc.
 
 ## Examples
 
-### Basic Usage
+### Basic Usage with Domain System
 
 ```julia
 using GraphMERT
 
-# Simple extraction
+# Load and register domain
+include("GraphMERT/src/domains/biomedical.jl")
+bio_domain = load_biomedical_domain()
+register_domain!("biomedical", bio_domain)
+
+# Extract with domain
 text = "Diabetes is treated with metformin."
-graph = extract_knowledge_graph(text)
+options = ProcessingOptions(domain="biomedical", confidence_threshold=0.8)
+model = create_graphmert_model(GraphMERTConfig())
+graph = extract_knowledge_graph(text, model; options=options)
 
-# With configuration
-config = GraphMERTConfig(min_confidence=0.8)
-graph = extract_knowledge_graph(text, config)
+# Access results
+println("Extracted $(length(graph.entities)) entities")
+println("Extracted $(length(graph.relations)) relations")
+```
 
-# With monitoring
-monitor = create_performance_monitor()
-graph = extract_knowledge_graph(text, monitor=monitor)
+### Domain Switching
+
+```julia
+# Load multiple domains
+include("GraphMERT/src/domains/biomedical.jl")
+include("GraphMERT/src/domains/wikipedia.jl")
+
+bio_domain = load_biomedical_domain()
+wiki_domain = load_wikipedia_domain()
+register_domain!("biomedical", bio_domain)
+register_domain!("wikipedia", wiki_domain)
+
+# Extract with different domains
+bio_text = "Diabetes is treated with metformin."
+bio_options = ProcessingOptions(domain="biomedical")
+bio_graph = extract_knowledge_graph(bio_text, model; options=bio_options)
+
+wiki_text = "Leonardo da Vinci was born in Vinci, Italy."
+wiki_options = ProcessingOptions(domain="wikipedia")
+wiki_graph = extract_knowledge_graph(wiki_text, model; options=wiki_options)
 ```
 
 ### Batch Processing
