@@ -37,7 +37,7 @@ The GraphMERT implementation follows the original paper's architecture:
 1. **RoBERTa Encoder**: Base transformer for text understanding
 2. **H-GAT**: Hierarchical Graph Attention for semantic relation encoding
 3. **Leafy Chain Graph**: Structure for representing text with semantic nodes
-4. **UMLS Integration**: Biomedical knowledge base for entity linking
+4. **Domain Abstraction Layer**: Pluggable domain providers for domain-specific functionality
 5. **Helper LLM**: External LLM for entity discovery and relation matching
 
 ## Performance Targets
@@ -86,18 +86,17 @@ include("architectures/attention.jl")
 
 # Graph structures
 include("graphs/leafy_chain.jl")
-include("graphs/biomedical.jl")
+# Note: Domain-specific graph structures (e.g., graphs/biomedical.jl) should be
+# included by domain modules, not here in the core module
 
 # Models
 include("models/graphmert.jl")
 include("models/persistence.jl")
 
-# Biomedical domain
-include("biomedical/umls.jl")
-# include("biomedical/entities.jl")  # Temporarily disabled
-# include("biomedical/relations.jl")  # Temporarily disabled
-include("text/pubmed.jl")
+# Text processing (domain-agnostic)
 include("text/tokenizer.jl")
+# Note: Domain-specific text processing (e.g., text/pubmed.jl) should be
+# included by domain modules, not here in the core module
 
 # LLM integration
 include("llm/helper.jl")
@@ -111,10 +110,12 @@ include("training/span_masking.jl")
 include("data/preparation.jl")
 
 # Evaluation
+# Note: Evaluation modules contain domain-specific code (e.g., UMLSClient for biomedical)
+# These will be refactored when creating domain modules
 include("evaluation/factscore.jl")
-include("evaluation/validity.jl")
+# include("evaluation/validity.jl")  # Temporarily disabled - requires UMLSClient which is domain-specific
 include("evaluation/graphrag.jl")
-include("evaluation/diabetes.jl")
+# include("evaluation/diabetes.jl")  # Temporarily disabled - domain-specific
 
 # Benchmarking
 include("benchmarking/benchmarks.jl")
@@ -147,22 +148,12 @@ export extract_entities, extract_relations
 export validate_entity, validate_relation
 export calculate_entity_confidence, calculate_relation_confidence
 
-# Export UMLS functions
-export create_umls_client, search_concepts, get_concept_details, link_entity
-export fallback_entity_recognition, fallback_relation_matching
-export get_entity_cui, get_entity_semantic_types, link_entities_batch
-
 # Export helper LLM functions
 export create_helper_llm_client, discover_entities, match_relations
 export discover_entities_batch, match_relations_batch
 
-# Export PubMed functions
-export create_pubmed_client, search_pubmed, fetch_pubmed_articles, process_pubmed_article
-
-# Export knowledge graph functions
-export build_biomedical_graph, analyze_biomedical_graph, calculate_graph_metrics
-export find_connected_components, filter_by_confidence, filter_by_entity_type
-export export_to_json, get_entity_by_id, get_relations_by_entity
+# Note: Domain-specific exports (UMLS, PubMed, biomedical graph functions) should be
+# exported by domain modules, not here in the core module
 
 # Export MLM functions
 export create_mlm_config, create_mlm_batch, train_mlm_step, evaluate_mlm
@@ -177,75 +168,41 @@ export cosine_similarity, shuffle_data, split_data, batch_data
 # ============================================================================
 
 """
-    extract_knowledge_graph(text::String; options::ProcessingOptions=ProcessingOptions())
+    extract_knowledge_graph(text::String; options::ProcessingOptions=default_processing_options())
 
 Extract a knowledge graph from text using GraphMERT.
 
+This function delegates to the domain-specific extraction logic via the domain provider.
+
 # Arguments
 - `text::String`: Input text to process
-- `options::ProcessingOptions`: Processing options (optional)
+- `options::ProcessingOptions`: Processing options (must include domain field)
 
 # Returns
 - `KnowledgeGraph`: Extracted knowledge graph with entities and relations
 
 # Example
 ```julia
+using GraphMERT
+
+# Set domain in options
+options = ProcessingOptions(domain="biomedical")
 text = "Alzheimer's disease is a neurodegenerative disorder."
-graph = extract_knowledge_graph(text)
+graph = extract_knowledge_graph(text; options=options)
 println("Found \$(length(graph.entities)) entities and \$(length(graph.relations)) relations")
 ```
 """
 function extract_knowledge_graph(
   text::String;
-  options::ProcessingOptions=ProcessingOptions(),
+  options::ProcessingOptions=default_processing_options(),
 )
-  # Preprocess text
-  processed_text = preprocess_text_for_graphmert(text; max_length=options.max_length)
-
-  # Extract entities using fallback method
-  entities = fallback_entity_recognition(processed_text)
-
-  # Convert to KnowledgeEntity objects
-  knowledge_entities = Vector{KnowledgeEntity}()
-  for (i, entity_text) in enumerate(entities)
-    entity = KnowledgeEntity(
-      "entity_$i",
-      entity_text,
-      "UNKNOWN",
-      0.5,
-      TextPosition(1, length(entity_text), 1, 1),
-      Dict{String,Any}(),
-      Dates.now(),
-    )
-    push!(knowledge_entities, entity)
-  end
-
-  # Extract relations using fallback method
-  relations = fallback_relation_matching(entities, processed_text)
-
-  # Convert to KnowledgeRelation objects
-  knowledge_relations = Vector{KnowledgeRelation}()
-  for (key, rel_data) in relations
-    relation = KnowledgeRelation(
-      rel_data["entity1"],
-      rel_data["entity2"],
-      rel_data["relation"],
-      0.5,
-      Dict{String,Any}("context" => processed_text),
-      Dates.now(),
-    )
-    push!(knowledge_relations, relation)
-  end
-
-  # Create knowledge graph
-  metadata = Dict{String,Any}(
-    "total_entities" => length(knowledge_entities),
-    "total_relations" => length(knowledge_relations),
-    "confidence_threshold" => options.confidence_threshold,
-    "processing_time" => Dates.now(),
-  )
-
-  return KnowledgeGraph(knowledge_entities, knowledge_relations, metadata)
+  # Delegate to the domain-specific extraction API
+  # This function is kept here for backward compatibility but delegates to api/extraction.jl
+  # Create a dummy model for now (in real usage, this would be provided)
+  model = create_graphmert_model(GraphMERTConfig())
+  
+  # Use the domain-aware extraction function from api/extraction.jl
+  return extract_knowledge_graph(text, model; options=options)
 end
 
 """
@@ -308,26 +265,82 @@ end
 # ============================================================================
 
 """
-    fallback_entity_recognition(text::String)
+    fallback_entity_recognition(text::String, domain::DomainProvider=nothing)
 
 Fallback entity recognition using simple pattern matching when ML models are not available.
+If domain is provided, uses domain provider's extract_entities method.
+
+# Deprecated: Use domain provider's extract_entities method instead
 """
-function fallback_entity_recognition(text::String)
-    # Use the same biomedical term extraction as before
-    biomedical_terms = extract_biomedical_terms(text)
-
-    # Extract just the term text from the tuples
-    entities = [term for (term, position) in biomedical_terms]
-
+function fallback_entity_recognition(text::String, domain::Union{Any, Nothing}=nothing)
+    if domain !== nothing
+        # Use domain provider's extract_entities method
+        options = ProcessingOptions(domain=get_domain_name(domain))
+        entities = extract_entities(domain, text, options)
+        return [e.text for e in entities]
+    end
+    
+    # Basic fallback: simple noun phrase extraction
+    # Split by whitespace and capitalize potential entities
+    words = split(text)
+    entities = String[]
+    
+    # Simple heuristic: capitalize potential proper nouns and noun phrases
+    for (i, word) in enumerate(words)
+        # Skip very short words
+        if length(word) > 3 && isuppercase(word[1])
+            push!(entities, word)
+        end
+    end
+    
     return entities
 end
 
 """
-    fallback_relation_matching(entities::Vector{String}, text::String)
+    fallback_relation_matching(entities::Vector{String}, text::String, domain::DomainProvider=nothing)
 
 Fallback relation matching using simple co-occurrence and pattern matching.
+If domain is provided, uses domain provider's extract_relations method.
+
+# Deprecated: Use domain provider's extract_relations method instead
 """
-function fallback_relation_matching(entities::Vector{String}, text::String)
+function fallback_relation_matching(entities::Vector{String}, text::String, domain::Union{Any, Nothing}=nothing)
+    if domain !== nothing
+        # Use domain provider's extract_relations method
+        # Convert entities to Entity objects
+        entity_objects = Vector{Entity}()
+        for (i, entity_text) in enumerate(entities)
+            push!(entity_objects, Entity(
+                "entity_$i",
+                entity_text,
+                entity_text,
+                "UNKNOWN",
+                get_domain_name(domain),
+                Dict{String,Any}(),
+                TextPosition(1, length(entity_text), 1, 1),
+                0.5,
+                text
+            ))
+        end
+        
+        options = ProcessingOptions(domain=get_domain_name(domain))
+        relations = extract_relations(domain, entity_objects, text, options)
+        
+        # Convert to Dict format for backward compatibility
+        result = Dict{String, Dict{String, Any}}()
+        for rel in relations
+            key = "$(rel.head)_$(rel.relation_type)_$(rel.tail)"
+            result[key] = Dict(
+                "entity1" => rel.head,
+                "entity2" => rel.tail,
+                "relation" => rel.relation_type,
+                "confidence" => rel.confidence,
+            )
+        end
+        return result
+    end
+    
+    # Basic fallback: simple co-occurrence based relations
     relations = Dict{String, Dict{String, Any}}()
 
     # Simple co-occurrence based relations
@@ -348,14 +361,16 @@ function fallback_relation_matching(entities::Vector{String}, text::String)
                     # Determine relation type based on simple heuristics
                     relation_type = "ASSOCIATED_WITH"
 
-                    # Check for specific patterns
+                    # Check for generic patterns (not domain-specific)
                     text_lower = lowercase(text)
-                    if occursin("treat", text_lower) && (occursin(lowercase(entity1), text_lower) && occursin(lowercase(entity2), text_lower))
+                    if occursin("treat", text_lower) || occursin("treats", text_lower)
                         relation_type = "TREATS"
-                    elseif occursin("cause", text_lower) || occursin("caus", text_lower)
+                    elseif occursin("cause", text_lower) || occursin("causes", text_lower)
                         relation_type = "CAUSES"
-                    elseif occursin("prevent", text_lower)
+                    elseif occursin("prevent", text_lower) || occursin("prevents", text_lower)
                         relation_type = "PREVENTS"
+                    elseif occursin("related", text_lower) || occursin("related to", text_lower)
+                        relation_type = "RELATED_TO"
                     end
 
                     key = "$(entity1)_$(relation_type)_$(entity2)"

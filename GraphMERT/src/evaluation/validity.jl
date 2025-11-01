@@ -38,7 +38,7 @@ end
 """
     evaluate_validity(kg::KnowledgeGraph;
                      llm_client::Union{HelperLLMClient, Nothing}=nothing,
-                     umls_client::Union{UMLSClient, Nothing}=nothing,
+                     umls_client::Union{Any, Nothing}=nothing,  # UMLSClient type will be available when biomedical domain is loaded
                      confidence_threshold::Float64=0.5)
 
 Calculate ValidityScore for a knowledge graph.
@@ -49,7 +49,7 @@ by checking alignment with established biomedical knowledge.
 # Arguments
 - `kg::KnowledgeGraph`: Knowledge graph to evaluate
 - `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client for validation
-- `umls_client::Union{UMLSClient, Nothing}`: Optional UMLS client for ontology checking
+- `umls_client::Union{Any, Nothing}`: Optional knowledge base client (UMLS for biomedical domain)
 - `confidence_threshold::Float64`: Minimum confidence for triple inclusion
 
 # Returns
@@ -63,7 +63,7 @@ where "yes" indicates ontological validity of the triple.
 function evaluate_validity(
     kg::GraphMERT.KnowledgeGraph;
     llm_client::Union{HelperLLMClient,Nothing} = nothing,
-    umls_client::Union{UMLSClient,Nothing} = nothing,
+    umls_client::Union{Any,Nothing} = nothing,  # UMLSClient type will be available when biomedical domain is loaded
     confidence_threshold::Float64 = 0.5,
 )
     @info "Starting ValidityScore evaluation for $(length(kg.entities)) entities and $(length(kg.relations)) relations"
@@ -121,7 +121,7 @@ end
     evaluate_triple_validity(head_entity::Entity, relation::Relation,
     tail_entity::Entity,
                             llm_client::Union{HelperLLMClient, Nothing},
-                            umls_client::Union{UMLSClient, Nothing})
+                            umls_client::Union{Any, Nothing})  # UMLSClient type will be available when biomedical domain is loaded
 
 Evaluate the ontological validity of a triple.
 
@@ -130,7 +130,7 @@ Evaluate the ontological validity of a triple.
 - `relation::Relation`: Relation
 - `tail_entity::Entity`: Tail entity
 - `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client
-- `umls_client::Union{UMLSClient, Nothing}`: Optional UMLS client
+- `umls_client::Union{Any, Nothing}`: Optional knowledge base client (UMLS for biomedical domain)
 
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
@@ -140,7 +140,7 @@ function evaluate_triple_validity(
     relation::Relation,
     tail_entity::Entity,
     llm_client::Union{HelperLLMClient,Nothing},
-    umls_client::Union{UMLSClient,Nothing},
+    umls_client::Union{Any,Nothing},  # UMLSClient type will be available when biomedical domain is loaded
 )
     # Try LLM-based evaluation first if available
     if llm_client !== nothing
@@ -219,8 +219,8 @@ function evaluate_triple_with_llm(
 end
 
 """
-    evaluate_triple_with_umls(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                             tail_entity::BiomedicalEntity, umls_client::UMLSClient)
+    evaluate_triple_with_umls(head_entity::Entity, relation::Relation,
+                             tail_entity::Entity, umls_client::Any)  # UMLSClient type will be available when biomedical domain is loaded
 
 Evaluate triple validity using UMLS ontology.
 
@@ -228,7 +228,7 @@ Evaluate triple validity using UMLS ontology.
 - `head_entity::Entity`: Head entity
 - `relation::Relation`: Relation
 - `tail_entity::Entity`: Tail entity
-- `umls_client::UMLSClient`: UMLS client
+- `umls_client::Any`: Knowledge base client (UMLS for biomedical domain)
 
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
@@ -237,7 +237,7 @@ function evaluate_triple_with_umls(
     head_entity::Entity,
     relation::Relation,
     tail_entity::Entity,
-    umls_client::UMLSClient,
+    umls_client::Any,  # UMLSClient type will be available when biomedical domain is loaded
 )
     # Check if entities are linked to UMLS
     head_cui = get(head_entity.attributes, "cui", nothing)
@@ -301,8 +301,8 @@ function check_ontological_compatibility(
 end
 
 """
-    evaluate_triple_heuristic_validity(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                                      tail_entity::BiomedicalEntity)
+    evaluate_triple_heuristic_validity(head_entity::Entity, relation::Relation,
+                                      tail_entity::Entity)
 
 Simple heuristic evaluation of triple validity.
 
@@ -563,7 +563,7 @@ end
 """
     evaluate_validity_with_statistics(kg::KnowledgeGraph;
                                    llm_client::Union{HelperLLMClient, Nothing}=nothing,
-                                   umls_client::Union{UMLSClient, Nothing}=nothing,
+                                   umls_client::Union{Any, Nothing}=nothing,  # UMLSClient type will be available when biomedical domain is loaded
                                    confidence_threshold::Float64=0.5,
                                    alpha::Float64=0.05) -> Tuple{ValidityScoreResult, StatisticalSignificanceResult}
 
@@ -572,7 +572,7 @@ Evaluate validity with statistical significance testing.
 # Arguments
 - `kg::KnowledgeGraph`: Knowledge graph to evaluate
 - `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client for validation
-- `umls_client::Union{UMLSClient, Nothing}`: Optional UMLS client for ontology checking
+- `umls_client::Union{Any, Nothing}`: Optional knowledge base client (UMLS for biomedical domain)
 - `confidence_threshold::Float64`: Minimum confidence threshold for triples
 - `alpha::Float64`: Significance level for statistical testing
 
