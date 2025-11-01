@@ -84,6 +84,9 @@ end
 # 4. Evaluate GraphRAG
 println("\n4. Evaluating GraphRAG...")
 try
+    if kg === nothing
+        error("Knowledge graph not available")
+    end
     # Sample questions for GraphRAG evaluation
     questions = [
         "What treats diabetes?",
@@ -118,7 +121,8 @@ println("  Note: Full validation requires complete evaluation pipeline")
 
 # 6. Statistical analysis
 println("\n6. Statistical analysis:")
-if factscore_result !== nothing && factscore_result.num_total > 0
+try
+    if factscore_result !== nothing && factscore_result.num_total > 0
     # Compare with paper target
     paper_target = 0.698
     observed_score = factscore_result.overall_score
