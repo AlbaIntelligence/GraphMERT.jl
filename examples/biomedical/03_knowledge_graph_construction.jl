@@ -1,265 +1,230 @@
 """
-Example 3: Knowledge Graph Construction
-=======================================
+Example 3: Knowledge Graph Construction - Domain System Version
+===============================================================
 
 This example demonstrates the construction of a biomedical knowledge graph
-using the entities and relations extracted in previous examples, following
+using the entities and relations extracted with the domain system, following
 the progression of the original GraphMERT paper.
 
 Based on: GraphMERT paper - Section 3.3 Knowledge Graph Construction
 """
 
-using Pkg
-Pkg.activate(; temp = true)
-Pkg.add(["Revise", "Logging", "Dates", "HTTP", "JSON"])
-using Revise
-using Dates, HTTP, JSON, Logging
-
-Pkg.develop(path = "./GraphMERT")
 using GraphMERT
+using Statistics: mean
 
-# Configure logging
-global_logger(ConsoleLogger(stderr, Logging.Info))
+println("="^60)
+println("GraphMERT Example 3: Knowledge Graph Construction (Domain System)")
+println("="^60)
 
-function main()
-    println("="^60)
-    println("GraphMERT Example 3: Knowledge Graph Construction")
-    println("="^60)
+# Load and register the biomedical domain
+println("\n1. Loading biomedical domain...")
+include("../../GraphMERT/src/domains/biomedical.jl")
 
-    # Sample biomedical texts for knowledge graph construction
-    texts = [
-        """
-        Alzheimer's disease is a neurodegenerative disorder characterized by
-        progressive cognitive decline and memory loss. The disease is associated
-        with the accumulation of beta-amyloid plaques and tau protein tangles
-        in the brain.
-        """,
-        """
-        Donepezil is a cholinesterase inhibitor that treats Alzheimer's disease
-        by preventing the breakdown of acetylcholine in the brain. The drug
-        binds to acetylcholinesterase enzyme and inhibits its activity.
-        """,
-        """
-        Memantine is an NMDA receptor antagonist used to treat moderate to
-        severe Alzheimer's disease. It works by blocking excessive glutamate
-        activity in the brain, which can damage nerve cells.
-        """,
-        """
-        Acetylcholine is a neurotransmitter that plays a crucial role in
-        memory and learning. It is synthesized by choline acetyltransferase
-        and broken down by acetylcholinesterase.
-        """,
-    ]
+bio_domain = load_biomedical_domain()
+register_domain!("biomedical", bio_domain)
+set_default_domain("biomedical")
 
-    println("\n📄 Processing $(length(texts)) biomedical texts...")
+println("   ✅ Biomedical domain loaded and registered\n")
 
-    # Initialize clients
-    umls_client = nothing
-    llm_client = nothing
+# Sample biomedical texts for knowledge graph construction
+texts = [
+    """
+    Alzheimer's disease is a neurodegenerative disorder characterized by
+    progressive cognitive decline and memory loss. The disease is associated
+    with the accumulation of beta-amyloid plaques and tau protein tangles
+    in the brain.
+    """,
+    """
+    Donepezil is a cholinesterase inhibitor that treats Alzheimer's disease
+    by preventing the breakdown of acetylcholine in the brain. The drug
+    binds to acetylcholinesterase enzyme and inhibits its activity.
+    """,
+    """
+    Memantine is an NMDA receptor antagonist used to treat moderate to
+    severe Alzheimer's disease. It works by blocking excessive glutamate
+    activity in the brain, which can damage nerve cells.
+    """,
+    """
+    Acetylcholine is a neurotransmitter that plays a crucial role in
+    memory and learning. It is synthesized by choline acetyltransferase
+    and broken down by acetylcholinesterase.
+    """,
+]
 
-    try
-        # In a real scenario, you would provide your API keys
-        # umls_client = create_umls_client("your-umls-api-key")
-        # llm_client = create_helper_llm_client("your-llm-api-key")
-        println("\n⚠️  External clients not configured - using fallback methods")
-    catch e
-        println("\n⚠️  Client initialization failed: $e")
+println("📄 Processing $(length(texts)) biomedical texts...\n")
+
+# Step 1: Extract entities from all texts using domain system
+println("🔍 Step 1: Extracting entities from all texts...")
+all_entities = Vector{GraphMERT.Entity}()
+options = ProcessingOptions(domain="biomedical")
+
+for (i, text) in enumerate(texts)
+    println("  Processing text $i/$(length(texts))...")
+    entities = extract_entities(bio_domain, text, options)
+    append!(all_entities, entities)
+end
+
+println("  Total entities extracted: $(length(all_entities))")
+
+# Remove duplicates and merge entities
+println("\n🔄 Step 2: Merging and deduplicating entities...")
+entity_map = Dict{String, GraphMERT.Entity}()
+
+for entity in all_entities
+    normalized_text = lowercase(strip(entity.text))
+    if !haskey(entity_map, normalized_text) || entity.confidence > entity_map[normalized_text].confidence
+        entity_map[normalized_text] = entity
     end
+end
 
-    # Step 1: Extract entities from all texts
-    println("\n🔍 Step 1: Extracting entities from all texts...")
-    all_entities = Vector{Tuple{String, BiomedicalEntityType, Float64}}()
+unique_entities = collect(values(entity_map))
+println("  Original entities: $(length(all_entities))")
+println("  Unique entities: $(length(unique_entities))")
 
-    for (i, text) in enumerate(texts)
-        println("  Processing text $i/$(length(texts))...")
-        entities = extract_entities_from_text(text; entity_types = get_supported_entity_types())
-        append!(all_entities, entities)
+# Step 3: Extract relations using domain system
+println("\n🔗 Step 3: Extracting relations...")
+all_relations = Vector{GraphMERT.Relation}()
+
+for (i, text) in enumerate(texts)
+    println("  Processing text $i/$(length(texts))...")
+    
+    # Extract entities from this text
+    text_entities = extract_entities(bio_domain, text, options)
+    
+    # Extract relations between entities in this text
+    if !isempty(text_entities)
+        relations = extract_relations(bio_domain, text_entities, text, options)
+        append!(all_relations, relations)
     end
+end
 
-    # Remove duplicates and merge entities
-    println("\n🔄 Step 2: Merging and deduplicating entities...")
-    unique_entities = merge_entities(all_entities)
-    println("  Original entities: $(length(all_entities))")
-    println("  Unique entities: $(length(unique_entities))")
+println("  Found $(length(all_relations)) relations")
 
-    # Step 3: Extract relations
-    println("\n🔗 Step 3: Extracting relations...")
-    all_relations = Vector{Dict{String, Any}}()
+# Step 4: Create knowledge graph
+println("\n🕸️  Step 4: Creating knowledge graph...")
 
-    for (i, text) in enumerate(texts)
-        println("  Processing text $i/$(length(texts))...")
+# Create entity ID mapping for relations
+entity_id_map = Dict{String, String}()
+for entity in unique_entities
+    entity_id_map[entity.text] = entity.id
+end
 
-        # Find entities in this text
-        text_entities = extract_entities_from_text(text; entity_types = get_supported_entity_types())
-
-        # Extract relations between entities in this text
-        for j in 1:length(text_entities)
-            for k in (j+1):length(text_entities)
-                head_entity = text_entities[j][1]
-                tail_entity = text_entities[k][1]
-
-                # Classify relation
-                relation_type = classify_relation(head_entity, tail_entity, text; umls_client = umls_client)
-
-                if relation_type != UNKNOWN_RELATION
-                    confidence = calculate_relation_confidence(head_entity, tail_entity, relation_type, text)
-
-                    if validate_biomedical_relation(head_entity, tail_entity, relation_type)
-                        push!(all_relations, Dict(
-                            "head_entity" => head_entity,
-                            "tail_entity" => tail_entity,
-                            "relation_type" => get_relation_type_name(relation_type),
-                            "confidence" => confidence,
-                            "context" => text,
-                        ))
-                    end
-                end
-            end
-        end
-    end
-
-    println("  Found $(length(all_relations)) relations")
-
-    # Step 4: Create knowledge graph
-    println("\n🕸️  Step 4: Creating knowledge graph...")
-
-    # Convert entities to BiomedicalEntity objects
-    biomedical_entities = Vector{BiomedicalEntity}()
-    for (i, (text, entity_type, confidence)) in enumerate(unique_entities)
-        entity = BiomedicalEntity(
-            "entity_$i",
-            text,
-            get_entity_type_name(entity_type),
-            confidence,
-            TextPosition(1, length(text), 1, 1),
-            Dict{String, Any}(),
-            Dates.now(),
+# Filter relations to only include those with valid entity IDs
+valid_relations = Vector{GraphMERT.Relation}()
+for relation in all_relations
+    if haskey(entity_id_map, relation.head) && haskey(entity_id_map, relation.tail)
+        # Update relation to use entity IDs
+        updated_relation = GraphMERT.Relation(
+            entity_id_map[relation.head],
+            entity_id_map[relation.tail],
+            relation.relation_type,
+            relation.confidence,
+            relation.attributes,
+            relation.created_at,
         )
-        push!(biomedical_entities, entity)
+        push!(valid_relations, updated_relation)
     end
-
-    # Convert relations to BiomedicalRelation objects
-    biomedical_relations = Vector{BiomedicalRelation}()
-    for (i, relation) in enumerate(all_relations)
-        # Find entity IDs
-        head_id = find_entity_id(biomedical_entities, relation["head_entity"])
-        tail_id = find_entity_id(biomedical_entities, relation["tail_entity"])
-
-        if head_id !== nothing && tail_id !== nothing
-            rel = BiomedicalRelation(
-                head = head_id,
-                tail = tail_id,
-                relation_type = relation["relation_type"],
-                confidence = relation["confidence"],
-                attributes = Dict{String, Any}("context" => relation["context"]),
-                created_at = now(),
-            )
-            push!(biomedical_relations, rel)
-        end
-    end
-
-    # Build the knowledge graph
-    kg = build_biomedical_graph(biomedical_entities, biomedical_relations; umls_client = umls_client)
-
-    println("  Knowledge graph created successfully!")
-
-    # Step 5: Analyze the knowledge graph
-    println("\n📊 Step 5: Analyzing knowledge graph...")
-
-    # Basic statistics
-    stats = analyze_biomedical_graph(kg)
-
-    println("\n📈 Knowledge Graph Statistics:")
-    println("  Total entities: $(stats["total_entities"])")
-    println("  Total relations: $(stats["total_relations"])")
-    println("  UMLS mapped entities: $(stats["umls_mapped_entities"])")
-    println("  UMLS coverage: $(round(stats["umls_coverage"] * 100, digits=1))%")
-
-    # Entity type distribution
-    println("\n🏷️  Entity Type Distribution:")
-    for (type_name, count) in sort(collect(stats["entity_types"]), by = x->x[2], rev = true)
-        println("  $type_name: $count")
-    end
-
-    # Relation type distribution
-    println("\n🔗 Relation Type Distribution:")
-    for (rel_type, count) in sort(collect(stats["relation_types"]), by = x->x[2], rev = true)
-        println("  $rel_type: $count")
-    end
-
-    # Confidence statistics
-    println("\n📊 Confidence Statistics:")
-    println("  Average entity confidence: $(round(stats["avg_entity_confidence"], digits=3))")
-    println("  Average relation confidence: $(round(stats["avg_relation_confidence"], digits=3))")
-    println("  Min entity confidence: $(round(stats["min_entity_confidence"], digits=3))")
-    println("  Max entity confidence: $(round(stats["max_entity_confidence"], digits=3))")
-
-    # Graph metrics
-    println("\n📐 Graph Metrics:")
-    metrics = calculate_graph_metrics(kg)
-    println("  Density: $(round(metrics["density"], digits=3))")
-    println("  Average out-degree: $(round(metrics["avg_out_degree"], digits=2))")
-    println("  Average in-degree: $(round(metrics["avg_in_degree"], digits=2))")
-    println("  Max out-degree: $(metrics["max_out_degree"])")
-    println("  Max in-degree: $(metrics["max_in_degree"])")
-
-    # Connected components
-    println("\n🔗 Connected Components:")
-    components = find_connected_components(kg)
-    println("  Number of components: $(length(components))")
-    println("  Largest component size: $(maximum(length.(components)))")
-
-    # Step 6: Export knowledge graph
-    println("\n💾 Step 6: Exporting knowledge graph...")
-
-    # Export to JSON
-    json_data = export_to_json(kg)
-    println("  Knowledge graph exported to JSON format")
-    println("  JSON size: $(length(JSON.json(json_data))) characters")
-    println("  JSON Data: $(JSON.json(json_data)) characters")
-
-    # Show sample of exported data
-    println("\n📄 Sample Exported Data:")
-    println("  Entities: $(length(json_data["entities"]))")
-    println("  Relations: $(length(json_data["relations"]))")
-    println("  UMLS mappings: $(length(json_data["umls_mappings"]))")
-
-    println("\n" * "="^60)
-    println("✅ Example 3 completed successfully!")
-    println("Next: Run 04_training_pipeline.jl")
-    println("="^60)
 end
 
-# Helper function to merge entities
-function merge_entities(entities::Vector{Tuple{String, BiomedicalEntityType, Float64}})
-    entity_map = Dict{String, Tuple{String, BiomedicalEntityType, Float64}}()
+# Build the knowledge graph
+kg = KnowledgeGraph(
+    unique_entities,
+    valid_relations,
+    Dict(
+        "source" => "knowledge_graph_construction_demo",
+        "domain" => "biomedical",
+        "num_texts" => length(texts),
+        "extraction_time" => string(now()),
+    ),
+)
 
-    for (text, entity_type, confidence) in entities
-        normalized_text = normalize_entity_text(text)
+println("  Knowledge graph created successfully!")
+println("  • Entities: $(length(kg.entities))")
+println("  • Relations: $(length(kg.relations))")
 
-        if haskey(entity_map, normalized_text)
-            # Update confidence if higher
-            existing_confidence = entity_map[normalized_text][3]
-            if confidence > existing_confidence
-                entity_map[normalized_text] = (text, entity_type, confidence)
-            end
-        else
-            entity_map[normalized_text] = (text, entity_type, confidence)
-        end
-    end
+# Step 5: Analyze the knowledge graph
+println("\n📊 Step 5: Analyzing knowledge graph...")
 
-    return collect(values(entity_map))
+# Basic statistics
+println("\n📈 Knowledge Graph Statistics:")
+println("  Total entities: $(length(kg.entities))")
+println("  Total relations: $(length(kg.relations))")
+
+# Entity type distribution
+entity_type_counts = Dict{String, Int}()
+for entity in kg.entities
+    entity_type = get(entity.attributes, "entity_type", entity.entity_type)
+    entity_type_counts[entity_type] = get(entity_type_counts, entity_type, 0) + 1
 end
 
-# Helper function to find entity ID
-function find_entity_id(entities::Vector{BiomedicalEntity}, text::String)
-    for entity in entities
-        if entity.text == text
-            return entity.id
-        end
-    end
-    return nothing
+println("\n🏷️  Entity Type Distribution:")
+for (type_name, count) in sort(collect(entity_type_counts), by = x->x[2], rev = true)
+    println("  $type_name: $count")
 end
 
-# Run the example
-main()
+# Relation type distribution
+relation_type_counts = Dict{String, Int}()
+for relation in kg.relations
+    relation_type_counts[relation.relation_type] = get(relation_type_counts, relation.relation_type, 0) + 1
+end
+
+println("\n🔗 Relation Type Distribution:")
+for (rel_type, count) in sort(collect(relation_type_counts), by = x->x[2], rev = true)
+    println("  $rel_type: $count")
+end
+
+# Confidence statistics
+if !isempty(kg.entities)
+    entity_confidences = [e.confidence for e in kg.entities]
+    println("\n📊 Entity Confidence Statistics:")
+    println("  Average: $(round(mean(entity_confidences), digits=3))")
+    println("  Min: $(round(minimum(entity_confidences), digits=3))")
+    println("  Max: $(round(maximum(entity_confidences), digits=3))")
+end
+
+if !isempty(kg.relations)
+    relation_confidences = [r.confidence for r in kg.relations]
+    println("\n📊 Relation Confidence Statistics:")
+    println("  Average: $(round(mean(relation_confidences), digits=3))")
+    println("  Min: $(round(minimum(relation_confidences), digits=3))")
+    println("  Max: $(round(maximum(relation_confidences), digits=3))")
+end
+
+# Show sample entities and relations
+println("\n📋 Sample Entities:")
+for (i, entity) in enumerate(kg.entities[1:min(5, length(kg.entities))])
+    println("  $i. $(entity.text) ($(entity.entity_type), conf: $(round(entity.confidence, digits=3)))")
+end
+
+println("\n📋 Sample Relations:")
+for (i, relation) in enumerate(kg.relations[1:min(5, length(kg.relations))])
+    # Find entity texts
+    head_text = ""
+    tail_text = ""
+    for entity in kg.entities
+        if entity.id == relation.head
+            head_text = entity.text
+        elseif entity.id == relation.tail
+            tail_text = entity.text
+        end
+    end
+    if !isempty(head_text) && !isempty(tail_text)
+        println("  $i. $head_text --[$(relation.relation_type)]--> $tail_text (conf: $(round(relation.confidence, digits=3)))")
+    end
+end
+
+# Step 6: Domain-specific metrics
+println("\n📊 Step 6: Domain-specific evaluation metrics...")
+try
+    domain_metrics = create_evaluation_metrics(bio_domain, kg)
+    println("  UMLS linking coverage: $(round(get(domain_metrics, "umls_linking_coverage", 0.0) * 100, digits=1))%")
+    println("  Average entity confidence: $(round(get(domain_metrics, "average_entity_confidence", 0.0), digits=3))")
+    println("  Average relation confidence: $(round(get(domain_metrics, "average_relation_confidence", 0.0), digits=3))")
+catch e
+    println("  ⚠️  Domain metrics not available: $e")
+end
+
+println("\n" * "="^60)
+println("✅ Example 3 completed successfully!")
+println("Next: Run 04_seed_injection_demo.jl or other examples")
+println("="^60)
