@@ -41,6 +41,7 @@ function get_default_config()
       "cache_enabled" => true,
       "parallel_processing" => false,
       "verbose" => false,
+      "domain" => "biomedical",  # Default domain for backward compatibility
     ),
     "api" => Dict{String,Any}(
       "umls" => Dict{String,Any}(
@@ -169,6 +170,13 @@ function validate_config(config::Dict{String,Any})
     )
       push!(errors, "confidence_threshold must be between 0.0 and 1.0")
     end
+    
+    if haskey(processing_config, "domain") && !isempty(processing_config["domain"])
+      # Domain is valid if non-empty string
+      # Actual domain validation happens when domain is registered
+    elseif !haskey(processing_config, "domain")
+      # Domain defaults to "biomedical" if not specified
+    end
   end
 
   # Validate API configuration
@@ -277,14 +285,16 @@ end
 """
     default_processing_options(;
         batch_size::Int=32,
-        max_length::Int=1024,
-        device::Symbol=:cpu,
-        use_amp::Bool=false,
-        num_workers::Int=1,
-        seed::Union{Int, Nothing}=nothing,
-        top_k_predictions::Int=20,
-        similarity_threshold::Float64=0.8,
-        enable_provenance_tracking::Bool=true
+        max_length::Int=512,
+        use_umls::Bool=true,
+        use_helper_llm::Bool=true,
+        confidence_threshold::Float64=0.5,
+        entity_types::Vector{String}=String[],
+        relation_types::Vector{String}=String[],
+        cache_enabled::Bool=true,
+        parallel_processing::Bool=false,
+        verbose::Bool=false,
+        domain::String="biomedical",  # Default domain for backward compatibility
     )::ProcessingOptions
 
 Create default processing options for GraphMERT.
@@ -292,24 +302,28 @@ Create default processing options for GraphMERT.
 """
 function default_processing_options(;
   batch_size::Int=32,
-  max_length::Int=1024,
-  device::Symbol=:cpu,
-  use_amp::Bool=false,
-  num_workers::Int=1,
-  seed::Union{Int,Nothing}=nothing,
-  top_k_predictions::Int=20,
-  similarity_threshold::Float64=0.8,
-  enable_provenance_tracking::Bool=true,
+  max_length::Int=512,
+  use_umls::Bool=true,
+  use_helper_llm::Bool=true,
+  confidence_threshold::Float64=0.5,
+  entity_types::Vector{String}=String[],
+  relation_types::Vector{String}=String[],
+  cache_enabled::Bool=true,
+  parallel_processing::Bool=false,
+  verbose::Bool=false,
+  domain::String="biomedical",  # Default domain for backward compatibility
 )
   return GraphMERT.ProcessingOptions(
-    batch_size,
-    max_length,
-    device,
-    use_amp,
-    num_workers,
-    seed,
-    top_k_predictions,
-    similarity_threshold,
-    enable_provenance_tracking,
+    max_length=max_length,
+    batch_size=batch_size,
+    use_umls=use_umls,
+    use_helper_llm=use_helper_llm,
+    confidence_threshold=confidence_threshold,
+    entity_types=entity_types,
+    relation_types=relation_types,
+    cache_enabled=cache_enabled,
+    parallel_processing=parallel_processing,
+    verbose=verbose,
+    domain=domain,
   )
 end
