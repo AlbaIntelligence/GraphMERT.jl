@@ -218,11 +218,14 @@
   - ✅ Updated Examples section to reference domain examples
   - ✅ Updated Overview to mention domain-agnostic architecture
 
-- [ ] **Create domain developer guide**
-  - How to create a new domain
-  - Interface requirements
-  - Best practices
-  - Common patterns
+- [x] **Create domain developer guide**
+  - ✅ Comprehensive step-by-step guide for creating custom domains
+  - ✅ Detailed documentation of all required methods
+  - ✅ Documentation of optional methods (link_entity, create_seed_triples, create_evaluation_metrics, create_prompt)
+  - ✅ Best practices and common patterns
+  - ✅ Testing guidelines and troubleshooting section
+  - ✅ Complete minimal domain example
+  - ✅ References to existing implementations (biomedical, Wikipedia)
 
 - [ ] **Update API documentation**
   - Document domain-related functions
