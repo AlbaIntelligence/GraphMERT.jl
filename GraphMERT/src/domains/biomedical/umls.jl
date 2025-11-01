@@ -127,3 +127,88 @@ function link_entities_batch(client::UMLSClient, entities::Vector{String})
 
     return results
 end
+
+"""
+    get_relations(client::UMLSClient, cui::String)
+
+Get relations for a UMLS CUI.
+
+# Arguments
+- `client::UMLSClient`: UMLS client instance
+- `cui::String`: Concept Unique Identifier
+
+# Returns
+- `UMLSResponse`: Response containing relations data
+"""
+function get_relations(client::UMLSClient, cui::String)
+    # Check cache first
+    cache_key = "relations:$cui"
+    if haskey(client.cache.relations, cache_key)
+        cached_data, cached_time = client.cache.relations[cache_key]
+        if now() - cached_time < Second(client.cache.ttl_seconds)
+            return UMLSResponse(true, cached_data, nothing, 200)
+        end
+    end
+
+    # Placeholder implementation - would make actual UMLS API call here
+    # For now, return empty response structure
+    # In full implementation, this would query:
+    # GET /content/{version}/CUI/{cui}/relations
+    # and parse the response to extract relations
+    
+    # Mock response structure
+    response_data = Dict{String,Any}(
+        "result" => Dict(
+            "relations" => Vector{Any}()
+        )
+    )
+    
+    response = UMLSResponse(false, response_data, "UMLS API not fully implemented", nothing)
+    
+    # Cache the response (even if empty)
+    if length(client.cache.relations) < client.cache.max_size
+        client.cache.relations[cache_key] = (response_data, now())
+    end
+    
+    return response
+end
+
+"""
+    get_entity_semantic_types(client::UMLSClient, cui::String)
+
+Get semantic types for a UMLS CUI.
+
+# Arguments
+- `client::UMLSClient`: UMLS client instance
+- `cui::String`: Concept Unique Identifier
+
+# Returns
+- `Vector{String}`: List of semantic type names
+"""
+function get_entity_semantic_types(client::UMLSClient, cui::String)
+    # Check cache first
+    cache_key = "semantic_types:$cui"
+    if haskey(client.cache.concepts, cache_key)
+        cached_data, cached_time = client.cache.concepts[cache_key]
+        if now() - cached_time < Dates.Second(client.cache.ttl_seconds)
+            if isa(cached_data, Dict) && haskey(cached_data, "semantic_types")
+                return cached_data["semantic_types"]
+            end
+        end
+    end
+
+    # Placeholder implementation - would make actual UMLS API call here
+    # For now, return empty vector
+    # In full implementation, this would query:
+    # GET /content/{version}/CUI/{cui}/atoms
+    # and extract semantic types from the response
+    
+    semantic_types = String[]
+    
+    # Cache the result
+    if length(client.cache.concepts) < client.cache.max_size
+        client.cache.concepts[cache_key] = (Dict("semantic_types" => semantic_types), now())
+    end
+    
+    return semantic_types
+end

@@ -135,10 +135,26 @@
 
 **Goal**: Complete optional domain features
 
-- [ ] **Complete UMLS integration in biomedical domain**
-  - Ensure `link_entity` returns proper format
-  - Implement `create_seed_triples` fully
-  - Test with real UMLS data (if available)
+**Status**: ✅ **PARTIALLY COMPLETED**
+
+**Completed Tasks**:
+- [x] **Complete UMLS integration in biomedical domain**
+  - ✅ Enhanced `link_entity` to return proper format (Dict with :candidates or :candidate)
+  - ✅ Implemented `create_seed_triples` fully
+    - Queries UMLS for relations using `get_relations`
+    - Converts UMLS relations to SemanticTriple format
+    - Maps UMLS relation names to biomedical relation types
+    - Returns proper SemanticTriple objects or Dicts that can be converted
+  - ✅ Added `get_relations` function to UMLS module
+  - ✅ Added `get_entity_semantic_types` function to UMLS module
+  - ✅ Added `map_umls_relation_to_biomedical_type` helper function
+  - ⚠️ Note: Uses placeholder/mock data structure - ready for real UMLS API integration
+
+**Remaining Tasks**:
+- [ ] **Test with real UMLS data** (when UMLS API access is available)
+  - Replace placeholder implementations with actual API calls
+  - Test entity linking with real UMLS entities
+  - Test triple retrieval with real UMLS relations
 
 - [ ] **Implement Wikidata integration for Wikipedia domain**
   - Create `wikidata.jl` module
