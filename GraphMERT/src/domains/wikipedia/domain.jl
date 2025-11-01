@@ -16,7 +16,7 @@ using Logging
 include("entities.jl")
 include("relations.jl")
 include("prompts.jl")
-# include("wikidata.jl")  # Optional - can be added later
+include("wikidata.jl")  # Wikidata integration
 
 """
     WikipediaDomain
@@ -172,14 +172,54 @@ end
     link_entity(domain::WikipediaDomain, entity_text::String, config::Any)
 
 Link entity to Wikidata using Wikipedia domain's Wikidata integration (if available).
+
+# Arguments
+- `domain::WikipediaDomain`: Domain provider instance
+- `entity_text::String`: Entity text to link
+- `config::Any`: Configuration
+
+# Returns
+- `Union{Dict, Nothing}`: Dict with :candidates or :candidate key, or nothing if not found
 """
 function link_entity(domain::WikipediaDomain, entity_text::String, config::Any)
     if domain.wikidata_client === nothing
         return nothing
     end
     
-    # Delegate to Wikidata linking (to be implemented)
-    # return link_entity_to_wikidata(entity_text, domain.wikidata_client)
+    # Delegate to Wikidata linking
+    linking_result = link_entity_to_wikidata(entity_text, domain.wikidata_client)
+    
+    # Convert to domain interface format
+    if linking_result === nothing || !isa(linking_result, Dict)
+        return nothing
+    end
+    
+    # If linking_result is a Dict with "results" key, convert to EntityLinkingResult format
+    # Otherwise assume it's already in the right format
+    if haskey(linking_result, "results") && isa(linking_result["results"], Vector)
+        candidates = []
+        for result in linking_result["results"]
+            if isa(result, Dict)
+                push!(candidates, Dict(
+                    :kb_id => get(result, :qid, get(result, "qid", "")),
+                    :name => get(result, :label, get(result, "label", entity_text)),
+                    :types => get(result, :types, get(result, "types", String[])),
+                    :score => get(result, :score, get(result, "score", 0.0)),
+                    :source => "Wikidata",
+                ))
+            end
+        end
+        return Dict(:candidates => candidates)
+    end
+    
+    # Return in the format expected by seed_injection.jl
+    # Format: Dict with :candidates or :candidate key
+    if haskey(linking_result, :candidates) && isa(linking_result[:candidates], Vector)
+        return linking_result
+    elseif haskey(linking_result, :candidate) && isa(linking_result[:candidate], Dict)
+        return linking_result
+    end
+    
     return nothing
 end
 
@@ -187,14 +227,135 @@ end
     create_seed_triples(domain::WikipediaDomain, entity_text::String, config::Any)
 
 Create seed KG triples from Wikidata for a Wikipedia entity (if available).
+
+This function queries Wikidata for relations involving the entity and converts them
+to SemanticTriple format for seed injection.
+
+# Arguments
+- `domain::WikipediaDomain`: Domain provider instance
+- `entity_text::String`: Entity text or QID (if entity_text is a QID, it will be used directly)
+- `config::Any`: Configuration (can be SeedInjectionConfig or ProcessingOptions)
+
+# Returns
+- `Vector{Any}`: Vector of SemanticTriple objects or Dicts that can be converted to SemanticTriple
 """
 function create_seed_triples(domain::WikipediaDomain, entity_text::String, config::Any)
     if domain.wikidata_client === nothing
         return Vector{Any}()
     end
     
-    # TODO: Implement Wikidata triple retrieval
-    return Vector{Any}()
+    # Get QID from entity text (or use entity_text directly if it's already a QID)
+    # First try to link the entity to get its QID
+    linking_result = link_entity(domain, entity_text, config)
+    
+    qid = nothing
+    entity_name = entity_text
+    
+    if linking_result !== nothing && isa(linking_result, Dict)
+        if haskey(linking_result, :candidate) && isa(linking_result[:candidate], Dict)
+            qid = get(linking_result[:candidate], :kb_id, nothing)
+            entity_name = get(linking_result[:candidate], :name, entity_text)
+        elseif haskey(linking_result, :candidates) && isa(linking_result[:candidates], Vector) && !isempty(linking_result[:candidates])
+            first_candidate = linking_result[:candidates][1]
+            if isa(first_candidate, Dict)
+                qid = get(first_candidate, :kb_id, nothing)
+                entity_name = get(first_candidate, :name, entity_text)
+            end
+        end
+    end
+    
+    # If we couldn't get a QID, try using entity_text as QID directly (in case it's already a QID)
+    if qid === nothing && startswith(entity_text, "Q") && length(entity_text) > 1 && all(c -> isdigit(c), entity_text[2:end])
+        # Looks like a QID (format: Q123456)
+        qid = entity_text
+    end
+    
+    if qid === nothing
+        return Vector{Any}()
+    end
+    
+    # Query Wikidata for relations
+    relations_response = get_wikidata_relations(qid, domain.wikidata_client)
+    
+    if !relations_response.success || !haskey(relations_response.data, "result")
+        return Vector{Any}()
+    end
+    
+    relations_data = relations_response.data["result"]
+    relations_list = get(relations_data, "relations", Vector{Any}())
+    
+    if isempty(relations_list)
+        return Vector{Any}()
+    end
+    
+    # Convert Wikidata relations to SemanticTriple format
+    triples = Vector{Any}()
+    
+    # Get SemanticTriple type from main module
+    SemanticTripleType = Main.GraphMERT.SemanticTriple
+    
+    for relation in relations_list
+        if !isa(relation, Dict)
+            continue
+        end
+        
+        # Extract relation information
+        property_id = get(relation, "property", "")
+        target_qid = get(relation, "targetQID", "")
+        target_value = get(relation, "targetValue", "")
+        
+        if isempty(property_id) || (isempty(target_qid) && isempty(target_value))
+            continue
+        end
+        
+        # Map Wikidata property to our relation type
+        mapped_relation = map_wikidata_property_to_relation_type(property_id)
+        
+        # Get target entity name
+        if !isempty(target_qid)
+            target_entity_name = get_wikidata_label(target_qid, domain.wikidata_client)
+            if isempty(target_entity_name)
+                target_entity_name = target_qid  # Fallback to QID if label not found
+            end
+        else
+            target_entity_name = target_value
+        end
+        
+        # Create token IDs for tail entity (simplified - would tokenize properly)
+        # For now, create placeholder tokens
+        tail_tokens = [hash(target_entity_name) % 10000]  # Placeholder token IDs
+        
+        # Calculate confidence score (simplified)
+        confidence = 0.7  # Base confidence for Wikidata relations
+        
+        # Create SemanticTriple
+        # Note: head_cui field will contain QID for Wikidata
+        try
+            triple = SemanticTripleType(
+                entity_name,      # head
+                qid,              # head_cui (contains QID for Wikidata)
+                mapped_relation,  # relation
+                target_entity_name,  # tail
+                tail_tokens,      # tail_tokens
+                confidence,        # score
+                "Wikidata",       # source
+            )
+            push!(triples, triple)
+        catch e
+            # If SemanticTriple construction fails, create Dict format instead
+            push!(triples, Dict(
+                :head => entity_name,
+                :head_kb_id => qid,
+                :relation => mapped_relation,
+                :tail => target_entity_name,
+                :tail_tokens => tail_tokens,
+                :score => confidence,
+                :source => "Wikidata",
+            ))
+        end
+    end
+    
+    return triples
 end
 
 """

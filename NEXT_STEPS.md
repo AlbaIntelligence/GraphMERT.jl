@@ -156,10 +156,23 @@
   - Test entity linking with real UMLS entities
   - Test triple retrieval with real UMLS relations
 
-- [ ] **Implement Wikidata integration for Wikipedia domain**
-  - Create `wikidata.jl` module
-  - Implement `link_entity` for Wikidata
-  - Implement `create_seed_triples` for Wikidata
+- [x] **Implement Wikidata integration for Wikipedia domain**
+  - ✅ Created `wikidata.jl` module
+  - ✅ Implemented `link_entity` for Wikidata
+  - ✅ Implemented `create_seed_triples` for Wikidata
+  - ✅ Added `get_wikidata_relations` function
+  - ✅ Added `get_wikidata_item` function
+  - ✅ Added `search_wikidata` function
+  - ✅ Added `get_wikidata_label` function
+  - ✅ Added `map_wikidata_property_to_relation_type` helper function
+  - ✅ Updated Wikipedia domain to include and use wikidata.jl
+  - ✅ Implemented proper format conversion for seed injection
+  - ⚠️ Note: Uses placeholder/mock data structure - ready for real Wikidata API integration
+
+- [ ] **Test with real Wikidata data** (when Wikidata API access is available)
+  - Replace placeholder implementations with actual API calls
+  - Test entity linking with real Wikidata entities
+  - Test triple retrieval with real Wikidata relations
 
 - [ ] **Domain-specific evaluation metrics**
   - Implement `create_evaluation_metrics` for biomedical
