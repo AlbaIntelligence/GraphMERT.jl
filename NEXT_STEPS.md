@@ -131,7 +131,13 @@
   - ✅ Uses `extract_entities` and `extract_relations` from domain provider
   - ✅ Updated relation display to work with Relation objects
   - ✅ Added relation statistics and improved output formatting
-- [ ] Update remaining biomedical examples (`examples/biomedical/03_*.jl` through `14_*.jl`)
+- [x] Update `03_knowledge_graph_construction.jl` to use domain system
+  - ✅ Simplified example to use domain system
+  - ✅ Uses `extract_entities` and `extract_relations` from domain provider
+  - ✅ Creates `KnowledgeGraph` directly with generic Entity/Relation types
+  - ✅ Removed dependency on old BiomedicalEntity/BiomedicalRelation types
+  - ✅ Added domain-specific evaluation metrics demonstration
+- [ ] Update remaining biomedical examples (`examples/biomedical/04_*.jl` through `14_*.jl`)
   - Update to use domain system where applicable
   - Test that they still work
   - Update documentation
