@@ -16,6 +16,15 @@ using GraphMERT
 
 println("=== Diabetes Knowledge Graph Extraction Demo ===")
 
+# Load and register biomedical domain
+println("\n📋 Loading biomedical domain...")
+include("../../GraphMERT/src/domains/biomedical.jl")
+bio_domain = load_biomedical_domain()
+register_domain!("biomedical", bio_domain)
+set_default_domain("biomedical")
+println("   ✅ Biomedical domain loaded and registered")
+println()
+
 # 1. Sample diabetes text from the paper dataset
 text = """
 Diabetes mellitus is a chronic metabolic disorder characterized by
@@ -31,9 +40,23 @@ println()
 # 2. Extract knowledge graph
 println("2. Extracting knowledge graph...")
 try
-  # Extract knowledge graph using simplified approach
-  # In full implementation, this would use a trained GraphMERT model
-  kg = GraphMERT.extract_knowledge_graph(text)
+  # Extract knowledge graph using domain system
+  # Note: In a full implementation, you would need a trained GraphMERT model
+  # For demo purposes, we'll attempt extraction (may fail if model not available)
+  options = ProcessingOptions(domain="biomedical")
+  
+  # Try to extract - if model is not available, this will be caught by error handling
+  # In production, you would load a model first:
+  # model = GraphMERT.load_model("path/to/model")
+  model = nothing  # Placeholder - replace with actual model loading
+  
+  if model === nothing
+    println("⚠️  Model not available - skipping extraction")
+    println("   In production, load a model with: model = GraphMERT.load_model(\"path/to/model\")")
+    return
+  end
+  
+  kg = GraphMERT.extract_knowledge_graph(text, model; options=options)
 
   println("✅ Knowledge graph extracted successfully!")
   println("Found $(length(kg.entities)) entities and $(length(kg.relations)) relations")
@@ -42,9 +65,12 @@ try
   println("\n3. Extracted entities:")
   for (i, entity) in enumerate(kg.entities)
     println("  $i. $(entity.text)")
-    println("     Label: $(entity.label)")
+    println("     Type: $(entity.entity_type)")
     println("     Confidence: $(round(entity.confidence, digits=3))")
     println("     ID: $(entity.id)")
+    if haskey(entity.attributes, "cui")
+      println("     CUI: $(entity.attributes["cui"])")
+    end
     println()
   end
 
@@ -52,12 +78,17 @@ try
   println("4. Extracted relations:")
   if length(kg.relations) > 0
     for (i, relation) in enumerate(kg.relations)
-      head_entity = kg.entities[relation.head_entity_id]
-      tail_entity = kg.entities[relation.tail_entity_id]
-      println("  $i. $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text)")
-      println("     Confidence: $(round(relation.confidence, digits=3))")
-      println("     Evidence: $(relation.evidence)")
-      println()
+      # Find head and tail entities by ID
+      head_entity = findfirst(e -> e.id == relation.head, kg.entities)
+      tail_entity = findfirst(e -> e.id == relation.tail, kg.entities)
+      if head_entity !== nothing && tail_entity !== nothing
+        head_text = kg.entities[head_entity].text
+        tail_text = kg.entities[tail_entity].text
+        println("  $i. $head_text --[$(relation.relation_type)]--> $tail_text")
+        println("     Confidence: $(round(relation.confidence, digits=3))")
+        println("     Evidence: $(relation.evidence)")
+        println()
+      end
     end
   else
     println("  No relations extracted (simplified demo)")
@@ -103,11 +134,13 @@ try
   return kg
 
 catch e
-  println("Demo completed with simplified functionality")
-  println("Error: $e")
-  println("This is expected in demo mode - full implementation requires:")
-  println("• Complete model training")
-  println("• Full extraction pipeline")
-  println("• Proper evaluation metrics")
-  println("• Diabetes dataset integration")
+  println("⚠️  Demo completed with simplified functionality")
+  println("   Error: $e")
+  println("   This is expected in demo mode - full implementation requires:")
+  println("   • Complete model training")
+  println("   • Load model with: model = GraphMERT.load_model(\"path/to/model\")")
+  println("   • Full extraction pipeline")
+  println("   • Proper evaluation metrics")
+  println("   • Diabetes dataset integration")
+  return
 end

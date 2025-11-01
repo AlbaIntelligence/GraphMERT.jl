@@ -23,6 +23,15 @@ using GraphMERT: SeedInjectionConfig, SemanticTriple, EntityLinkingResult,
 function main()
   println("🧬 GraphMERT Seed KG Injection Demo")
   println("="^50)
+  
+  # Load and register biomedical domain
+  println("\n📋 Loading biomedical domain...")
+  include("../../GraphMERT/src/domains/biomedical.jl")
+  bio_domain = load_biomedical_domain()
+  register_domain!("biomedical", bio_domain)
+  set_default_domain("biomedical")
+  println("   ✅ Biomedical domain loaded and registered")
+  println()
 
   # Create configuration
   config = SeedInjectionConfig(
@@ -63,17 +72,17 @@ function main()
 
   # Demonstrate entity linking
   println("🔗 Entity Linking Demo:")
-  demo_entity_linking(config)
+  demo_entity_linking(config, bio_domain)
   println()
 
   # Demonstrate triple selection
   println("🎯 Triple Selection Demo:")
-  demo_triple_selection(config, seed_kg)
+  demo_triple_selection(config, seed_kg, bio_domain)
   println()
 
   # Demonstrate full injection pipeline
   println("💉 Full Injection Pipeline:")
-  injected_sequences = inject_seed_kg(sequences, seed_kg, config)
+  injected_sequences = inject_seed_kg(sequences, seed_kg, config, bio_domain)
 
   for (i, (sequence, injected_triples)) in enumerate(injected_sequences)
     println("  Sequence $i: \"$(sequence)\"")
@@ -186,12 +195,12 @@ function demo_entity_linking(config)
   end
 end
 
-function demo_triple_selection(config, seed_kg)
+function demo_triple_selection(config, seed_kg, domain)
   """Demonstrate triple selection for specific entities."""
   test_cuis = ["C0011849", "C0025598", "C0032961"]  # diabetes, metformin, pregnancy
 
   for cui in test_cuis
-    triples = select_triples_for_entity(cui, config)
+    triples = select_triples_for_entity(cui, config, domain)
     entity_name = get_entity_name_from_cui(cui)
 
     println("  Entity: '$entity_name' (CUI: $cui)")

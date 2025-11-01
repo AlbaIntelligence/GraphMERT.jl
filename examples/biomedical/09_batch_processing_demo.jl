@@ -353,7 +353,7 @@ function run_batch_processing_demo()
   # Analyze entity types
   entity_types = Dict{String,Int}()
   for entity in merged_kg.entities
-    entity_types[entity.label] = get(entity_types, entity.label, 0) + 1
+    entity_types[entity.entity_type] = get(entity_types, entity.entity_type, 0) + 1
   end
 
   println("   • Entity type distribution:")
@@ -458,7 +458,7 @@ function export_results(batch_result::BatchProcessingResult, merged_kg::Knowledg
     println(io, "="^50)
     println(io, "")
     for (i, entity) in enumerate(merged_kg.entities)
-      println(io, "$i. $(entity.text) ($(entity.label))")
+      println(io, "$i. $(entity.text) ($(entity.entity_type))")
       println(io, "   ID: $(entity.id)")
       println(io, "   Confidence: $(round(entity.confidence, digits=3))")
       println(io, "")

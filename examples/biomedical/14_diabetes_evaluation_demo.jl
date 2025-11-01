@@ -24,30 +24,34 @@ println("\n1. Creating sample diabetes knowledge graph...")
 
 # Create sample entities
 entities = [
-  GraphMERT.BiomedicalEntity("diabetes mellitus", "C0011849", "Disease", 0.95,
+  GraphMERT.Entity("entity_1", "diabetes mellitus", "diabetes mellitus", "DISEASE", "biomedical",
+    Dict("cui" => "C0011849", "icd_code" => "E11", "semantic_type" => "Disease"),
     GraphMERT.TextPosition(1, 20, 1, 1),
-    Dict("icd_code" => "E11", "semantic_type" => "Disease"), now()),
-  GraphMERT.BiomedicalEntity("metformin", "C0025595", "Drug", 0.92,
+    0.95, ""),
+  GraphMERT.Entity("entity_2", "metformin", "metformin", "DRUG", "biomedical",
+    Dict("cui" => "C0025595", "drug_class" => "biguanide", "semantic_type" => "Drug"),
     GraphMERT.TextPosition(25, 35, 1, 1),
-    Dict("drug_class" => "biguanide", "semantic_type" => "Drug"), now()),
-  GraphMERT.BiomedicalEntity("insulin", "C0021641", "Drug", 0.98,
+    0.92, ""),
+  GraphMERT.Entity("entity_3", "insulin", "insulin", "DRUG", "biomedical",
+    Dict("cui" => "C0021641", "drug_class" => "hormone", "semantic_type" => "Drug"),
     GraphMERT.TextPosition(40, 47, 1, 1),
-    Dict("drug_class" => "hormone", "semantic_type" => "Drug"), now()),
-  GraphMERT.BiomedicalEntity("glucose", "C0017725", "Chemical", 0.89,
+    0.98, ""),
+  GraphMERT.Entity("entity_4", "glucose", "glucose", "CHEMICAL", "biomedical",
+    Dict("cui" => "C0017725", "chemical_type" => "sugar", "semantic_type" => "Chemical"),
     GraphMERT.TextPosition(50, 57, 1, 1),
-    Dict("chemical_type" => "sugar", "semantic_type" => "Chemical"), now())
+    0.89, "")
 ]
 
 # Create sample relations
 relations = [
-  GraphMERT.BiomedicalRelation("diabetes mellitus", "metformin", "treats", 0.88,
-    Dict("evidence_level" => "high", "source" => "clinical_trial"), now()),
-  GraphMERT.BiomedicalRelation("diabetes mellitus", "insulin", "treats", 0.94,
-    Dict("evidence_level" => "high", "source" => "clinical_guideline"), now()),
-  GraphMERT.BiomedicalRelation("diabetes mellitus", "glucose", "affects", 0.91,
-    Dict("evidence_level" => "high", "source" => "pathophysiology"), now()),
-  GraphMERT.BiomedicalRelation("metformin", "glucose", "reduces", 0.87,
-    Dict("evidence_level" => "high", "source" => "mechanism"), now())
+  GraphMERT.Relation("entity_1", "entity_2", "TREATS", "biomedical", 0.88,
+    "", "", Dict("evidence_level" => "high", "source" => "clinical_trial")),
+  GraphMERT.Relation("entity_1", "entity_3", "TREATS", "biomedical", 0.94,
+    "", "", Dict("evidence_level" => "high", "source" => "clinical_guideline")),
+  GraphMERT.Relation("entity_1", "entity_4", "AFFECTS", "biomedical", 0.91,
+    "", "", Dict("evidence_level" => "high", "source" => "pathophysiology")),
+  GraphMERT.Relation("entity_2", "entity_4", "REDUCES", "biomedical", 0.87,
+    "", "", Dict("evidence_level" => "high", "source" => "mechanism"))
 ]
 
 # Create knowledge graph
@@ -134,7 +138,7 @@ println("  • Triple Scores: $(length(factscore_results.triple_scores)) evaluat
 # 6. Run ValidityScore with statistical testing
 println("\n6. Running ValidityScore with statistical significance testing...")
 
-validity_result, stats_result = GraphMERT.evaluate_validity_with_statistics(kg, alpha=0.05)
+validity_result, stats_result = GraphMERT.evaluate_validity_with_statistics(kg, alpha=0.05; domain_name="biomedical", include_domain_metrics=true)
 println("✓ ValidityScore Results:")
 println("  • Validity Score: $(round(validity_result.validity_score, digits=3))")
 println("  • Valid Triples: $(validity_result.valid_triples)/$(validity_result.total_triples)")
