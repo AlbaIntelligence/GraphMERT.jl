@@ -135,6 +135,7 @@ struct Entity
   text::String
   label::String
   entity_type::String  # Domain-specific entity type (e.g., "DISEASE", "PERSON", "CONCEPT")
+  domain::String  # Domain identifier (e.g., "biomedical", "wikipedia", "general")
   attributes::Dict{String,Any}  # Domain-specific attributes (cui, semantic_types, etc.)
   position::TextPosition
   confidence::Float64
@@ -145,6 +146,7 @@ struct Entity
     text::String,
     label::String,
     entity_type::String = "UNKNOWN",
+    domain::String = "general",
     attributes::Dict{String,Any} = Dict{String,Any}(),
     position::TextPosition = TextPosition(0, 0, 0, 0),
     confidence::Float64 = 0.5,
@@ -153,7 +155,8 @@ struct Entity
     @assert !isempty(id) "Entity ID cannot be empty"
     @assert !isempty(text) "Entity text cannot be empty"
     @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
-    new(id, text, label, entity_type, attributes, position, confidence, provenance)
+    @assert !isempty(domain) "Domain cannot be empty"
+    new(id, text, label, entity_type, domain, attributes, position, confidence, provenance)
   end
 end
 
@@ -169,6 +172,7 @@ struct Relation
   head::String  # Head entity ID
   tail::String  # Tail entity ID
   relation_type::String
+  domain::String  # Domain identifier (e.g., "biomedical", "wikipedia", "general")
   confidence::Float64
   provenance::String  # Source text or document
   evidence::String  # Supporting evidence text
@@ -179,6 +183,7 @@ struct Relation
     tail::String,
     relation_type::String,
     confidence::Float64,
+    domain::String = "general",
     provenance::String = "",
     evidence::String = "",
     attributes::Dict{String,Any} = Dict{String,Any}(),
@@ -188,12 +193,13 @@ struct Relation
     @assert !isempty(tail) "Tail entity ID cannot be empty"
     @assert !isempty(relation_type) "Relation type cannot be empty"
     @assert 0.0 <= confidence <= 1.0 "Confidence must be between 0.0 and 1.0"
+    @assert !isempty(domain) "Domain cannot be empty"
 
     if isempty(id)
       id = "$(head)_$(relation_type)_$(tail)"
     end
 
-    new(id, head, tail, relation_type, confidence, provenance, evidence, attributes)
+    new(id, head, tail, relation_type, domain, confidence, provenance, evidence, attributes)
   end
 end
 
@@ -204,9 +210,10 @@ end
 """
     BiomedicalEntity
 
+DEPRECATED: Use Entity with domain="biomedical" instead.
+
 Specialization of Entity for biomedical domain with UMLS mappings.
-
-
+Kept for backward compatibility.
 """
 struct BiomedicalEntity
   entity::Entity  # Base generic entity
@@ -230,7 +237,8 @@ struct BiomedicalEntity
       attributes["semantic_types"] = semantic_types
     end
 
-    entity = Entity(id, text, label, label, attributes, position, confidence, provenance)
+    # Use domain="biomedical" explicitly
+    entity = Entity(id, text, label, label, "biomedical", attributes, position, confidence, provenance)
     new(entity)
   end
 end
@@ -261,9 +269,10 @@ end
 """
     BiomedicalRelation
 
+DEPRECATED: Use Relation with domain="biomedical" instead.
+
 Specialization of Relation for biomedical domain.
-
-
+Kept for backward compatibility.
 """
 struct BiomedicalRelation
   relation::Relation  # Base generic relation
@@ -277,7 +286,8 @@ struct BiomedicalRelation
     evidence::String = "",
     id::String = "",
   )
-    relation = Relation(head, tail, relation_type, confidence, provenance, evidence, Dict{String,Any}(), id)
+    # Use domain="biomedical" explicitly
+    relation = Relation(head, tail, relation_type, confidence, "biomedical", provenance, evidence, Dict{String,Any}(), id)
     new(relation)
   end
 end
@@ -508,6 +518,7 @@ struct ProcessingOptions
   cache_enabled::Bool
   parallel_processing::Bool
   verbose::Bool
+  domain::String
 
   function ProcessingOptions(;
     max_length::Int=512,
