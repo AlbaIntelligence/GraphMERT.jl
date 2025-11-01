@@ -188,8 +188,27 @@ function extract_knowledge_graph(
   # Get domain provider from registry
   domain_provider = GraphMERT.get_domain(options.domain)
   if domain_provider === nothing
-    @error "Domain '$(options.domain)' not found. Available domains: $(GraphMERT.list_domains())"
-    error("Domain '$(options.domain)' not registered")
+    available_domains = GraphMERT.list_domains()
+    error_msg = "Domain '$(options.domain)' is not registered.\n"
+    if !isempty(available_domains)
+      error_msg *= "Available domains: $(join(available_domains, ", "))\n"
+    else
+      error_msg *= "No domains are currently registered.\n"
+    end
+    error_msg *= "\nTo register a domain, use:\n"
+    error_msg *= "  include(\"GraphMERT/src/domains/$(options.domain).jl\")\n"
+    if options.domain == "biomedical"
+      error_msg *= "  bio_domain = load_biomedical_domain()\n"
+      error_msg *= "  register_domain!(\"biomedical\", bio_domain)\n"
+    elseif options.domain == "wikipedia"
+      error_msg *= "  wiki_domain = load_wikipedia_domain()\n"
+      error_msg *= "  register_domain!(\"wikipedia\", wiki_domain)\n"
+    else
+      error_msg *= "  domain = load_$(options.domain)_domain()\n"
+      error_msg *= "  register_domain!(\"$(options.domain)\", domain)\n"
+    end
+    @error error_msg
+    error(error_msg)
   end
 
   # Stage 1: Head Discovery using domain provider

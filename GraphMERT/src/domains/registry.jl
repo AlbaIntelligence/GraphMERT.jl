@@ -123,7 +123,15 @@ Get the default domain provider.
 """
 function get_default_domain()
     if DOMAIN_REGISTRY.default_domain === nothing
-        @error "No default domain set. Available domains: $(keys(DOMAIN_REGISTRY.domains))"
+        available_domains = collect(keys(DOMAIN_REGISTRY.domains))
+        error_msg = "No default domain set."
+        if !isempty(available_domains)
+            error_msg *= " Available domains: $(join(available_domains, ", "))"
+            error_msg *= " Use set_default_domain() to set a default domain."
+        else
+            error_msg *= " No domains are registered. Register a domain first using register_domain!()."
+        end
+        @error error_msg
         return nothing
     end
     
