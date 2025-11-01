@@ -9,7 +9,8 @@ It bridges to the existing biomedical/relations.jl implementation.
 # Note: This will be refactored to be fully domain-independent later
 include("../../biomedical/relations.jl")
 
-using ..GraphMERT: Entity, Relation, ProcessingOptions
+# Forward declarations (will be available when module is loaded)
+# Entity, Relation, ProcessingOptions are defined in GraphMERT.types.jl
 
 """
     extract_biomedical_relations(entities::Vector{Entity}, text::String, config::ProcessingOptions, domain::BiomedicalDomain)

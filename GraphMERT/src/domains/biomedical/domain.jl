@@ -9,9 +9,6 @@ confidence calculation, UMLS linking, and LLM prompt generation.
 using Dates
 using Logging
 
-# Import domain interface (these will be available from the main module)
-# Note: When this module is included from GraphMERT.jl, these will already be loaded
-
 # Import biomedical submodules
 include("entities.jl")
 include("relations.jl")

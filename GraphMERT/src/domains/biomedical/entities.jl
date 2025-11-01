@@ -7,9 +7,16 @@ It bridges to the existing biomedical/entities.jl implementation.
 
 # Import the existing biomedical entities module
 # Note: This will be refactored to be fully domain-independent later
+# The path is relative to this file: domains/biomedical/entities.jl -> biomedical/entities.jl
 include("../../biomedical/entities.jl")
 
-using ..GraphMERT: Entity, TextPosition, ProcessingOptions
+# Import types from main module (they'll be available when this is included)
+# Note: Cannot use `using ..GraphMERT` here because this file is included from domain.jl
+# which is included from biomedical.jl, not directly from GraphMERT.jl
+# Types will be available in the parent scope
+
+# Forward declarations (will be available when module is loaded)
+# Entity, TextPosition, ProcessingOptions are defined in GraphMERT.types.jl
 
 """
     extract_biomedical_entities(text::String, config::ProcessingOptions, domain::BiomedicalDomain)

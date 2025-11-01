@@ -2,10 +2,12 @@
 Biomedical Domain Module Loader
 
 This module provides a convenient way to load and register the biomedical domain.
+This file should be included from within the GraphMERT module context.
 """
 
 # Load the biomedical domain module
-include("domains/biomedical/domain.jl")
+# Path is relative to this file: domains/biomedical.jl -> biomedical/domain.jl
+include("biomedical/domain.jl")
 
 """
     load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing)

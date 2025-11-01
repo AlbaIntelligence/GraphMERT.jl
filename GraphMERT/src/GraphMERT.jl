@@ -264,8 +264,53 @@ function preprocess_text_for_graphmert(text::String; max_length::Int=512)
 end
 
 # ============================================================================
-# Fallback Implementation Functions
+# Domain Initialization (Optional)
 # ============================================================================
+
+"""
+    initialize_default_domains()
+
+Initialize and register default domains (biomedical and Wikipedia) for convenience.
+
+This function loads both domain modules and registers them if they're available.
+Call this after loading domain modules if you want them available by default.
+
+# Example
+```julia
+using GraphMERT
+include("GraphMERT/src/domains/biomedical.jl")
+include("GraphMERT/src/domains/wikipedia.jl")
+initialize_default_domains()
+```
+"""
+function initialize_default_domains()
+    # Try to load biomedical domain
+    try
+        if !has_domain("biomedical")
+            include("domains/biomedical.jl")
+            biomedical_domain = load_biomedical_domain()
+            register_domain!("biomedical", biomedical_domain)
+            @info "Initialized biomedical domain"
+        end
+    catch e
+        @warn "Could not initialize biomedical domain: $e"
+    end
+    
+    # Try to load Wikipedia domain
+    try
+        if !has_domain("wikipedia")
+            include("domains/wikipedia.jl")
+            wikipedia_domain = load_wikipedia_domain()
+            register_domain!("wikipedia", wikipedia_domain)
+            @info "Initialized Wikipedia domain"
+        end
+    catch e
+        @warn "Could not initialize Wikipedia domain: $e"
+    end
+end
+
+# Export
+export initialize_default_domains
 
 """
     fallback_entity_recognition(text::String, domain::DomainProvider=nothing)
