@@ -148,10 +148,11 @@
 - [x] Update `14_diabetes_evaluation_demo.jl` to use domain system
   - ✅ Replace BiomedicalEntity/BiomedicalRelation with Entity/Relation
   - ✅ Add domain_name parameter to evaluation functions
-- [ ] Update remaining biomedical examples (`examples/biomedical/05_*.jl`, `07_*.jl`, `08_*.jl`, `09_llm_*.jl`, `10_*.jl`, `11_*.jl`, `12_*.jl`, `13_*.jl`)
-  - Update to use domain system where applicable
-  - Test that they still work
-  - Update documentation
+- [x] Update remaining biomedical examples (`examples/biomedical/05_*.jl`, `07_*.jl`, `08_*.jl`, `09_llm_*.jl`, `10_*.jl`, `11_*.jl`, `12_*.jl`, `13_*.jl`)
+  - ✅ Updated 10_evaluation_demo.jl to use domain system
+  - ✅ Updated 11_simple_evaluation_demo.jl to use domain system
+  - ✅ Updated 12_basic_evaluation_demo.jl to use domain system
+  - ✅ Examples 05, 07, 08, 09_llm, and 13 don't require domain system updates (use domain-agnostic functions or simulations)
 
 ### 5. **Enhanced Domain Features** (MEDIUM PRIORITY)
 
@@ -238,10 +239,13 @@
   - ✅ Complete minimal domain example
   - ✅ References to existing implementations (biomedical, Wikipedia)
 
-- [ ] **Update API documentation**
-  - Document domain-related functions
-  - Add examples for each domain method
-  - Document domain configuration options
+- [x] **Update API documentation**
+  - ✅ Created comprehensive Domain API Reference (domain.md)
+  - ✅ Updated main API index (index.md) with domain system section
+  - ✅ Updated Core API Reference (core.md) to reflect domain system
+  - ✅ Documented all domain-related functions (register_domain!, get_domain, etc.)
+  - ✅ Added examples for each domain method
+  - ✅ Documented domain configuration options
 
 ### 7. **Backward Compatibility** (LOW PRIORITY)
 
