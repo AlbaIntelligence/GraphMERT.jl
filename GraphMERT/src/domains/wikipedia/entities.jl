@@ -65,7 +65,7 @@ function extract_wikipedia_entities(text::String, config::Any, domain::Any)
         for pattern in patterns
             matches = eachmatch(pattern, text, overlap=false)
             for match in matches
-                entity_text = String(match.match)
+                entity_text = string(match.match)  # Ensure it's a String, not SubString
                 
                 # Skip if too short or too long
                 if length(entity_text) < 3 || length(entity_text) > 100
@@ -73,12 +73,12 @@ function extract_wikipedia_entities(text::String, config::Any, domain::Any)
                 end
                 
                 # Validate entity
-                if !validate_wikipedia_entity(entity_text, entity_type, Dict())
+                if !validate_wikipedia_entity(entity_text, entity_type, Dict{String, Any}())
                     continue
                 end
                 
                 # Calculate confidence
-                confidence = calculate_wikipedia_entity_confidence(entity_text, entity_type, Dict())
+                confidence = calculate_wikipedia_entity_confidence(entity_text, entity_type, Dict{String, Any}())
                 
                 # Skip if confidence too low
                 if confidence < 0.3
@@ -112,19 +112,20 @@ function extract_wikipedia_entities(text::String, config::Any, domain::Any)
     
     # Also extract capitalized proper nouns (potential entities)
     for (i, word) in enumerate(words)
-        if length(word) > 3 && isuppercase(word[1]) && !isuppercase(word[2])
+        word_str = string(word)  # Ensure it's a String, not SubString
+        if length(word_str) > 3 && isuppercase(word_str[1]) && !isuppercase(word_str[2])
             # Check if it's not already extracted
-            if !any(e -> e.text == word, entities)
+            if !any(e -> e.text == word_str, entities)
                 confidence = 0.4  # Lower confidence for single words
                 
-                pos = findfirst(word, text)
+                pos = findfirst(word_str, text)
                 start_pos = pos !== nothing ? first(pos) : 1
-                end_pos = pos !== nothing ? last(pos) : length(word)
+                end_pos = pos !== nothing ? last(pos) : length(word_str)
                 
                 entity = Entity(
-                    "entity_$(entity_id)_$(hash(word))",
-                    word,
-                    word,
+                    "entity_$(entity_id)_$(hash(word_str))",
+                    word_str,
+                    word_str,
                     "CONCEPT",  # Default to CONCEPT for unknown proper nouns
                     "wikipedia",
                     Dict{String, Any}(
@@ -192,6 +193,11 @@ end
 Calculate confidence for a Wikipedia entity.
 """
 function calculate_wikipedia_entity_confidence(entity_text::String, entity_type::String, context::Dict{String, Any} = Dict{String, Any}())
+    # Handle empty string
+    if isempty(entity_text)
+        return 0.0
+    end
+    
     confidence = 0.5
     
     # Length bonus

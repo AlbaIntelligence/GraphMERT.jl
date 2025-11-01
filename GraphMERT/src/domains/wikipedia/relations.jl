@@ -58,8 +58,8 @@ function extract_wikipedia_relations(entities::Vector{Any}, text::String, config
             tail_entity = entities[j]
             
             # Find context around entities
-            head_pos = head_entity.position.start_char
-            tail_pos = tail_entity.position.start_char
+            head_pos = head_entity.position.start
+            tail_pos = tail_entity.position.start
             context_start = max(1, min(head_pos, tail_pos) - 100)
             context_end = min(length(text), max(head_pos + length(head_entity.text), tail_pos + length(tail_entity.text)) + 100)
             context = text[context_start:context_end]
@@ -71,8 +71,8 @@ function extract_wikipedia_relations(entities::Vector{Any}, text::String, config
             for (rel_type, pattern) in relation_patterns
                 if occursin(pattern, lowercase(context))
                     # Check if relation makes sense for these entity types
-                    if validate_wikipedia_relation(head_entity.text, rel_type, tail_entity.text, Dict("context" => context))
-                        rel_confidence = calculate_wikipedia_relation_confidence(head_entity.text, rel_type, tail_entity.text, Dict("context" => context))
+                    if validate_wikipedia_relation(head_entity.text, rel_type, tail_entity.text, Dict{String, Any}("context" => context))
+                        rel_confidence = calculate_wikipedia_relation_confidence(head_entity.text, rel_type, tail_entity.text, Dict{String, Any}("context" => context))
                         if rel_confidence > best_confidence
                             relation_type = rel_type
                             best_confidence = rel_confidence
