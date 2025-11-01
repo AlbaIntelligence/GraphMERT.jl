@@ -236,15 +236,15 @@
 
 **Goal**: Ensure existing code still works
 
-- [ ] **Default domain behavior**
-  - Ensure `default_processing_options()` defaults to "biomedical"
-  - Auto-register biomedical domain if available (optional)
-  - Provide clear error messages when domain not registered
+- [x] **Default domain behavior**
+  - ✅ Ensure `default_processing_options()` defaults to "biomedical"
+  - ✅ Auto-register biomedical domain if available (optional)
+  - ✅ Provide clear error messages when domain not registered
 
-- [ ] **Deprecation warnings**
-  - Add deprecation warnings for old biomedical-specific functions
-  - Guide users to domain system
-  - Update migration guide
+- [x] **Deprecation warnings**
+  - ✅ Add deprecation warnings for old biomedical-specific functions
+  - ✅ Guide users to domain system
+  - ✅ Update migration guide
 
 ### 8. **Performance & Optimization** (LOW PRIORITY)
 

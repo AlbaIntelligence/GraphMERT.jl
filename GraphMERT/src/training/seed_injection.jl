@@ -130,6 +130,13 @@ end
 
 # Backward compatibility: version without domain parameter (uses default domain)
 function link_entity_sapbert(entity_text::String, config::SeedInjectionConfig)
+    Base.depwarn(
+        "link_entity_sapbert(entity_text, config) without domain parameter is deprecated. " *
+        "Please pass a domain provider explicitly: link_entity_sapbert(entity_text, config, domain). " *
+        "Load domain with: include(\"GraphMERT/src/domains/biomedical.jl\"); bio = load_biomedical_domain(). " *
+        "See MIGRATION_GUIDE.md for details.",
+        :link_entity_sapbert
+    )
     domain = get_default_domain()
     if domain === nothing
         error("No default domain set. Please register a domain or pass domain explicitly.")
@@ -158,6 +165,12 @@ end
 
 # Backward compatibility: version without domain parameter
 function link_entities_batch(entities::Vector{String}, config::SeedInjectionConfig)
+    Base.depwarn(
+        "link_entities_batch(entities, config) without domain parameter is deprecated. " *
+        "Please pass a domain provider explicitly: link_entities_batch(entities, config, domain). " *
+        "See MIGRATION_GUIDE.md for details.",
+        :link_entities_batch
+    )
     domain = get_default_domain()
     if domain === nothing
         error("No default domain set. Please register a domain or pass domain explicitly.")
@@ -245,6 +258,12 @@ end
 
 # Backward compatibility: version without domain parameter
 function select_triples_for_entity(entity_kb_id::String, config::SeedInjectionConfig)
+    Base.depwarn(
+        "select_triples_for_entity(entity_kb_id, config) without domain parameter is deprecated. " *
+        "Please pass a domain provider explicitly: select_triples_for_entity(entity_kb_id, config, domain). " *
+        "See MIGRATION_GUIDE.md for details.",
+        :select_triples_for_entity
+    )
     domain = get_default_domain()
     if domain === nothing
         error("No default domain set. Please register a domain or pass domain explicitly.")
@@ -324,6 +343,12 @@ function inject_seed_kg(
     seed_kg::Vector{SemanticTriple},
     config::SeedInjectionConfig,
 )
+    Base.depwarn(
+        "inject_seed_kg(sequences, seed_kg, config) without domain parameter is deprecated. " *
+        "Please pass a domain provider explicitly: inject_seed_kg(sequences, seed_kg, config, domain). " *
+        "See MIGRATION_GUIDE.md for details.",
+        :inject_seed_kg
+    )
     domain = get_default_domain()
     if domain === nothing
         error("No default domain set. Please register a domain or pass domain explicitly.")

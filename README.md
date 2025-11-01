@@ -247,6 +247,8 @@ GraphMERT.jl uses a **pluggable domain system** that allows you to customize kno
 
 You can create custom domains by implementing the `DomainProvider` interface. See the [Domain Usage Guide](DOMAIN_USAGE_GUIDE.md) for details.
 
+**Migrating from the old biomedical-specific API?** See the [Migration Guide](MIGRATION_GUIDE.md) for step-by-step instructions.
+
 ## Biomedical Domain Features
 
 ### UMLS Integration

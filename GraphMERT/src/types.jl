@@ -228,6 +228,13 @@ struct BiomedicalEntity
     confidence::Float64 = 0.5,
     provenance::String = "",
   )
+    Base.depwarn(
+      "BiomedicalEntity is deprecated. Use Entity with domain=\"biomedical\" instead. " *
+      "Example: Entity(id, text, label, label, \"biomedical\", attributes, position, confidence, provenance) " *
+      "where attributes can include \"cui\" and \"semantic_types\" keys. " *
+      "See MIGRATION_GUIDE.md for details.",
+      :BiomedicalEntity
+    )
     # Create attributes dict with biomedical-specific fields
     attributes = Dict{String,Any}()
     if cui !== nothing
@@ -286,6 +293,12 @@ struct BiomedicalRelation
     evidence::String = "",
     id::String = "",
   )
+    Base.depwarn(
+      "BiomedicalRelation is deprecated. Use Relation with domain=\"biomedical\" instead. " *
+      "Example: Relation(head, tail, relation_type, confidence, \"biomedical\", provenance, evidence, attributes, id). " *
+      "See MIGRATION_GUIDE.md for details.",
+      :BiomedicalRelation
+    )
     # Use domain="biomedical" explicitly
     relation = Relation(head, tail, relation_type, confidence, "biomedical", provenance, evidence, Dict{String,Any}(), id)
     new(relation)
