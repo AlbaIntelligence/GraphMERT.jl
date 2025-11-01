@@ -3,6 +3,7 @@ Helper LLM integration for entity discovery and relation matching.
 
 This module provides a complete LLM API client for enhancing GraphMERT's
 entity discovery and relation matching capabilities with modern language models.
+Domain-specific prompts are generated using domain providers.
 """
 
 using HTTP
@@ -234,47 +235,59 @@ function make_llm_request(client::HelperLLMClient, prompt::String)
 end
 
 """
-    discover_entities(client::HelperLLMClient, text::String; use_cache::Bool=true)
+    discover_entities(client::HelperLLMClient, text::String, domain::Any; use_cache::Bool=true)
 
-Discover biomedical entities in text using LLM.
+Discover entities in text using LLM with domain-specific prompts.
 
 # Arguments
 - `client::HelperLLMClient`: LLM client instance
 - `text::String`: Text to analyze
+- `domain::DomainProvider`: Domain provider for prompt generation
 - `use_cache::Bool`: Whether to use cached responses
 
 # Returns
 - `Vector{String}`: Discovered entity names
 """
-function discover_entities(client::HelperLLMClient, text::String; use_cache::Bool = true)
-    # Check cache first
-    cache_key = "entities:$(hash(text))"
-    if use_cache && haskey(client.cache.responses, cache_key)
-        cached_response, cache_time = client.cache.responses[cache_key]
-        if (now() - cache_time).value / 1000 < client.cache.ttl_seconds
-            return parse_entity_response(cached_response.content)
-        end
+function discover_entities(
+  client::HelperLLMClient,
+  text::String,
+  domain::Any;
+  use_cache::Bool = true,
+)
+  # Check cache first
+  cache_key = "entities:$(hash(text)):$(hash(string(typeof(domain))))"
+  if use_cache && haskey(client.cache.responses, cache_key)
+    cached_response, cache_time = client.cache.responses[cache_key]
+    if (now() - cache_time).value / 1000 < client.cache.ttl_seconds
+      return parse_entity_response(cached_response.content)
+    end
+  end
+
+  # Create entity discovery prompt using domain provider
+  context = Dict{String, Any}("text" => text, "task_type" => :entity_discovery)
+  prompt = try
+    GraphMERT.create_prompt(domain, :entity_discovery, context)
+  catch e
+    @warn "Domain prompt creation failed: $e, using fallback prompt"
+    create_fallback_entity_discovery_prompt(text)
+  end
+
+  # Make LLM request
+  response = make_llm_request(client, prompt)
+
+  if response.success
+    entities = parse_entity_response(response.content)
+
+    # Cache response
+    if use_cache
+      client.cache.responses[cache_key] = (response, now())
     end
 
-    # Create entity discovery prompt
-    prompt = create_entity_discovery_prompt(text)
-
-    # Make LLM request
-    response = make_llm_request(client, prompt)
-
-    if response.success
-        entities = parse_entity_response(response.content)
-
-        # Cache response
-        if use_cache
-            client.cache.responses[cache_key] = (response, now())
-        end
-
-        return entities
-    else
-        @warn "Entity discovery failed: $(response.error)"
-        return String[]  # Return empty on failure
-    end
+    return entities
+  else
+    @warn "Entity discovery failed: $(response.error)"
+    return String[]  # Return empty on failure
+  end
 end
 
 """
@@ -331,27 +344,32 @@ end
 """
     create_entity_discovery_prompt(text::String)
 
-Create a structured prompt for biomedical entity discovery.
+DEPRECATED: Use domain.create_prompt(domain, :entity_discovery, context) instead.
 
-# Arguments
-- `text::String`: Text to analyze
-
-# Returns
-- `String`: Formatted prompt for LLM
+Create a structured prompt for entity discovery (fallback).
 """
 function create_entity_discovery_prompt(text::String)
-    return """
-You are a biomedical expert tasked with extracting medical entities from text.
+  return create_fallback_entity_discovery_prompt(text)
+end
 
-Extract all biomedical entities (diseases, drugs, treatments, symptoms, anatomical structures, etc.) from the following text.
+"""
+    create_fallback_entity_discovery_prompt(text::String)
+
+Fallback entity discovery prompt when domain provider is not available.
+"""
+function create_fallback_entity_discovery_prompt(text::String)
+  return """
+You are an expert tasked with extracting entities from text.
+
+Extract all entities (people, places, organizations, concepts, etc.) from the following text.
 
 Return only the entity names, one per line, in the format:
 ENTITY_NAME
 
 Rules:
-- Extract proper biomedical terms only
-- Include diseases, drugs, treatments, symptoms, procedures
-- Do not include generic words like "patient", "study", "research"
+- Extract proper entities only
+- Include people, places, organizations, concepts
+- Do not include generic words
 - Return entities in their original form as they appear in text
 - List each entity on a separate line
 
@@ -364,21 +382,25 @@ end
 """
     create_relation_matching_prompt(entities::Vector{String}, text::String)
 
-Create a structured prompt for relation matching between entities.
+DEPRECATED: Use domain.create_prompt(domain, :relation_matching, context) instead.
 
-# Arguments
-- `entities::Vector{String}`: List of entity names
-- `text::String`: Original text for context
-
-# Returns
-- `String`: Formatted prompt for LLM
+Create a structured prompt for relation matching (fallback).
 """
 function create_relation_matching_prompt(entities::Vector{String}, text::String)
-    entities_str = join(entities, "\n- ")
-    return """
-You are a biomedical expert tasked with finding relationships between medical entities.
+  return create_fallback_relation_matching_prompt(entities, text)
+end
 
-Given the following entities extracted from biomedical text, determine what relationships exist between them based on the text content.
+"""
+    create_fallback_relation_matching_prompt(entities::Vector{String}, text::String)
+
+Fallback relation matching prompt when domain provider is not available.
+"""
+function create_fallback_relation_matching_prompt(entities::Vector{String}, text::String)
+  entities_str = join(entities, "\n- ")
+  return """
+You are an expert tasked with finding relationships between entities.
+
+Given the following entities extracted from text, determine what relationships exist between them based on the text content.
 
 Entities:
 - $entities_str
@@ -388,11 +410,11 @@ Text: $text
 For each pair of entities that are related in the text, return in format:
 ENTITY1 -> RELATION -> ENTITY2
 
-Where RELATION is one of: TREATS, CAUSES, ASSOCIATED_WITH, INDICATES, PREVENTS, COMPLICATES, etc.
+Where RELATION describes the relationship type.
 
 Rules:
 - Only include relationships that are explicitly or implicitly stated in the text
-- Use appropriate biomedical relationship terms
+- Use appropriate relationship terms
 - Each relationship should be on a separate line
 - If no clear relationship exists, return nothing for that pair
 
@@ -401,34 +423,49 @@ Relationships:
 end
 
 """
-    create_tail_formation_prompt(tokens::Vector{Tuple{Int, Float64}}, text::String)
+    create_tail_formation_prompt(tokens::Vector{Tuple{Int, Float64}}, text::String, domain::Any)
 
-Create a prompt for forming coherent tail entities from predicted tokens.
+Create a prompt for forming coherent tail entities from predicted tokens using domain provider.
 
 # Arguments
 - `tokens::Vector{Tuple{Int, Float64}}`: Top-k predicted tokens with probabilities
 - `text::String`: Original text for context
+- `domain::DomainProvider`: Domain provider for prompt generation
 
 # Returns
 - `String`: Formatted prompt for LLM
 """
-function create_tail_formation_prompt(tokens::Vector{Tuple{Int,Float64}}, text::String)
-    token_list =
-        join(["$(token[1]) (prob: $(round(token[2], digits=3)))" for token in tokens], "\n")
-    return """
-You are a biomedical expert tasked with forming coherent entity names from predicted tokens.
+function create_tail_formation_prompt(tokens::Vector{Tuple{Int,Float64}}, text::String, domain::Any)
+  context = Dict{String, Any}("tokens" => tokens, "text" => text, "task_type" => :tail_formation)
+  return try
+    GraphMERT.create_prompt(domain, :tail_formation, context)
+  catch e
+    @warn "Domain prompt creation failed: $e, using fallback prompt"
+    create_fallback_tail_formation_prompt(tokens, text)
+  end
+end
 
-Given the following predicted tokens with their probabilities, form coherent biomedical entity names that would logically complete the relationship in the text.
+"""
+    create_fallback_tail_formation_prompt(tokens::Vector{Tuple{Int, Float64}}, text::String)
+
+Fallback tail formation prompt when domain provider is not available.
+"""
+function create_fallback_tail_formation_prompt(tokens::Vector{Tuple{Int,Float64}}, text::String)
+  token_list = join(["$(token[1]) (prob: $(round(token[2], digits=3)))" for token in tokens], "\n")
+  return """
+You are an expert tasked with forming coherent entity names from predicted tokens.
+
+Given the following predicted tokens with their probabilities, form coherent entity names that would logically complete the relationship in the text.
 
 Predicted tokens:
 $token_list
 
 Original text context: $text
 
-Create 3-5 coherent entity names that could be the tail entity in a biomedical relationship. Each entity should:
-- Be a valid biomedical term
+Create 3-5 coherent entity names that could be the tail entity in a relationship. Each entity should:
+- Be a valid term
 - Be consistent with the context
-- Use appropriate medical terminology
+- Use appropriate terminology
 - Be 1-3 words long
 
 Return each entity on a separate line:
@@ -651,75 +688,5 @@ function form_tail_from_tokens(
     end
 end
 
-"""
-    fallback_entity_discovery(text::String)
-
-Fallback entity discovery when LLM is not available.
-"""
-function fallback_entity_discovery(text::String)
-    # Simple regex-based entity discovery
-    entities = String[]
-
-    # Look for common biomedical patterns
-    patterns = [
-        r"\b[A-Z][a-z]+(?:'s)?\s+(?:disease|syndrome|disorder|condition)\b",
-        r"\b[A-Z][a-z]+(?:'s)?\s+(?:cancer|carcinoma|tumor|neoplasm)\b",
-        r"\b[A-Z][a-z]+(?:'s)?\s+(?:virus|bacteria|infection)\b",
-        r"\b[A-Z][a-z]+(?:'s)?\s+(?:protein|enzyme|receptor)\b",
-        r"\b[A-Z][a-z]+(?:'s)?\s+(?:drug|medication|therapy)\b",
-    ]
-
-    for pattern in patterns
-        matches = eachmatch(pattern, text)
-        for match in matches
-            push!(entities, match.match)
-        end
-    end
-
-    return entities
-end
-
-"""
-    fallback_relation_matching(entities::Vector{String}, text::String)
-
-Fallback relation matching when LLM is not available.
-"""
-function fallback_relation_matching(entities::Vector{String}, text::String)
-    relations = Dict{String,Any}()
-
-    # Simple co-occurrence based relation detection
-    for i = 1:length(entities)
-        for j = (i+1):length(entities)
-            entity1 = entities[i]
-            entity2 = entities[j]
-
-            # Check if both entities appear in the same sentence
-            sentences = split(text, r"[\.\!\?]+")
-            for sentence in sentences
-                if occursin(entity1, sentence) && occursin(entity2, sentence)
-                    # Simple relation detection based on keywords
-                    if occursin("treats", lowercase(sentence)) ||
-                       occursin("cures", lowercase(sentence))
-                        relation = "TREATS"
-                    elseif occursin("causes", lowercase(sentence)) ||
-                           occursin("leads to", lowercase(sentence))
-                        relation = "CAUSES"
-                    elseif occursin("associated with", lowercase(sentence)) ||
-                           occursin("related to", lowercase(sentence))
-                        relation = "ASSOCIATED_WITH"
-                    else
-                        relation = "RELATED_TO"
-                    end
-
-                    relations["$entity1-$entity2"] = Dict(
-                        "entity1" => entity1,
-                        "relation" => relation,
-                        "entity2" => entity2,
-                    )
-                end
-            end
-        end
-    end
-
-    return relations
-end
+# These fallback functions have been moved to domain providers
+# Use domain-specific fallback methods instead
