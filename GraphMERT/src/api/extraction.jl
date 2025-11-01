@@ -433,16 +433,19 @@ function extract_knowledge_graph(
   relations = Vector{GraphMERT.Relation}()
 
   # Create simple relations between entities
+  # Determine domain from entities or default to biomedical
+  domain = isempty(entities) ? "biomedical" : entities[1].domain
+  
   for i ∈ 1:min(length(entities), 3), j ∈ (i+1):min(length(entities), i + 2)
     if i != j
       relation = GraphMERT.Relation(
-        i,
-        j,
+        string(i),
+        string(j),
         "ASSOCIATED_WITH",
-        nothing,
         0.7,
-        text,
-        text,
+        domain,  # domain
+        text,  # provenance
+        text,  # evidence
       )
       push!(relations, relation)
     end
