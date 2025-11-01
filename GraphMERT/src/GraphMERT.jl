@@ -79,6 +79,9 @@ include("testing/progressive.jl")
 include("domains/interface.jl")
 include("domains/registry.jl")
 
+# Domain modules (can be loaded conditionally)
+# include("domains/biomedical/domain.jl")  # Loaded on demand or via explicit include
+
 # Architecture components
 include("architectures/roberta.jl")
 include("architectures/hgat.jl")
