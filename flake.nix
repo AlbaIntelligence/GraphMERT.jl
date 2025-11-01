@@ -19,7 +19,7 @@
       juliaVersion = "1.12.0";
 
       enablePython = false;
-      pythonVersion = "3.12";
+      pythonVersion = "3.13";
 
       enableNodeJS = false;
 

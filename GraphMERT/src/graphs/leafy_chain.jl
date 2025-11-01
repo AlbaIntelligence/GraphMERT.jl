@@ -21,7 +21,7 @@ Create a leafy chain graph with all leaves set to <pad>.
 function create_empty_chain_graph(
     tokens::Vector{Int},
     token_texts::Vector{String},
-    config::ChainGraphConfig
+    config::ChainGraphConfig,
 )::LeafyChainGraph
 
     @assert length(tokens) <= config.num_roots "Too many tokens"
@@ -32,7 +32,7 @@ function create_empty_chain_graph(
 
     # Initialize all leaves as padding
     leaf_tokens = fill(config.pad_token_id, config.num_roots, config.num_leaves_per_root)
-    leaf_relations = Matrix{Union{Symbol,Nothing}}(fill(nothing, config.num_roots, config.num_leaves_per_root))
+    leaf_relations = Matrix{Union{Symbol, Nothing}}(fill(nothing, config.num_roots, config.num_leaves_per_root))
     injected_mask = Matrix{Bool}(falses(config.num_roots, config.num_leaves_per_root))
 
     # Create nodes
@@ -50,7 +50,7 @@ function create_empty_chain_graph(
             is_padding = (padded_tokens[i] == config.pad_token_id),
             relation = nothing,
             head_text = nothing,
-            embedding = nothing
+            embedding = nothing,
         )
     end
 
@@ -68,7 +68,7 @@ function create_empty_chain_graph(
                 is_padding = true,
                 relation = nothing,
                 head_text = nothing,
-                embedding = nothing
+                embedding = nothing,
             )
         end
     end
@@ -91,7 +91,7 @@ function create_empty_chain_graph(
         source_sequence_id = "",
         sequence_length = length(tokens),
         num_injections = 0,
-        config = config
+        config = config,
     )
 end
 
@@ -118,7 +118,7 @@ function build_adjacency_matrix(config::ChainGraphConfig)::SparseMatrixCSC{Float
     end
 
     # 1. Connect consecutive roots (chain structure)
-    for i in 1:(config.num_roots - 1)
+    for i in 1:(config.num_roots-1)
         add_edge(i, i + 1)
     end
 
@@ -200,7 +200,7 @@ function inject_triple!(
     tail_tokens::Vector{Int}, # Tokens for the tail (≤7)
     tail_text::String,
     relation::Symbol,
-    head_text::String
+    head_text::String,
 )
     config = graph.config
 
@@ -212,14 +212,14 @@ function inject_triple!(
     padded_tail = vcat(tail_tokens, fill(config.pad_token_id, config.num_leaves_per_root - length(tail_tokens)))
 
     # Update leaf tokens matrix
-    graph.leaf_tokens[root_index + 1, :] .= padded_tail
+    graph.leaf_tokens[root_index+1, :] .= padded_tail
 
     # Update relation for all leaves of this root
-    graph.leaf_relations[root_index + 1, :] .= relation
+    graph.leaf_relations[root_index+1, :] .= relation
 
     # Update injected mask
     for i in 1:length(tail_tokens)
-        graph.injected_mask[root_index + 1, i] = true
+        graph.injected_mask[root_index+1, i] = true
     end
 
     # Update node objects
@@ -237,7 +237,7 @@ function inject_triple!(
             is_padding = !is_injected,
             relation = is_injected ? relation : nothing,
             head_text = is_injected ? head_text : nothing,
-            embedding = nothing
+            embedding = nothing,
         )
     end
 
@@ -310,17 +310,15 @@ Create position IDs for the sequence (0-indexed).
 
 """
 function create_position_ids(graph::LeafyChainGraph)::Vector{Int}
-    return collect(0:(graph.config.max_sequence_length - 1))
+    return collect(0:(graph.config.max_sequence_length-1))
 end
 
 # Export functions for external use
 export default_chain_graph_config,
-  create_empty_chain_graph,
-  build_adjacency_matrix,
-  floyd_warshall,
-  inject_triple!,
-  graph_to_sequence,
-  create_attention_mask,
-  create_position_ids
-
-
+    create_empty_chain_graph,
+    build_adjacency_matrix,
+    floyd_warshall,
+    inject_triple!,
+    graph_to_sequence,
+    create_attention_mask,
+    create_position_ids

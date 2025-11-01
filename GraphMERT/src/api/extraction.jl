@@ -496,15 +496,19 @@ function discover_head_entities_enhanced(
           end
         end
 
+        # Determine domain from context or default to biomedical
+        domain = "biomedical"  # Default for backward compatibility
+        
         entity = GraphMERT.Entity(
-          entity_text,
-          entity_text,
-          "UNKNOWN",
-          cui,
-          semantic_types,
-          GraphMERT.TextPosition(0, length(entity_text), 0, 0),
+          entity_text,  # id
+          entity_text,  # text
+          "UNKNOWN",  # label
+          "UNKNOWN",  # entity_type
+          domain,  # domain
+          Dict{String,Any}("cui" => cui, "semantic_types" => semantic_types),  # attributes
+          GraphMERT.TextPosition(0, length(entity_text), 0, 0),  # position
           0.9,  # High confidence from LLM
-          text,
+          text,  # provenance
         )
         push!(entities, entity)
       end

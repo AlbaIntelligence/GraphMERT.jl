@@ -60,10 +60,12 @@ data/
 *.bin
 *.safetensors
 
-# Cache directories
+# Python and Cache directories
 .cache/
 __pycache__/
 *.pyc
+.python-version
+uv.lock
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
@@ -85,7 +87,3 @@ flake.lock
 # AI Agents
 .cursor/
 .specify/
-
-
-
-

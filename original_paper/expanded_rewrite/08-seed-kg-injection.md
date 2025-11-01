@@ -308,8 +308,8 @@ end
     injection_algorithm(
         matched_triples::DataFrame,  # Columns: sequence_id, head, relation, tail, score
         α::Float64,                   # Similarity threshold (e.g., 0.55)
-        score_bucket_size::Float64,   # e.g., 0.05
-        relation_bucket_size::Int     # e.g., 20
+        score_bucket_size::Float64,   # Paper uses 0.01 (Algorithm 1)
+        relation_bucket_size::Int     # Paper uses 100 (Algorithm 1)
     )
 
 Inject triples using score+diversity optimization.
@@ -342,7 +342,10 @@ function injection_algorithm(
     # ========== Bucketing ==========
 
     # Step 3: Create score buckets
-    df.score_bucket = floor.(Int, df.score ./ score_bucket_size)
+    # IMPORTANT: Paper uses (max_s - score) so higher scores get LOWER bucket IDs
+    # This ensures sorting by ascending score_bucket prioritizes high scores
+    max_s = maximum(df.score)
+    df.score_bucket = floor.(Int, (max_s .- df.score) ./ score_bucket_size)
 
     # Step 4: Compute relation frequencies
     relation_counts = combine(groupby(df, :relation), nrow => :count)
@@ -353,9 +356,12 @@ function injection_algorithm(
 
     # ========== Selection ==========
 
-    # Step 6: Sort by score bucket (descending), then relation bucket (ascending)
-    # This prioritizes: high scores, then rare relations
-    sort!(df, [:score_bucket, :relation_bucket], rev=[true, false])
+    # Step 6: Sort by score bucket (ascending), then relation bucket (ascending), then score (descending)
+    # Paper Algorithm 1: Sort by ascending (score_bucket, relation_bucket) and descending score
+    # Since higher scores have lower score_bucket IDs (from max_s - score), ascending sort prioritizes high scores
+    # Then within same buckets, prefer rarer relations (lower relation_bucket = rarer)
+    # Finally, within same buckets, prefer highest score
+    sort!(df, [:score_bucket, :relation_bucket, :score], rev=[false, false, true])
 
     # Step 7: Select one triple per head (greedy)
     selected = DataFrame[]
@@ -386,33 +392,37 @@ Entity "diabetes":
   Triple 4: (diabetes, cause_of, neuropathy)   score=0.70, freq=200
 ```
 
-**After Bucketing**:
+**After Bucketing** (using paper's formula: `(max_s - score) / bucket_size`):
+
+Assume max_s = 0.85 for this example:
 
 ```
-Score Buckets (size 0.05):
-  Bucket 16 (0.80-0.85): Triples 1, 2
-  Bucket 15 (0.75-0.80): Triple 3
-  Bucket 14 (0.70-0.75): Triple 4
+Score Buckets (size 0.01, paper default):
+  Triple 1 (score=0.82): bucket = floor((0.85-0.82)/0.01) = floor(3.0) = 3
+  Triple 2 (score=0.80): bucket = floor((0.85-0.80)/0.01) = floor(5.0) = 5
+  Triple 3 (score=0.75): bucket = floor((0.85-0.75)/0.01) = floor(10.0) = 10
+  Triple 4 (score=0.70): bucket = floor((0.85-0.70)/0.01) = floor(15.0) = 15
 
-Relation Buckets (size 20):
-  Bucket 250 (5000 triples): :isa (Triples 1, 2)
-  Bucket 5 (100 triples): :associated_with (Triple 3)
-  Bucket 10 (200 triples): :cause_of (Triple 4)
+Note: Lower bucket ID = higher score (correct for ascending sort)
+
+Relation Buckets (size 100, paper default):
+  :isa (5000 triples): bucket = floor(5000/100) = 50
+  :associated_with (100 triples): bucket = floor(100/100) = 1
+  :cause_of (200 triples): bucket = floor(200/100) = 2
 ```
 
-**Selection Order** (score_bucket DESC, relation_bucket ASC):
+**Selection Order** (score_bucket ASC, relation_bucket ASC, score DESC):
 
-1. Bucket (16, 250): Triple 1 or 2 - but same score bucket!
-2. Within same score bucket, prefer rarer relation...
-3. BUT: All in bucket 16 have relation :isa (same bucket)
-4. So: Pick highest score = Triple 1
+1. Bucket (3, 50): Triple 1 - highest score in highest score bucket
+2. Bucket (5, 50): Triple 2 - second highest score
+3. Bucket (10, 1): Triple 3 - rarer relation (bucket 1 vs 50)
+4. Bucket (15, 2): Triple 4
 
-5. **Alternative if different score buckets**:
-   If Triple 3 had score 0.82 (bucket 16):
-   - Bucket (16, 5): Triple 3 ← SELECTED (rarer relation)
-   - Bucket (16, 250): Triple 1
+**Result**: With paper's algorithm, Triple 1 is selected first (highest score), but if Triple 3 had score 0.82 (bucket 3):
+- Bucket (3, 1): Triple 3 ← SELECTED (rarer relation in same score bucket)
+- Bucket (3, 50): Triple 1
 
-**Result**: Select Triple 3 (`associated_with`) over Triple 1 (`isa`) despite slightly lower score, because it's much rarer!
+The algorithm correctly balances score and relation diversity!
 
 ---
 
