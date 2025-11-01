@@ -50,25 +50,26 @@
 
 **Goal**: Remove dependency on old biomedical files
 
-**Current Issue**: 
-- `domains/biomedical/entities.jl` includes `../../biomedical/entities.jl`
-- `domains/biomedical/relations.jl` includes `../../biomedical/relations.jl`
-- This creates a circular dependency and isn't ideal
+**Status**: ✅ **COMPLETED**
 
-**Tasks**:
-- [ ] Refactor `domains/biomedical/entities.jl` to be self-contained
-  - Move entity extraction logic from `biomedical/entities.jl`
-  - Remove dependency on `BiomedicalEntityType` enum where possible
-  - Keep all biomedical-specific patterns and validation
+**Completed Tasks**:
+- [x] Refactor `domains/biomedical/entities.jl` to be self-contained
+  - ✅ Moved all entity extraction logic, enums, patterns, validation, and confidence calculation from `biomedical/entities.jl`
+  - ✅ Removed dependency on old `biomedical/entities.jl` file
+  - ✅ Includes `BiomedicalEntityType` enum for backward compatibility
+  - ✅ All biomedical-specific patterns and validation preserved
 
-- [ ] Refactor `domains/biomedical/relations.jl` to be self-contained
-  - Move relation extraction logic from `biomedical/relations.jl`
-  - Remove dependency on `BiomedicalRelationType` enum where possible
-  - Keep all biomedical-specific patterns
+- [x] Refactor `domains/biomedical/relations.jl` to be self-contained
+  - ✅ Moved all relation extraction logic, enums, classification, validation, and confidence calculation from `biomedical/relations.jl`
+  - ✅ Removed dependency on old `biomedical/relations.jl` file
+  - ✅ Includes `BiomedicalRelationType` enum for backward compatibility
+  - ✅ All biomedical-specific patterns preserved
+  - ✅ Made string-based validation more lenient for domain interface
 
-- [ ] Update `domains/biomedical/domain.jl` if needed
-  - Ensure all imports work correctly
-  - Test domain creation and registration
+- [x] Verified `domains/biomedical/domain.jl` works correctly
+  - ✅ All imports work correctly
+  - ✅ All 55 biomedical domain tests passing
+  - ✅ Domain creation and registration verified
 
 ### 3. **Move Domain-Specific Files** (MEDIUM PRIORITY)
 
