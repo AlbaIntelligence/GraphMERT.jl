@@ -52,7 +52,10 @@ end
 # 3. Evaluate ValidityScore
 println("\n3. Evaluating ValidityScore...")
 try
-    validity_result = evaluate_validity(kg)
+    if kg === nothing
+        error("Knowledge graph not available")
+    end
+    validity_result = evaluate_validity(kg; domain_name="biomedical", include_domain_metrics=true)
     println("ValidityScore: $(round(validity_result.overall_score, digits=4))")
     println("Valid triples: $(validity_result.num_yes)/$(validity_result.num_total)")
 

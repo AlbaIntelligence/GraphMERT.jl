@@ -16,6 +16,15 @@ using GraphMERT
 
 println("=== Evaluation Metrics Demo ===")
 
+# Load and register biomedical domain
+println("\n📋 Loading biomedical domain...")
+include("../../GraphMERT/src/domains/biomedical.jl")
+bio_domain = load_biomedical_domain()
+register_domain!("biomedical", bio_domain)
+set_default_domain("biomedical")
+println("   ✅ Biomedical domain loaded and registered")
+println()
+
 # 1. Create sample knowledge graph
 println("\n1. Creating sample knowledge graph...")
 text = """
@@ -26,14 +35,24 @@ Cardiovascular disease is a major complication of diabetes.
 """
 
 # Extract knowledge graph (simplified demo)
-kg = extract_knowledge_graph(text)
-
-println("Sample KG: $(length(kg.entities)) entities, $(length(kg.relations)) relations")
+try
+    options = ProcessingOptions(domain="biomedical")
+    kg = extract_knowledge_graph(text, model; options=options)
+    println("Sample KG: $(length(kg.entities)) entities, $(length(kg.relations)) relations")
+catch e
+    println("⚠️  Model not available - using placeholder KG")
+    println("   In production, load a model with: model = GraphMERT.load_model(\"path/to/model\")")
+    # Create placeholder KG for demo
+    kg = nothing
+end
 
 # 2. Evaluate FActScore*
 println("\n2. Evaluating FActScore*...")
 try
-    factscore_result = evaluate_factscore(kg, text)
+    if kg === nothing
+        error("Knowledge graph not available")
+    end
+    factscore_result = evaluate_factscore(kg, text; domain_name="biomedical", include_domain_metrics=true)
     println("FActScore*: $(round(factscore_result.overall_score, digits=4))")
     println("Supported triples: $(factscore_result.num_supported)/$(factscore_result.num_total)")
 
