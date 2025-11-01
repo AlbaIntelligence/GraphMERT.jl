@@ -8,14 +8,18 @@ A high-performance Julia implementation of the GraphMERT algorithm for construct
 
 ## Overview
 
-GraphMERT.jl implements the state-of-the-art GraphMERT algorithm from the paper "GraphMERT: Efficient and Scalable Distillation of Reliable Knowledge Graphs from Unstructured Data" (arXiv:2510.09580). The implementation is specifically optimized for biomedical text processing and knowledge graph construction, achieving significant performance improvements over existing methods.
+GraphMERT.jl implements the state-of-the-art GraphMERT algorithm from the paper "GraphMERT: Efficient and Scalable Distillation of Reliable Knowledge Graphs from Unstructured Data" (arXiv:2510.09580). The implementation features a **domain-agnostic architecture** with pluggable domain modules, allowing knowledge graph extraction for various application domains including biomedical text, Wikipedia articles, and custom domains.
 
 ### Key Features
 
 - **RoBERTa-based Encoder**: Leverages pre-trained RoBERTa models for robust text understanding
 - **Hierarchical Graph Attention (H-GAT)**: Advanced attention mechanisms for semantic relation encoding
 - **Leafy Chain Graph Structure**: Novel graph representation for text with semantic nodes
-- **UMLS Integration**: Seamless integration with the Unified Medical Language System
+- **Domain-Agnostic Architecture**: Pluggable domain system supporting multiple application domains
+- **Biomedical Domain**: Full support for biomedical text with UMLS integration
+- **Wikipedia Domain**: Support for general knowledge extraction with Wikidata integration
+- **UMLS Integration**: Seamless integration with the Unified Medical Language System (biomedical domain)
+- **Wikidata Integration**: Support for Wikidata entity linking (Wikipedia domain)
 - **Helper LLM Support**: External language model integration for enhanced entity discovery
 - **Dual Training Objectives**: MLM (Masked Language Modeling) + MNM (Masked Node Modeling)
 - **High Performance**: Processes 5,000+ tokens per second on standard hardware
@@ -36,6 +40,8 @@ Pkg.add("GraphMERT")
 
 ## Quick Start
 
+### Basic Usage
+
 ```julia
 using GraphMERT
 
@@ -45,7 +51,7 @@ model = load_model("path/to/graphmert_model.onnx")
 # Extract knowledge graph from biomedical text
 text = "Diabetes mellitus is a chronic metabolic disorder characterized by hyperglycemia. Insulin therapy is the primary treatment for type 1 diabetes."
 
-# Process with default configuration
+# Process with default configuration (biomedical domain)
 graph = extract_knowledge_graph(text, model)
 
 # Access results
@@ -54,7 +60,7 @@ println("Extracted $(length(graph.relations)) relations")
 
 # View entity details
 for entity in graph.entities
-    println("$(entity.text) [$(entity.label)] (confidence: $(entity.confidence))")
+    println("$(entity.text) [$(entity.entity_type)] (confidence: $(entity.confidence))")
 end
 
 # View relations
@@ -62,6 +68,36 @@ for relation in graph.relations
     println("$(relation.head) --[$(relation.relation_type)]--> $(relation.tail)")
 end
 ```
+
+### Domain System Usage
+
+GraphMERT.jl now supports a pluggable domain system, allowing you to use different domain-specific modules for various application areas:
+
+```julia
+using GraphMERT
+
+# Load biomedical domain
+include("GraphMERT/src/domains/biomedical.jl")
+bio_domain = load_biomedical_domain()
+register_domain!("biomedical", bio_domain)
+
+# Extract with biomedical domain
+text = "Diabetes is treated with metformin."
+options = ProcessingOptions(domain="biomedical")
+graph = extract_knowledge_graph(text, model; options=options)
+
+# Load Wikipedia domain
+include("GraphMERT/src/domains/wikipedia.jl")
+wiki_domain = load_wikipedia_domain()
+register_domain!("wikipedia", wiki_domain)
+
+# Extract with Wikipedia domain
+text = "Leonardo da Vinci was born in Vinci, Italy."
+options = ProcessingOptions(domain="wikipedia")
+graph = extract_knowledge_graph(text, model; options=options)
+```
+
+See the [Domain Usage Guide](DOMAIN_USAGE_GUIDE.md) for more details on using domains.
 
 ## Architecture
 
@@ -107,17 +143,18 @@ The GraphMERT implementation follows a sophisticated multi-stage architecture:
 ### Basic Configuration
 
 ```julia
-# Create processing options
+# Create processing options with domain specification
 options = ProcessingOptions(
+    domain = "biomedical",  # or "wikipedia" for general knowledge
     confidence_threshold = 0.8,
     max_entities = 100,
     max_relations = 50,
-    umls_enabled = true,
+    umls_enabled = true,  # Biomedical domain only
     helper_llm_enabled = true
 )
 
 # Extract with custom options
-graph = extract_knowledge_graph(text, model, options)
+graph = extract_knowledge_graph(text, model; options=options)
 ```
 
 ### Advanced Configuration
@@ -176,6 +213,39 @@ println("FActScore: $(fact_score)")
 println("ValidityScore: $(validity_score)")
 println("GraphRAG Score: $(graphrag_score)")
 ```
+
+## Domain System
+
+GraphMERT.jl uses a **pluggable domain system** that allows you to customize knowledge graph extraction for different application domains. The core algorithm is domain-agnostic, while domain-specific logic is encapsulated in domain modules.
+
+### Available Domains
+
+#### Biomedical Domain
+
+- **Entity Types**: DISEASE, DRUG, PROTEIN, GENE, ANATOMY, SYMPTOM, PROCEDURE, etc.
+- **Relation Types**: TREATS, CAUSES, ASSOCIATED_WITH, PREVENTS, INDICATES, etc.
+- **UMLS Integration**: Automatic concept mapping to UMLS entities
+- **Semantic Type Classification**: Biomedical ontology alignment
+- **PubMed Processing**: Specialized processing for biomedical literature
+
+#### Wikipedia Domain
+
+- **Entity Types**: PERSON, ORGANIZATION, LOCATION, CONCEPT, EVENT, TECHNOLOGY, etc.
+- **Relation Types**: BORN_IN, DIED_IN, WORKED_AT, FOUNDED, CREATED_BY, etc.
+- **Wikidata Integration**: Entity linking to Wikidata knowledge base
+- **General Knowledge**: Support for Wikipedia-style text processing
+
+### Domain Features
+
+- **Domain-Specific Entity Extraction**: Pattern-based and rule-based entity recognition
+- **Domain-Specific Relations**: Relation classification tailored to domain ontology
+- **Knowledge Base Integration**: UMLS (biomedical) or Wikidata (Wikipedia) entity linking
+- **Domain-Specific Validation**: Ontology-aware validation of entities and relations
+- **Domain-Specific Evaluation Metrics**: Custom metrics for domain-specific quality assessment
+
+### Creating Custom Domains
+
+You can create custom domains by implementing the `DomainProvider` interface. See the [Domain Usage Guide](DOMAIN_USAGE_GUIDE.md) for details.
 
 ## Biomedical Domain Features
 
@@ -244,10 +314,13 @@ trained_model = train_graphmert(training_data, training_config)
 See the `examples/` directory for comprehensive examples:
 
 - **Basic Extraction**: Simple knowledge graph extraction
-- **Biomedical Processing**: Domain-specific text processing
+- **Domain Switching**: Using multiple domains simultaneously (`examples/00_domain_switching_demo.jl`)
+- **Biomedical Processing**: Domain-specific text processing (`examples/biomedical/`)
+- **Wikipedia Processing**: General knowledge extraction (`examples/wikipedia/`)
 - **Training Pipeline**: Model training and fine-tuning
 - **Performance Benchmarking**: Speed and memory optimization
 - **UMLS Integration**: Biomedical concept mapping
+- **Wikidata Integration**: Wikipedia entity linking
 - **Batch Processing**: Large-scale document processing
 
 ## Contributing
