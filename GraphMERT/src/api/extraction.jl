@@ -2,14 +2,16 @@
 Knowledge Graph Extraction API for GraphMERT.jl
 
 This module implements the complete knowledge graph extraction pipeline
-from biomedical text using a trained GraphMERT model.
+from text using a trained GraphMERT model with domain-specific providers.
 
 The extraction pipeline follows the 5-stage process from the paper:
-1. Head Discovery: Extract entities from text
-2. Relation Matching: Match entities to relations
+1. Head Discovery: Extract entities from text using domain provider
+2. Relation Matching: Match entities to relations using domain provider
 3. Tail Prediction: Use GraphMERT to predict tail tokens
 4. Tail Formation: Combine tokens into coherent tails
 5. Filtering: Apply similarity and deduplication filters
+
+All entity and relation extraction uses domain providers for domain-specific logic.
 """
 
 # Types will be available from main module
@@ -17,287 +19,46 @@ The extraction pipeline follows the 5-stage process from the paper:
 
 # using DocStringExtensions  # Temporarily disabled
 
-"""
-    extract_biomedical_terms(text::String)
+# These functions have been moved to domain providers
+# Use domain.extract_entities() and domain.calculate_entity_confidence() instead
 
-Extract biomedical terms from text with their positions.
-
-
-# Example
-```julia
-terms = extract_biomedical_terms("Diabetes is a chronic condition.")
-```
-"""
-function extract_biomedical_terms(text::String)
-  terms = Vector{Tuple{String,Int}}()
-
-  # Simple pattern matching for biomedical terms
-  # This is a basic implementation - in practice would use more sophisticated NLP
-  biomedical_patterns = [
-    r"\bdiabetes\b"i,
-    r"\bmetformin\b"i,
-    r"\binsulin\b"i,
-    r"\bglucose\b"i,
-    r"\bblood\s+sugar\b"i,
-    r"\btype\s+2\s+diabetes\b"i,
-    r"\btype\s+1\s+diabetes\b"i,
-    r"\bcardiovascular\b"i,
-    r"\bheart\s+disease\b"i,
-    r"\bhypertension\b"i,
-    r"\bcholesterol\b"i,
-    r"\bobesity\b"i,
-    r"\bmetabolic\b"i,
-    r"\bchronic\b"i,
-    r"\bdisorder\b"i,
-    r"\bcondition\b"i,
-    r"\bdisease\b"i,
-    r"\bsyndrome\b"i,
-    r"\btherapy\b"i,
-    r"\btreatment\b"i,
-    r"\bmedication\b"i,
-    r"\bdrug\b"i,
-    r"\bpatient\b"i,
-    r"\bclinical\b"i,
-    r"\bmedical\b"i,
-  ]
-
-  for pattern in biomedical_patterns
-    for match in eachmatch(pattern, text)
-      term = match.match
-      position = match.offset
-      push!(terms, (term, position))
-    end
-  end
-
-  # Remove duplicates and sort by position
-  unique_terms = unique(terms)
-  sort!(unique_terms, by=x -> x[2])
-
-  return unique_terms
-end
 
 """
-    calculate_entity_confidence(term::String, text::String)
+    match_relations_for_entities(entities::Vector{Entity}, text::String, domain::Any, options::ProcessingOptions)
 
-Calculate confidence score for an entity based on term characteristics.
+Stage 2: Relation Matching - Match entities to relations using domain provider.
 
-"""
-function calculate_entity_confidence(term::String, text::String)
-  # Simple confidence calculation based on term characteristics
-  confidence = 0.5  # Base confidence
+# Arguments
+- `entities::Vector{Entity}`: Extracted entities
+- `text::String`: Input text
+- `domain::DomainProvider`: Domain provider instance
+- `options::ProcessingOptions`: Processing options
 
-  # Increase confidence for longer terms (more specific)
-  if length(term) > 10
-    confidence += 0.2
-  elseif length(term) > 5
-    confidence += 0.1
-  end
-
-  # Increase confidence for capitalized terms (proper nouns)
-  if isuppercase(term[1])
-    confidence += 0.1
-  end
-
-  # Increase confidence for terms with multiple words
-  if count(isspace, term) > 0
-    confidence += 0.1
-  end
-
-  # Cap at 1.0
-  return min(confidence, 1.0)
-end
-
-"""
-    discover_head_entities(text::String, umls_client::Union{UMLSClient, Nothing}=nothing)
-
-Stage 1: Head Discovery - Extract entities from text.
-
-"""
-function discover_head_entities(text::String, umls_client::Union{Any,Nothing}=nothing)
-entities = Vector{GraphMERT.Entity}()
-
-# Use ML-powered entity extraction instead of simple regex
-# Tokenize the text using BioMedBERT tokenizer
-tokenizer = GraphMERT.BioMedTokenizer()
-  tokens = GraphMERT.tokenize(tokenizer, text)
-
-# For each token, predict if it's part of a biomedical entity
-# This is a simplified ML-based approach - in practice would use the full GraphMERT model
-  for (i, token) in enumerate(tokens)
-# Skip special tokens and very short tokens
-if startswith(token, "##") || length(token) < 3
-  continue
-end
-
-# Simple ML-like prediction: check if token matches biomedical patterns
-# In a full implementation, this would use the trained entity classifier
-is_biomedical = any(pattern -> occursin(pattern, lowercase(token)), [
-r"diabet", r"insulin", r"glucos", r"cardio", r"hypertens", r"cholesterol",
-  r"obes", r"metabol", r"chronic", r"disorder", r"syndrom", r"therap",
-      r"treat", r"medic", r"drug", r"patient", r"clinical", r"medical"
-])
-
-    if is_biomedical
-  # Find position in original text
-  # This is approximate - a full implementation would track token positions
-  token_match = findfirst(token, text)
-  if token_match !== nothing
-  token_start = first(token_match)
-        token_end = token_start + length(token) - 1
-
-  # Calculate confidence based on multiple factors
-    confidence = calculate_entity_confidence(token, text)
-
-        # Try to determine entity type (simplified)
-    entity_type = classify_entity_type(token)
-
-  # Link to UMLS if client available
-  cui = nothing
-  semantic_types = String[]
-  if umls_client !== nothing
-    linking_result = link_entity_to_umls(token, umls_client)
-      if linking_result !== nothing
-        cui = linking_result.cui
-          semantic_types = linking_result.semantic_types
-          end
-      end
-
-        # Create TextPosition
-        text_position = GraphMERT.TextPosition(token_start, token_end, 1, 1)
-
-        # Create attributes dictionary
-        attributes = Dict{String,Any}()
-        if cui !== nothing
-          attributes["cui"] = cui
-        end
-        if !isempty(semantic_types)
-          attributes["semantic_types"] = semantic_types
-        end
-        attributes["provenance"] = text
-        attributes["token_index"] = i
-
-        entity = GraphMERT.Entity(
-          "entity_$i",  # id
-          token,  # text
-          entity_type,  # label
-          entity_type,  # entity_type
-          attributes,
-          text_position,
-          confidence,
-          text,  # provenance
-        )
-        push!(entities, entity)
-      end
-    end
-  end
-
-  # Remove duplicates based on text and position proximity
-  entities = deduplicate_entities(entities)
-
-  return entities
-end
-
-"""
-    match_relations_for_entities(entities::Vector{BiomedicalEntity}, text::String,
-                               llm_client::Union{LLMClient, Nothing}=nothing)
-
-Stage 2: Relation Matching - Match entities to relations.
-
+# Returns
+- `Vector{Relation}`: Extracted relations
 """
 function match_relations_for_entities(
   entities::Vector{GraphMERT.Entity},
   text::String,
-  llm_client::Union{Any,Nothing}=nothing,
+  domain::Any,
+  options::GraphMERT.ProcessingOptions = GraphMERT.default_processing_options(),
 )
-  relations = Vector{Tuple{Int,Int,String,Float64}}()
-
-  for i ∈ 1:length(entities)
-    for j ∈ 1:length(entities)
-      if i != j
-        # Simple relation matching (would be more sophisticated)
-        relation_type = determine_relation_type(entities[i], entities[j], text)
-        confidence = calculate_relation_confidence(entities[i], entities[j], text)
-
-        if confidence > 0.5  # Threshold for relation acceptance
-          push!(relations, (i, j, relation_type, confidence))
-        end
-      end
-    end
-  end
-
-  return relations
-end
-
-"""
-    determine_relation_type(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
-
-Determine the relationship type between two entities based on their context in the text.
-
-"""
-function determine_relation_type(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
-  # Simple heuristic-based relation determination
-  # In practice, this would use more sophisticated NLP techniques
-
-  head_text = lowercase(head_entity.text)
-  tail_text = lowercase(tail_entity.text)
-
-  # Check for common biomedical relations
-  if occursin("treats", text) || occursin("therapy", text) || occursin("medication", text)
-    return "treats"
-  elseif occursin("causes", text) || occursin("leads to", text) || occursin("results in", text)
-    return "causes"
-  elseif occursin("associated with", text) || occursin("related to", text)
-    return "associated_with"
-  elseif occursin("prevents", text) || occursin("reduces", text)
-    return "prevents"
-  elseif occursin("diagnoses", text) || occursin("indicates", text)
-    return "diagnoses"
-  else
-    return "related_to"  # Default relation
+  # Use domain provider for relation extraction
+  try
+    relations = GraphMERT.extract_relations(domain, entities, text, options)
+    return relations
+  catch e
+    @warn "Domain relation extraction failed: $e, falling back to simple extraction"
+    # Fallback: create empty relations list
+    return Vector{GraphMERT.Relation}()
   end
 end
 
-"""
-    calculate_relation_confidence(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
-
-Calculate the confidence score for a relation between two entities.
+# These functions have been moved to domain providers
+# Use domain.validate_relation() and domain.calculate_relation_confidence() instead
 
 """
-function calculate_relation_confidence(head_entity::BiomedicalEntity, tail_entity::BiomedicalEntity, text::String)
-  # Simple confidence calculation based on entity proximity and text context
-  # In practice, this would use more sophisticated methods
-
-  base_confidence = 0.5
-
-  # Check if entities are in the same sentence
-  head_pos = head_entity.position
-  tail_pos = tail_entity.position
-
-  # Calculate distance between entities
-  distance = abs(tail_pos.start - head_pos.stop)
-
-  # Closer entities get higher confidence
-  if distance < 50
-    base_confidence += 0.2
-  elseif distance < 100
-    base_confidence += 0.1
-  end
-
-  # Check for relation keywords
-  relation_keywords = ["treats", "causes", "associated", "prevents", "diagnoses", "therapy", "medication"]
-  keyword_bonus = 0.0
-  for keyword in relation_keywords
-    if occursin(keyword, lowercase(text))
-      keyword_bonus += 0.1
-    end
-  end
-
-  confidence = base_confidence + keyword_bonus
-  return min(1.0, confidence)
-end
-
-"""
-    predict_tail_tokens(model::GraphMERTModel, head_entity::BiomedicalEntity,
+    predict_tail_tokens(model::GraphMERTModel, head_entity::Entity,
                        relation::String, text::String, top_k::Int=20)
 
 Stage 3: Tail Prediction - Use GraphMERT to predict tail tokens.
@@ -366,7 +127,7 @@ function form_tail_from_tokens(
 end
 
 """
-    filter_and_deduplicate_triples(triples::Vector{Tuple{BiomedicalEntity, String, String, Float64}},
+    filter_and_deduplicate_triples(triples::Vector{Tuple{Entity, String, String, Float64}},
                                   text::String, β_threshold::Float64=0.8)
 
 Stage 5: Filtering - Apply similarity and deduplication filters.
@@ -407,170 +168,56 @@ end
 
 Main knowledge graph extraction function.
 
-Extracts structured knowledge from biomedical text using a trained GraphMERT model.
+Extracts structured knowledge from text using a trained GraphMERT model and domain provider.
 
+# Arguments
+- `text::String`: Input text to extract from
+- `model::GraphMERTModel`: Trained GraphMERT model
+- `options::ProcessingOptions`: Processing options (must include domain field)
+
+# Returns
+- `KnowledgeGraph`: Extracted knowledge graph with entities and relations
 """
 function extract_knowledge_graph(
   text::String,
   model::GraphMERT.GraphMERTModel;
   options::GraphMERT.ProcessingOptions=GraphMERT.default_processing_options(),
 )::GraphMERT.KnowledgeGraph
-  # Simplified implementation for demo - full version would use trained model
-  @info "Starting knowledge graph extraction from text of length $(length(text))"
+  @info "Starting knowledge graph extraction from text of length $(length(text)) with domain: $(options.domain)"
 
-  # Stage 1: Head Discovery with LLM enhancement
-  head_entities =
-    discover_head_entities_enhanced(text, options.umls_client, options.llm_client)
-  @info "Discovered $(length(head_entities)) head entities"
-
-  # Stage 2: Relation Matching with LLM enhancement
-  entity_relations =
-    match_relations_for_entities_enhanced(head_entities, text, options.llm_client)
-  @info "Matched $(length(entity_relations)) relations"
-
-  # For demo, create a simple knowledge graph with discovered entities
-  entities = head_entities
-  relations = Vector{GraphMERT.Relation}()
-
-  # Create simple relations between entities
-  # Determine domain from entities or default to biomedical
-  domain = isempty(entities) ? "biomedical" : entities[1].domain
-  
-  for i ∈ 1:min(length(entities), 3), j ∈ (i+1):min(length(entities), i + 2)
-    if i != j
-      relation = GraphMERT.Relation(
-        string(i),
-        string(j),
-        "ASSOCIATED_WITH",
-        0.7,
-        domain,  # domain
-        text,  # provenance
-        text,  # evidence
-      )
-      push!(relations, relation)
-    end
+  # Get domain provider from registry
+  domain_provider = GraphMERT.get_domain(options.domain)
+  if domain_provider === nothing
+    @error "Domain '$(options.domain)' not found. Available domains: $(GraphMERT.list_domains())"
+    error("Domain '$(options.domain)' not registered")
   end
 
+  # Stage 1: Head Discovery using domain provider
+  entities = discover_head_entities(text, domain_provider, options)
+  @info "Discovered $(length(entities)) entities using domain: $(options.domain)"
+
+  # Stage 2: Relation Matching using domain provider
+  relations = match_relations_for_entities(entities, text, domain_provider, options)
+  @info "Extracted $(length(relations)) relations using domain: $(options.domain)"
+
+  # Create knowledge graph
   return GraphMERT.KnowledgeGraph(
     entities,
     relations,
     Dict(
       "extraction_time" => string(now()),
       "model_version" => "GraphMERT-v0.1",
+      "domain" => options.domain,
       "num_entities" => length(entities),
       "num_relations" => length(relations),
-      "num_triples" => length(relations),  # Triples = relations
+      "num_triples" => length(relations),
       "source_text" => text,
-      "demo_mode" => true,
     ),
   )
 end
 
-"""
-    discover_head_entities_enhanced(text::String, umls_client::Union{Any, Nothing}=nothing,
-                                   llm_client::Union{Any, Nothing}=nothing)
-
-Enhanced head entity discovery using both UMLS and LLM.
-
-"""
-function discover_head_entities_enhanced(
-  text::String,
-  umls_client::Union{Any,Nothing}=nothing,
-  llm_client::Union{Any,Nothing}=nothing,
-)
-  entities = Vector{GraphMERT.Entity}()
-
-  # First, try LLM-based discovery if available
-  if llm_client !== nothing
-    try
-      llm_entities = GraphMERT.discover_entities(llm_client, text)
-      for entity_text in llm_entities
-        # Link to UMLS if available
-        cui = nothing
-        semantic_types = String[]
-        if umls_client !== nothing
-          linking_result = GraphMERT.link_entity_to_umls(entity_text, umls_client)
-          if linking_result !== nothing
-            cui = linking_result.cui
-            semantic_types = linking_result.semantic_types
-          end
-        end
-
-        # Determine domain from context or default to biomedical
-        domain = "biomedical"  # Default for backward compatibility
-        
-        entity = GraphMERT.Entity(
-          entity_text,  # id
-          entity_text,  # text
-          "UNKNOWN",  # label
-          "UNKNOWN",  # entity_type
-          domain,  # domain
-          Dict{String,Any}("cui" => cui, "semantic_types" => semantic_types),  # attributes
-          GraphMERT.TextPosition(0, length(entity_text), 0, 0),  # position
-          0.9,  # High confidence from LLM
-          text,  # provenance
-        )
-        push!(entities, entity)
-      end
-    catch e
-      @warn "LLM entity discovery failed: $e"
-    end
-  end
-
-  # Fallback to simple extraction if LLM fails or unavailable
-  if isempty(entities) || llm_client === nothing
-    simple_entities = discover_head_entities(text, umls_client)
-    append!(entities, simple_entities)
-  end
-
-  return entities
-end
-
-"""
-    match_relations_for_entities_enhanced(entities::Vector{BiomedicalEntity}, text::String,
-                                        llm_client::Union{Any, Nothing}=nothing)
-
-Enhanced relation matching using LLM for better relation detection.
-
-"""
-function match_relations_for_entities_enhanced(
-  entities::Vector{GraphMERT.Entity},
-  text::String,
-  llm_client::Union{Any,Nothing}=nothing,
-)
-  relations = Vector{Tuple{Int,Int,String,Float64}}()
-
-  # Try LLM-based relation matching first
-  if llm_client !== nothing && length(entities) > 1
-    try
-      entity_texts = [e.text for e in entities]
-      llm_relations = GraphMERT.match_relations(llm_client, entity_texts, text)
-
-      for (entity1, relation_data) in llm_relations
-        entity2 = relation_data["entity2"]
-        relation_type = relation_data["relation"]
-
-        # Find entity indices
-        idx1 = findfirst(e -> e.text == entity1, entities)
-        idx2 = findfirst(e -> e.text == entity2, entities)
-
-        if idx1 !== nothing && idx2 !== nothing && idx1 != idx2
-          push!(relations, (idx1, idx2, relation_type, 0.9))  # High confidence from LLM
-        end
-      end
-    catch e
-      @warn "LLM relation matching failed: $e"
-    end
-  end
-
-  # Fallback to simple relation matching
-  if length(relations) == 0
-    simple_relations = match_relations_for_entities(entities, text, llm_client)
-    append!(relations, simple_relations)
-  end
-
-  return relations
-end
+# These enhanced functions have been replaced by domain provider-based extraction
+# Use discover_head_entities(domain, options) and match_relations_for_entities(domain, options) instead
 
 """
     classify_entity_type(token::String)
@@ -637,12 +284,15 @@ function deduplicate_entities(entities::Vector{GraphMERT.Entity})
 end
 
 # Export functions for external use
-export extract_biomedical_terms,
-  discover_head_entities,
+export discover_head_entities,
   match_relations_for_entities,
   predict_tail_tokens,
   form_tail_from_tokens,
   filter_and_deduplicate_triples,
   extract_knowledge_graph,
-  discover_head_entities_enhanced,
-  match_relations_for_entities_enhanced
+  deduplicate_entities
+
+# Deprecated: extract_biomedical_terms - use domain provider instead
+# Deprecated: discover_head_entities_enhanced - use discover_head_entities with domain provider
+# Deprecated: match_relations_for_entities_enhanced - use match_relations_for_entities with domain provider
+ons_for_entities_enhanced - use match_relations_for_entities with domain provider

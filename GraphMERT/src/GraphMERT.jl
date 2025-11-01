@@ -75,6 +75,10 @@ include("config.jl")
 include("utils.jl")
 include("testing/progressive.jl")
 
+# Domain abstraction layer
+include("domains/interface.jl")
+include("domains/registry.jl")
+
 # Architecture components
 include("architectures/roberta.jl")
 include("architectures/hgat.jl")
@@ -135,22 +139,13 @@ export FActScore, ValidityScore, GraphRAG
 export filter_knowledge_graph
 export export_knowledge_graph, export_to_json, export_to_csv, export_to_rdf, export_to_ttl
 
-# Export biomedical types and functions
-export BiomedicalEntityType, BiomedicalRelationType
-export DISEASE,
-  DRUG, PROTEIN, GENE, ANATOMY, SYMPTOM, PROCEDURE, ORGANISM, CHEMICAL, CELL_TYPE
-export TREATS,
-  CAUSES, ASSOCIATED_WITH, PREVENTS, INHIBITS, ACTIVATES, BINDS_TO, INTERACTS_WITH
-export REGULATES, EXPRESSES, LOCATED_IN, PART_OF, DERIVED_FROM, SYNONYMOUS_WITH
-export CONTRAINDICATED_WITH, INDICATES, MANIFESTS_AS, ADMINISTERED_FOR, TARGETS
-export METABOLIZED_BY, TRANSPORTED_BY, SECRETED_BY, PRODUCED_BY, CONTAINS, COMPONENT_OF
-export UNKNOWN, UNKNOWN_RELATION
-
-# Export biomedical functions
-export extract_entities_from_text, classify_entity, validate_biomedical_entity
-export classify_relation, validate_biomedical_relation, calculate_entity_confidence
-export calculate_relation_confidence, normalize_entity_text, get_entity_type_name
-export get_relation_type_name, get_supported_entity_types, get_supported_relation_types
+# Export domain-related functions
+export DomainProvider, DomainConfig
+export register_domain!, get_domain, list_domains
+export set_default_domain, get_default_domain, has_domain
+export extract_entities, extract_relations
+export validate_entity, validate_relation
+export calculate_entity_confidence, calculate_relation_confidence
 
 # Export UMLS functions
 export create_umls_client, search_concepts, get_concept_details, link_entity
