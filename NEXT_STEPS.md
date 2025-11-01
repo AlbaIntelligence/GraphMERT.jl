@@ -104,19 +104,32 @@
 
 **Goal**: Update examples to use the domain system
 
-- [ ] **Biomedical examples** (`examples/biomedical/`)
-  - Update to load and register biomedical domain
+**Status**: ✅ **PARTIALLY COMPLETED**
+
+**Completed Tasks**:
+- [x] **Updated biomedical example** (`examples/biomedical/01_basic_entity_extraction.jl`)
+  - ✅ Updated to load and register biomedical domain
+  - ✅ Uses domain system for entity extraction
+  - ✅ Demonstrates domain provider usage
+  - ✅ Shows confidence scoring and entity statistics
+
+- [x] **Updated Wikipedia example** (`examples/wikipedia/01_wikipedia_entity_extraction.jl`)
+  - ✅ Updated to use Wikipedia domain
+  - ✅ Uses domain system for entity and relation extraction
+  - ✅ Demonstrates domain provider usage
+  - ✅ Shows entity and relation type distributions
+
+- [x] **Created domain switching example** (`examples/00_domain_switching_demo.jl`)
+  - ✅ Shows how to use multiple domains simultaneously
+  - ✅ Demonstrates domain switching
+  - ✅ Compares extraction results across domains
+  - ✅ Shows default domain behavior
+
+**Remaining Tasks**:
+- [ ] Update remaining biomedical examples (`examples/biomedical/02_*.jl` through `14_*.jl`)
+  - Update to use domain system where applicable
   - Test that they still work
   - Update documentation
-
-- [ ] **Wikipedia examples** (`examples/wikipedia/`)
-  - Update to use Wikipedia domain
-  - Ensure they work correctly
-  - Add more examples if needed
-
-- [ ] **Create domain switching example**
-  - Example showing how to use multiple domains
-  - Example showing domain switching
 
 ### 5. **Enhanced Domain Features** (MEDIUM PRIORITY)
 
