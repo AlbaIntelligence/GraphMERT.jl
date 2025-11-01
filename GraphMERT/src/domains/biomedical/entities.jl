@@ -85,14 +85,16 @@ function validate_biomedical_entity(entity_text::String, entity_type::String, co
     try
         entity_type_enum = parse_entity_type(entity_type)
         if entity_type_enum isa BiomedicalEntityType
+            # Call the original validate_biomedical_entity function with enum
             return validate_biomedical_entity(entity_text, entity_type_enum)
         end
-    catch
+    catch e
         # If parsing fails, use basic validation
         return length(entity_text) > 2 && length(entity_text) < 100
     end
     
-    return true
+    # Fallback: basic validation
+    return length(entity_text) > 2 && length(entity_text) < 100
 end
 
 """

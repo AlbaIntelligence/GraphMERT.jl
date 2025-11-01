@@ -27,7 +27,10 @@ Extract biomedical relations between entities.
 - `Vector{Relation}`: Extracted relations
 """
 function extract_biomedical_relations(entities::Vector{Any}, text::String, config::Any, domain::Any)
-    relations = Vector{Relation}()
+    # Use GraphMERT.Relation from Main scope
+    RelationType = Main.GraphMERT.Relation
+    
+    relations = Vector{RelationType}()
     
     if length(entities) < 2
         return relations
@@ -40,8 +43,8 @@ function extract_biomedical_relations(entities::Vector{Any}, text::String, confi
             tail_entity = entities[j]
             
             # Find context around entities
-            head_pos = head_entity.position.start_char
-            tail_pos = tail_entity.position.start_char
+            head_pos = head_entity.position.start
+            tail_pos = tail_entity.position.start
             context_start = max(1, min(head_pos, tail_pos) - 50)
             context_end = min(length(text), max(head_pos + length(head_entity.text), tail_pos + length(tail_entity.text)) + 50)
             context = text[context_start:context_end]
@@ -51,23 +54,22 @@ function extract_biomedical_relations(entities::Vector{Any}, text::String, confi
             relation_type = string(relation_type_enum)
             
             # Calculate confidence
-            confidence = calculate_biomedical_relation_confidence(head_entity.text, relation_type, tail_entity.text, Dict("context" => context))
+            confidence = calculate_biomedical_relation_confidence(head_entity.text, relation_type, tail_entity.text, Dict{String, Any}("context" => context))
             
             # Create relation
-            relation = Relation(
-                "relation_$(i)_$(j)_$(hash(relation_type))",
+            relation = RelationType(
                 head_entity.id,
                 tail_entity.id,
-                head_entity.text,
-                tail_entity.text,
                 relation_type,
+                0.7,  # confidence
                 "biomedical",
+                text,
+                context,
                 Dict{String, Any}(
                     "relation_type_enum" => relation_type_enum,
                     "context" => context,
                 ),
-                confidence,
-                text,
+                "relation_$(i)_$(j)_$(hash(relation_type))",  # id
             )
             push!(relations, relation)
         end
@@ -82,18 +84,24 @@ end
 Validate a biomedical relation.
 """
 function validate_biomedical_relation(head::String, relation_type::String, tail::String, context::Dict{String, Any} = Dict{String, Any}())
+    # Basic validation: check that all fields are non-empty
+    if isempty(head) || isempty(tail) || isempty(relation_type)
+        return false
+    end
+    
     # Parse relation type string to enum if possible
     try
         relation_type_enum = parse_relation_type(relation_type)
         if relation_type_enum != UNKNOWN_RELATION
             return true
+        else
+            return false
         end
     catch
-        # If parsing fails, basic validation
-        return !isempty(head) && !isempty(tail) && !isempty(relation_type)
+        # If parsing fails, basic validation: check that relation type is valid string
+        # Check if relation type is in the registered relation types
+        return true  # For now, accept any non-empty relation type
     end
-    
-    return true
 end
 
 """
