@@ -763,6 +763,172 @@ This document contains a detailed hierarchical task breakdown following EPIC > S
 
 ---
 
+## EPIC 7: Graph Visualization
+**Priority**: P1 (High Value)
+**Effort**: 5 days
+**Branch**: `feature/graph-visualization`
+**Deliverable**: Interactive knowledge graph visualization system
+
+### STORY 7.1: Static Visualization Foundation
+**As a**: User of GraphMERT
+**I want**: Visualize extracted knowledge graphs
+**So that**: I can explore and understand the extracted knowledge
+
+#### TASK 7.1.1: Graph Conversion Utilities
+**Status**: TODO
+**Effort**: 3 hours
+**TDD**: Write conversion tests with sample KnowledgeGraph
+
+##### SUBTASK 7.1.1.1: Implement kg_to_graphs_format
+- Write test for KnowledgeGraph to Graphs.jl/MetaGraphs.jl conversion
+- Implement entity and relation mapping
+- Add validation for graph structure integrity
+- Test conversion with various graph sizes
+
+##### SUBTASK 7.1.1.2: Add node/edge attribute mapping
+- Write test for entity/relation metadata preservation
+- Implement confidence, type, domain attribute mapping
+- Add custom attribute support
+- Test attribute completeness
+
+##### SUBTASK 7.1.1.3: Graph simplification utilities
+- Write test for large graph simplification
+- Implement node/edge filtering by confidence threshold
+- Add clustering for visualization
+- Test simplification impact on visual quality
+
+#### TASK 7.1.2: Basic Static Visualization
+**Status**: TODO
+**Effort**: 4 hours
+**TDD**: Write visualization generation tests
+
+##### SUBTASK 7.1.2.1: Implement visualize_graph with GraphRecipes
+- Write test for basic graph visualization
+- Implement GraphRecipes.jl integration
+- Add node/edge styling based on entity/relation types
+- Test visualization correctness and aesthetics
+
+##### SUBTASK 7.1.2.2: Add layout algorithm support
+- Write test for multiple layout algorithms
+- Implement spring, circular, hierarchical layouts
+- Add layout parameter customization
+- Test layout quality for different graph structures
+
+##### SUBTASK 7.1.2.3: Implement static export
+- Write test for PNG/SVG export
+- Implement export functionality with resolution options
+- Add metadata embedding in exports
+- Test export quality and file sizes
+
+### STORY 7.2: Domain-Specific Styling
+**As a**: Domain user (biomedical/Wikipedia)
+**I want**: Domain-appropriate visualization styling
+**So that**: Visualizations are meaningful for my domain
+
+#### TASK 7.2.1: Domain Styling Configuration
+**Status**: TODO
+**Effort**: 3 hours
+**TDD**: Write styling configuration tests
+
+##### SUBTASK 7.2.1.1: Implement domain color schemes
+- Write test for biomedical color mapping (semantic types)
+- Write test for Wikipedia color mapping (entity types)
+- Implement color palette generation
+- Test color accessibility and distinction
+
+##### SUBTASK 7.2.1.2: Add domain-specific node shapes
+- Write test for shape mapping by entity type
+- Implement shape encoding for key entity types
+- Add shape legend generation
+- Test shape recognition and clarity
+
+##### SUBTASK 7.2.1.3: Implement domain metadata display
+- Write test for UMLS CUI display (biomedical)
+- Write test for Wikidata ID display (Wikipedia)
+- Implement tooltip/title generation
+- Test metadata completeness and formatting
+
+### STORY 7.3: Interactive Visualization
+**As a**: User exploring knowledge graphs
+**I want**: Interactive graph exploration
+**So that**: I can zoom, pan, and explore relationships
+
+#### TASK 7.3.1: PlotlyJS Integration
+**Status**: TODO
+**Effort**: 5 hours
+**TDD**: Write interactive visualization tests
+
+##### SUBTASK 7.3.1.1: Implement interactive graph with PlotlyJS
+- Write test for interactive graph generation
+- Implement PlotlyJS backend integration
+- Add zoom, pan, hover interactions
+- Test interaction responsiveness
+
+##### SUBTASK 7.3.1.2: Add hover tooltips
+- Write test for tooltip content generation
+- Implement entity/relation detail tooltips
+- Add metadata display in tooltips
+- Test tooltip information completeness
+
+##### SUBTASK 7.3.1.3: Implement HTML export
+- Write test for standalone HTML export
+- Implement self-contained HTML file generation
+- Add embedded JavaScript for interactivity
+- Test HTML file portability and functionality
+
+#### TASK 7.3.2: Advanced Interactions
+**Status**: TODO
+**Effort**: 4 hours
+**TDD**: Write interaction feature tests
+
+##### SUBTASK 7.3.2.1: Add node/edge filtering
+- Write test for interactive filtering
+- Implement filter by entity type, relation type, confidence
+- Add dynamic graph update
+- Test filtering performance and correctness
+
+##### SUBTASK 7.3.2.2: Implement search functionality
+- Write test for node search
+- Implement search by entity name/ID
+- Add highlighting of search results
+- Test search accuracy and performance
+
+##### SUBTASK 7.3.2.3: Add legend and controls
+- Write test for legend generation
+- Implement interactive legend with filtering
+- Add control panel for visualization options
+- Test control panel functionality
+
+### STORY 7.4: Performance Optimization
+**As a**: User visualizing large graphs
+**I want**: Efficient visualization of large knowledge graphs
+**So that**: Performance remains acceptable for 1000+ nodes
+
+#### TASK 7.4.1: Large Graph Handling
+**Status**: TODO
+**Effort**: 4 hours
+**TDD**: Write performance tests for large graphs
+
+##### SUBTASK 7.4.1.1: Implement graph simplification
+- Write test for automatic simplification strategies
+- Implement node clustering and edge bundling
+- Add threshold-based filtering
+- Test simplification impact on visual quality
+
+##### SUBTASK 7.4.1.2: Add progressive rendering
+- Write test for progressive graph loading
+- Implement level-of-detail rendering
+- Add on-demand detail expansion
+- Test rendering performance improvements
+
+##### SUBTASK 7.4.1.3: Memory optimization
+- Write test for memory-efficient graph conversion
+- Implement streaming graph processing
+- Add memory usage monitoring
+- Test memory efficiency for large graphs
+
+---
+
 ## Commit Strategy & Quality Assurance
 
 ### Git Commit Standards

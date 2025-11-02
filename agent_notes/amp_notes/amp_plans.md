@@ -215,6 +215,20 @@ feat: implement LeafyChainGraph.create_empty_chain_graph
 
 **Milestone**: Achieves paper-level performance metrics
 
+### Phase 6: Graph Visualization (Week 11)
+**Focus**: Interactive knowledge graph visualization
+**Deliverable**: Visualization system for extracted graphs
+
+#### Week 11: Visualization Implementation
+- Implement graph conversion utilities (KnowledgeGraph → Graphs.jl)
+- Add static visualization with GraphRecipes.jl
+- Implement interactive visualization with PlotlyJS.jl
+- Add domain-specific styling (biomedical/Wikipedia)
+- Export capabilities (PNG/SVG/HTML)
+- **Effort**: 5 days
+
+**Milestone**: Users can visualize and explore extracted knowledge graphs
+
 ## Technical Architecture Decisions
 
 ### 1. Memory Management
