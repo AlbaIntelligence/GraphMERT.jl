@@ -96,40 +96,71 @@ Prepare training data by creating leafy chain graphs and applying masking.
 - `Tuple{Vector{LeafyChainGraph}, Vector{MNMBatch}, Vector{MLMBatch}}`: Prepared data
 """
 function prepare_training_data(
-    texts::Vector{String},
-    seed_kg::Vector{GraphMERT.SemanticTriple},
-    mlm_config::GraphMERT.MLMConfig,
-    mnm_config::GraphMERT.MNMConfig,
-    injection_config::GraphMERT.SeedInjectionConfig,
+texts::Vector{String},
+seed_kg::Vector{GraphMERT.SemanticTriple},
+mlm_config::GraphMERT.MLMConfig,
+mnm_config::GraphMERT.MNMConfig,
+injection_config::GraphMERT.SeedInjectionConfig,
 )
-    # Step 1: Inject seed KG into texts
-    injected_data = inject_seed_kg(texts, seed_kg, injection_config)
+# Step 1: Extract entities from texts (mock implementation)
+all_triples = Vector{GraphMERT.SemanticTriple}()
+    for text in texts
+    # Simple entity extraction: split by spaces and find entities in seed KG
+    words = split(lowercase(text), r"\W+")
+    for word in words
+    # Find triples where head matches this word
+    matching_triples = filter(t -> occursin(lowercase(word), lowercase(t.head)), seed_kg)
+    append!(all_triples, matching_triples)
+end
+    end
 
-    # Step 2: Create leafy chain graphs with injections
+    # Remove duplicates
+unique_triples = unique(all_triples)
+
+# Step 2: Select triples for injection using our mock algorithm
+selected_triples = GraphMERT.inject_seed_triples(unique_triples, injection_config.alpha_score_threshold)
+
+# Step 3: Create leafy chain graphs
     graphs = Vector{LeafyChainGraph}()
-    for (text, injected_triples) in injected_data
-        # Tokenize text (simplified for now)
-        tokens = split(text, " ")[1:min(length(split(text, " ")), config.num_roots)]
-        token_ids = [hash(t) % config.vocab_size for t in tokens]
-        token_texts = tokens
+for text in texts
+# Simple tokenization
+words = split(text, " ")
+tokens = String[w for w in words[1:min(length(words), 128)]]  # Convert to String
+token_ids = Int[hash(w) % 30522 for w in tokens]  # Mock tokenization, convert to Int
 
-        graph = create_empty_chain_graph(token_ids, token_texts, default_chain_graph_config())
+config = GraphMERT.default_chain_graph_config()
+graph = GraphMERT.create_empty_chain_graph(token_ids, tokens, config)
 
-        # Inject triples into graph
-        for triple in injected_triples
-            # Find root index for head entity (simplified)
-            root_idx = 1  # Default to first root
-            inject_triple!(graph, root_idx, 0, triple.tail_tokens, triple.tail, Symbol(triple.relation), triple.head)
+    # Inject selected triples into graph (simplified - inject into first few roots)
+        for (i, triple) in enumerate(selected_triples)
+            if i <= config.num_roots
+                root_idx = i - 1  # 0-based
+                inject_triple!(graph, root_idx, 0, triple.tail_tokens, triple.tail, Symbol(triple.relation), triple.head)
+            end
         end
 
         push!(graphs, graph)
     end
 
-    # Step 3: Create MLM batch
-    mlm_batch = create_mlm_batch(texts, mlm_config)
+    # Step 4: Create MLM batch (simplified)
+    batch_size = min(length(texts), 32)
+    seq_len = mlm_config.max_length
+    input_ids = zeros(Int, batch_size, seq_len)
+    attention_mask = zeros(Int, batch_size, seq_len)
+    labels = fill(-100, batch_size, seq_len)
 
-    # For MNM, we'll create a simple batch (would be more sophisticated)
-    mnm_batch = nothing  # Placeholder
+    for i in 1:batch_size
+    text = texts[i]
+    words = split(text, " ")
+    tokens = Int[hash(w) % mlm_config.vocab_size for w in words[1:min(length(words), seq_len)]]
+    input_ids[i, 1:length(tokens)] = tokens
+    attention_mask[i, 1:length(tokens)] .= 1
+    end
+
+    mlm_batch = GraphMERT.MLMBatch(input_ids, attention_mask, labels, Int[], Tuple{Int,Int}[])
+
+    # Step 5: Create MNM batch (placeholder - would need proper implementation)
+    mnm_batch = nothing  # TODO: Implement proper MNM batching
 
     return graphs, mnm_batch, mlm_batch
 end
