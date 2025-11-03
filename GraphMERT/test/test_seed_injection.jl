@@ -74,6 +74,42 @@ using GraphMERT
                 @test !isempty(triple.source)
             end
         end
+
+        @testset "Edge Cases" begin
+            @testset "Unknown CUI" begin
+                triples = get_umls_triples("C999999")
+                @test isempty(triples)
+            end
+
+            @testset "Empty CUI" begin
+                triples = get_umls_triples("")
+                @test isempty(triples)
+            end
+
+            @testset "Multiple Triples per CUI" begin
+                triples = get_umls_triples("C0011849")  # Diabetes
+                @test length(triples) >= 2  # Should have multiple triples
+
+                # All triples should involve this CUI
+                for triple in triples
+                    @test triple.head_cui == "C0011849" || triple.tail_cui == "C0011849"
+                end
+            end
+
+            @testset "Triple Field Validation" begin
+                triples = get_umls_triples("C0011849")
+
+                for triple in triples
+                    @test isa(triple, SemanticTriple)
+                    @test !isempty(triple.head)
+                    @test !isempty(triple.tail)
+                    @test !isempty(triple.relation)
+                    @test !isempty(triple.tail_tokens)
+                    @test 0.0 <= triple.score <= 1.0
+                    @test triple.source == "mock_umls"
+                end
+            end
+        end
     end
 
 end
