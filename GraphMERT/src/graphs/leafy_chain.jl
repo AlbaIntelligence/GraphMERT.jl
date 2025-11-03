@@ -142,14 +142,15 @@ function floyd_warshall(adj::SparseMatrixCSC{Float32})::Matrix{Int}
     N = size(adj, 1)
     dist = fill(typemax(Int) ÷ 2, N, N)  # Initialize with "infinity"
 
+    # Set self-distances to 0
+    for i in 1:N
+        dist[i, i] = 0
+    end
+
     # Initialize with direct edges
     rows, cols, _ = findnz(adj)
     for (i, j) in zip(rows, cols)
-        if i != j
-            dist[i, j] = 1
-        else
-            dist[i, j] = 0
-        end
+        dist[i, j] = 1  # Direct edge distance
     end
 
     # Floyd-Warshall algorithm
