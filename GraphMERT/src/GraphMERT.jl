@@ -147,6 +147,9 @@ export export_knowledge_graph, export_to_json, export_to_csv, export_to_rdf, exp
 # Export EPIC 2 functions
 export link_entities_sapbert, get_umls_triples, inject_seed_triples
 
+# Export EPIC 5 functions (Attention Mechanisms)
+export SpatialAttentionConfig, create_attention_decay_mask, create_graph_attention_mask
+
 # Export domain-related functions
 export DomainProvider, DomainConfig
 export register_domain!, get_domain, list_domains

@@ -44,28 +44,7 @@ end
 Configuration for spatial attention mechanisms.
 
 """
-struct SpatialAttentionConfig
-    max_distance::Int
-    decay_rate::Float32
-    decay_type::Symbol  # :exponential, :linear, :quadratic
-    use_distance_bias::Bool
-    distance_bias_weight::Float32
-
-    function SpatialAttentionConfig(;
-        max_distance::Int=512,
-        decay_rate::Float32=0.1f0,
-        decay_type::Symbol=:exponential,
-        use_distance_bias::Bool=true,
-        distance_bias_weight::Float32=0.1f0,
-    )
-        @assert max_distance > 0 "Max distance must be positive"
-        @assert decay_rate > 0.0 "Decay rate must be positive"
-        @assert decay_type in [:exponential, :linear, :quadratic] "Invalid decay type: $decay_type"
-        @assert distance_bias_weight >= 0.0 "Distance bias weight must be non-negative"
-
-        new(max_distance, decay_rate, decay_type, use_distance_bias, distance_bias_weight)
-    end
-end
+# SpatialAttentionConfig is defined in types.jl
 
 # ============================================================================
 # Attention Decay Functions
@@ -131,14 +110,14 @@ Create an attention decay mask for a sequence of given length.
 """
 function create_attention_decay_mask(seq_length::Int, config::SpatialAttentionConfig)
     mask = zeros(Float32, seq_length, seq_length)
-    decay_function = get_decay_function(config.decay_type)
 
     for i = 1:seq_length
         for j = 1:seq_length
             distance = abs(i - j)
 
             if distance <= config.max_distance
-                decay_value = decay_function(distance, config.decay_rate)
+                # Use exponential decay with decay_lambda
+                decay_value = exp(-config.decay_lambda * distance)
                 mask[i, j] = decay_value
             else
                 mask[i, j] = 0.0f0
@@ -146,7 +125,7 @@ function create_attention_decay_mask(seq_length::Int, config::SpatialAttentionCo
         end
     end
 
-    return AttentionDecayMask(mask, decay_function, config.max_distance, config.decay_rate)
+    return AttentionDecayMask(mask, exp, config.max_distance, Float32(config.decay_lambda))
 end
 
 """
@@ -161,7 +140,6 @@ function create_graph_attention_mask(
 )
     num_nodes = size(adjacency_matrix, 1)
     mask = zeros(Float32, num_nodes, num_nodes)
-    decay_function = get_decay_function(config.decay_type)
 
     # Compute shortest path distances
     distances = compute_shortest_path_distances(adjacency_matrix)
@@ -170,8 +148,9 @@ function create_graph_attention_mask(
         for j = 1:num_nodes
             distance = distances[i, j]
 
-            if distance <= config.max_distance
-                decay_value = decay_function(distance, config.decay_rate)
+            if distance <= config.max_distance && distance < typemax(Int)
+                # Use exponential decay with decay_lambda
+                decay_value = exp(-config.decay_lambda * distance)
                 mask[i, j] = decay_value
             else
                 mask[i, j] = 0.0f0
@@ -179,7 +158,7 @@ function create_graph_attention_mask(
         end
     end
 
-    return AttentionDecayMask(mask, decay_function, config.max_distance, config.decay_rate)
+    return AttentionDecayMask(mask, exp, config.max_distance, Float32(config.decay_lambda))
 end
 
 """
@@ -249,8 +228,11 @@ function compute_shortest_path_distances(adjacency_matrix::SparseMatrixCSC{Float
     end
 
     # Replace Inf with max_distance + 1 for unreachable nodes
-    max_distance = maximum(distances[distances.<Inf])
-    distances[distances.==Inf] = max_distance + 1
+    finite_distances = distances[isfinite.(distances)]
+    if !isempty(finite_distances)
+        max_distance = maximum(finite_distances)
+        distances[.!isfinite.(distances)] .= max_distance + 1
+    end
 
     return distances
 end
@@ -494,12 +476,21 @@ Get statistics about the attention mask.
 """
 function get_attention_statistics(mask::AttentionDecayMask)
     return Dict{String,Any}(
-        "total_elements" => length(mask.mask),
-        "non_zero_elements" => count(x -> x > 0, mask.mask),
-        "zero_elements" => count(x -> x == 0, mask.mask),
-        "min_value" => minimum(mask.mask),
-        "max_value" => maximum(mask.mask),
-        "mean_value" => mean(mask.mask),
-        "std_value" => std(mask.mask),
+    "total_elements" => length(mask.mask),
+    "non_zero_elements" => count(x -> x > 0, mask.mask),
+    "zero_elements" => count(x -> x == 0, mask.mask),
+    "min_value" => minimum(mask.mask),
+    "max_value" => maximum(mask.mask),
+    "mean_value" => mean(mask.mask),
+    "std_value" => std(mask.mask),
     )
 end
+
+# Export functions for external use
+export SpatialAttentionConfig,
+    create_attention_decay_mask,
+    create_graph_attention_mask,
+    create_hierarchical_attention_mask,
+    apply_spatial_bias,
+    create_causal_attention_mask,
+    create_padding_attention_mask
