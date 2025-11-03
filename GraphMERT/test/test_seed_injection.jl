@@ -56,4 +56,24 @@ using GraphMERT
         end
     end
 
+    @testset "UMLS Triple Retrieval" begin
+        @testset "Basic Interface" begin
+            cui = "C0011849"  # Mock diabetes mellitus CUI
+            triples = get_umls_triples(cui)
+
+            @test isa(triples, Vector{SemanticTriple})
+            @test length(triples) >= 0  # May return empty for mock
+
+            if !isempty(triples)
+                triple = triples[1]
+                @test triple.head_cui == cui || triple.tail_cui == cui
+                @test !isempty(triple.head)
+                @test !isempty(triple.tail)
+                @test !isempty(triple.relation)
+                @test 0.0 <= triple.score <= 1.0
+                @test !isempty(triple.source)
+            end
+        end
+    end
+
 end

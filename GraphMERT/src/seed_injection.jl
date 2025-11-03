@@ -33,3 +33,37 @@ function link_entities_sapbert(entities::Vector{String})::Vector{Dict{Symbol,Any
         :similarity_score => rand(0.5:0.01:0.95)   # Mock similarity score
     ) for entity in entities]
 end
+
+"""
+    get_umls_triples(cui::String)::Vector{SemanticTriple}
+
+Mock UMLS triple retrieval for development.
+
+Returns relevant triples for a given CUI from the mock UMLS database.
+
+# Arguments
+- `cui`: UMLS Concept Unique Identifier
+
+# Returns
+- Vector of SemanticTriple objects related to the CUI
+"""
+function get_umls_triples(cui::String)::Vector{SemanticTriple}
+    # Mock implementation for development and testing
+    # In production, this would query the actual UMLS API
+
+    # Mock triple database
+    mock_triples = Dict(
+        "C0011849" => [  # Diabetes mellitus
+            SemanticTriple("diabetes mellitus", cui, "treated_by", "metformin", [123, 456], 0.85, "mock_umls"),
+            SemanticTriple("diabetes mellitus", cui, "associated_with", "obesity", [789, 101], 0.72, "mock_umls"),
+            SemanticTriple("diabetes mellitus", cui, "causes", "retinopathy", [112, 131], 0.78, "mock_umls"),
+        ],
+        "C0020615" => [  # Hypertension
+            SemanticTriple("hypertension", cui, "treated_by", "lisinopril", [141, 159], 0.82, "mock_umls"),
+            SemanticTriple("hypertension", cui, "risk_factor_for", "stroke", [161, 167], 0.75, "mock_umls"),
+        ]
+    )
+
+    # Return triples for this CUI, or empty vector if not found
+    return get(mock_triples, cui, SemanticTriple[])
+end
