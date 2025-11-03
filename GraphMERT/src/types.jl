@@ -833,16 +833,16 @@ end
 Create default MNM configuration for GraphMERT training.
 """
 function default_mnm_config()
-    return MNMConfig(
-        vocab_size = 30522,      # BioMedBERT vocabulary
-        hidden_size = 512,       # Hidden dimension
-        num_leaves = 7,          # Number of leaves per root
-        mask_probability = 0.15, # Masking probability
-        relation_dropout = 0.3,  # Relation dropout rate
-        loss_weight = 1.0,       # Loss weighting factor
-        mask_entire_leaf_span = true, # Always mask entire spans
-        mask_token_id = 103,     # [MASK] token ID
-    )
+return MNMConfig(
+30522,      # vocab_size - BioMedBERT vocabulary
+512,       # hidden_size - Hidden dimension
+7,         # num_leaves - Number of leaves per root
+0.15,      # mask_probability - Masking probability
+0.3,       # relation_dropout - Relation dropout rate
+1.0,       # loss_weight - Loss weighting factor
+true,      # mask_entire_leaf_span - Always mask entire spans
+103,       # mask_token_id - [MASK] token ID
+)
 end
 
 """

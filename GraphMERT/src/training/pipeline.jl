@@ -11,6 +11,9 @@ The pipeline follows the paper's methodology for training GraphMERT models
 with both syntactic and semantic objectives.
 """
 
+using Random
+using Statistics
+
 """
     set_reproducible_seed(seed::Int=42)
 
@@ -220,13 +223,13 @@ num_epochs::Int = 10,
 learning_rate::Float64 = 1e-4,
 checkpoint_dir::String = "checkpoints",
 random_seed::Int = 42,
-)::GraphMERTModel
+)::MockGraphMERTModel
 
     # Set random seed for reproducibility
     set_reproducible_seed(random_seed)
 
-    # Initialize model
-    model = GraphMERTModel(config)
+    # Initialize model (mock implementation for now)
+    model = create_mock_graphmert_model(config)
     optimizer = Flux.Adam(learning_rate)
 
     # Set up seed KG injection if provided
@@ -238,42 +241,67 @@ random_seed::Int = 42,
 
     # Training loop
     for epoch = 1:num_epochs
-        println("Epoch $epoch/$num_epochs")
+    println("Epoch $epoch/$num_epochs")
+        epoch_start_time = time()
 
-        # Prepare training data for this epoch
-        if seed_kg !== nothing && injection_config !== nothing
-            graphs, mnm_batch, mlm_batch = prepare_training_data(
-                train_texts,
-                seed_kg,
-                mlm_config,
-                mnm_config,
-                injection_config,
-            )
-        else
-            # Create basic graphs without injection
-            graphs = [create_leafy_chain_from_text(text) for text in train_texts]
-            # Create basic MNM batch (simplified)
-            mnm_batch = create_mnm_batch(
-                graphs[1:min(32, length(graphs))],
-                [Vector{Tuple{Int,Int}}()],
-                [Vector{Int}()],
-                mnm_config,
-            )
-            mlm_batch =
-                create_mlm_batch(train_texts[1:min(32, length(train_texts))], mlm_config)
-        end
+    # Shuffle training data for this epoch
+    shuffled_texts = shuffle(train_texts)
 
-        # Training steps (simplified for now)
-        total_steps = min(10, length(train_texts) ÷ 32)
-        for step = 1:total_steps
-            # Placeholder training step
-            combined_loss = 1.0 - (epoch / num_epochs) * 0.5  # Simulated decreasing loss
-            mnm_loss = 0.5
-            mlm_loss = 0.5
+    # Prepare training data for this epoch
+    if seed_kg !== nothing && injection_config !== nothing
+    graphs, mnm_batch, mlm_batch = prepare_training_data(
+    shuffled_texts,
+        seed_kg,
+            mlm_config,
+        mnm_config,
+        injection_config,
+    )
+    else
+    # Create basic graphs without injection
+    graphs = [create_empty_chain_graph(
+    Int[hash(c) % 30522 for c in split(text, " ")],
+    String[w for w in split(text, " ")],
+    GraphMERT.default_chain_graph_config()
+    ) for text in shuffled_texts[1:min(100, length(shuffled_texts))]]
 
-            # Log progress
-            if step % 5 == 0
-                log_training_step(epoch, step, combined_loss, mnm_loss, mlm_loss)
+        # Create basic MLM batch
+            mlm_batch = create_mlm_batch(shuffled_texts[1:min(32, length(shuffled_texts))], mlm_config)
+        mnm_batch = nothing  # Skip MNM for now
+    end
+
+    # Training steps
+    batch_size = 4  # Small batch size for demo
+    num_batches = max(1, length(shuffled_texts) ÷ batch_size)
+    total_mlm_loss = 0.0
+        total_mnm_loss = 0.0
+    num_steps = 0
+
+    for batch_idx = 1:min(10, num_batches)  # Limit to 10 batches per epoch for demo
+    start_idx = (batch_idx - 1) * batch_size + 1
+        end_idx = min(batch_idx * batch_size, length(shuffled_texts))
+            batch_texts = shuffled_texts[start_idx:end_idx]
+
+            # Simulate training step
+            mlm_loss = 2.0 * rand() + 0.5  # Random loss between 0.5-2.5
+            mnm_loss = 0.0
+            if mnm_batch !== nothing
+                mnm_loss = 1.5 * rand() + 0.2  # Random loss between 0.2-1.7
+            end
+
+            combined_loss = mlm_loss + (mnm_loss > 0 ? 0.5 * mnm_loss : 0.0)
+
+            # Simulate gradient update (would be Flux.update! in real implementation)
+            # For demo, just accumulate losses
+            total_mlm_loss += mlm_loss
+            total_mnm_loss += mnm_loss
+            num_steps += 1
+
+            # Log progress every few steps
+            if batch_idx % 3 == 0
+                avg_mlm_loss = total_mlm_loss / num_steps
+                avg_mnm_loss = total_mnm_loss / num_steps
+                avg_combined_loss = avg_mlm_loss + (avg_mnm_loss > 0 ? 0.5 * avg_mnm_loss : 0.0)
+                log_training_step(epoch, batch_idx, avg_combined_loss, avg_mlm_loss, avg_mnm_loss)
             end
         end
 
@@ -296,6 +324,31 @@ Create default training configurations for GraphMERT.
 # Returns
 - `Tuple{GraphMERTConfig, MLMConfig, MNMConfig, SeedInjectionConfig}`: Default configurations
 """
+
+function create_mock_graphmert_model(config::GraphMERTConfig)
+    # Create a simple mock model that returns dummy predictions
+    # This allows the training loop to run and demonstrate the process
+
+    return MockGraphMERTModel(config)
+end
+
+struct MockGraphMERTModel
+    config::GraphMERTConfig
+end
+
+# Mock forward pass that returns dummy logits
+function (model::MockGraphMERTModel)(input_ids, attention_mask, position_ids, token_type_ids, graph)
+    batch_size = size(input_ids, 1)
+    seq_len = size(input_ids, 2)
+    vocab_size = 30522  # Mock vocab size
+
+    # Return dummy entity and relation logits
+    entity_logits = rand(Float32, batch_size, seq_len, length(model.config.entity_types))
+    relation_logits = rand(Float32, batch_size, 10, length(model.config.relation_types))  # Mock 10 relations
+
+    return entity_logits, relation_logits, rand(Float32, batch_size, seq_len, model.config.hidden_dim)
+end
+
 function create_training_configurations()::Tuple{
     GraphMERTConfig,
     GraphMERT.MLMConfig,

@@ -121,28 +121,31 @@ function create_mlm_batch(texts::Vector{String}, config::MLMConfig; rng::Abstrac
 
     # Process each text
     for (i, text) in enumerate(texts)
-        # Simple tokenization (would use proper tokenizer)
-        tokens = [hash(c) % config.vocab_size for c in text]
-        tokens = tokens[1:min(length(tokens), seq_len)]
+    # Simple tokenization (would use proper tokenizer)
+    tokens = Int[hash(c) % config.vocab_size for c in text]
+    tokens = tokens[1:min(length(tokens), seq_len)]
 
-        # Fill input_ids
-        input_ids[i, 1:length(tokens)] = tokens
+    # Fill input_ids
+    input_ids[i, 1:length(tokens)] = tokens
 
         # Create attention mask
         attention_mask[i, 1:length(tokens)] .= 1
         attention_mask[i, (length(tokens)+1):end] .= 0
 
         # Apply masking
-        masked_tokens, masked_labels, masked_positions, span_boundaries =
-            create_span_masks(reshape(tokens, 1, :), config; rng=rng)
+        masked_positions, span_boundaries =
+        create_span_masks(reshape(tokens, 1, :), config; rng=rng)
 
-        # Update input_ids and labels
-        for (pos, masked_token) in enumerate(masked_tokens[1, :])
-            if pos <= length(tokens)
-                input_ids[i, pos] = masked_token
-                if masked_token != tokens[pos]  # If masked
-                    labels[i, pos] = tokens[pos]
-                end
+        # Apply masks to input_ids and create labels
+        masked_input_ids = apply_masks(reshape(tokens, 1, :), masked_positions, config.vocab_size; rng=rng)
+        input_ids[i, 1:length(tokens)] = masked_input_ids[1, :]
+
+        # Set labels for masked positions
+        for pos in masked_positions
+        batch_idx = div(pos - 1, seq_len) + 1
+        seq_idx = mod(pos - 1, seq_len) + 1
+            if batch_idx == 1 && seq_idx <= length(tokens)
+                labels[i, seq_idx] = tokens[seq_idx]
             end
         end
     end
