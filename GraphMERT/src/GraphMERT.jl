@@ -108,6 +108,7 @@ include("llm/helper.jl")
 include("training/mlm.jl")
 include("training/mnm.jl")
 include("training/seed_injection.jl")
+include("seed_injection.jl")  # New EPIC 2 module
 include("training/pipeline.jl")
 include("training/span_masking.jl")
 include("data/preparation.jl")
@@ -142,6 +143,9 @@ export GraphMERTModel, ProcessingOptions, GraphMERTConfig
 export FActScore, ValidityScore, GraphRAG
 export filter_knowledge_graph
 export export_knowledge_graph, export_to_json, export_to_csv, export_to_rdf, export_to_ttl
+
+# Export EPIC 2 functions
+export link_entities_sapbert
 
 # Export domain-related functions
 export DomainProvider, DomainConfig
