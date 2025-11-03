@@ -107,13 +107,10 @@ function build_adjacency_matrix(config::ChainGraphConfig)::SparseMatrixCSC{Float
     J_vals = Int[]
     V_vals = Float32[]
 
-    # Helper to add undirected edge
+    # Helper to add directed edge (following paper: no undirected, no self-loops)
     function add_edge(i, j)
         push!(I_vals, i)
         push!(J_vals, j)
-        push!(V_vals, 1.0f0)
-        push!(I_vals, j)
-        push!(J_vals, i)
         push!(V_vals, 1.0f0)
     end
 
@@ -122,7 +119,7 @@ function build_adjacency_matrix(config::ChainGraphConfig)::SparseMatrixCSC{Float
         add_edge(i, i + 1)
     end
 
-    # 2. Connect each root to its leaves
+    # 2. Connect each root to its leaves (star structure)
     for root_idx in 1:config.num_roots
         for leaf_idx in 1:config.num_leaves_per_root
             leaf_id = config.num_roots + (root_idx - 1) * config.num_leaves_per_root + leaf_idx
@@ -130,25 +127,7 @@ function build_adjacency_matrix(config::ChainGraphConfig)::SparseMatrixCSC{Float
         end
     end
 
-    # 3. Connect all leaves of same root (clique)
-    for root_idx in 1:config.num_roots
-        leaves = [
-            config.num_roots + (root_idx - 1) * config.num_leaves_per_root + j
-            for j in 1:config.num_leaves_per_root
-        ]
-        for i in 1:length(leaves)
-            for j in (i+1):length(leaves)
-                add_edge(leaves[i], leaves[j])
-            end
-        end
-    end
-
-    # 4. Add self-loops
-    for i in 1:N
-        push!(I_vals, i)
-        push!(J_vals, i)
-        push!(V_vals, 1.0f0)
-    end
+    # Note: No leaf-to-leaf connections, no self-loops (following paper specification)
 
     return sparse(I_vals, J_vals, V_vals, N, N)
 end
@@ -313,6 +292,203 @@ function create_position_ids(graph::LeafyChainGraph)::Vector{Int}
     return collect(0:(graph.config.max_sequence_length-1))
 end
 
+"""
+    validate_chain_graph(graph::LeafyChainGraph) -> Bool
+
+Validate the structural integrity of a leafy chain graph.
+
+Checks:
+- Correct number of nodes
+- Adjacency matrix dimensions
+- Root chain connectivity
+- Root-leaf star connectivity
+- No self-loops
+- No leaf-to-leaf connections
+
+# Arguments
+- `graph`: LeafyChainGraph to validate
+
+# Returns
+- true if valid, throws AssertionError if invalid
+"""
+function validate_chain_graph(graph::LeafyChainGraph)::Bool
+    config = graph.config
+    total_nodes = config.num_roots * (1 + config.num_leaves_per_root)
+
+    # Check node count
+    @assert length(graph.nodes) == config.max_sequence_length "Incorrect number of nodes"
+
+    # Check adjacency matrix
+    @assert size(graph.adjacency_matrix) == (config.max_sequence_length, config.max_sequence_length) "Incorrect adjacency matrix size"
+
+    # Check root nodes
+    for i in 1:config.num_roots
+        node = graph.nodes[i]
+        @assert node.node_type == :root "Node $i should be root"
+        @assert node.root_index == i-1 "Root index mismatch for node $i"
+        @assert isnothing(node.leaf_index) "Root node should not have leaf_index"
+    end
+
+    # Check leaf nodes
+    for i in (config.num_roots+1):config.max_sequence_length
+        node = graph.nodes[i]
+        @assert node.node_type == :leaf "Node $i should be leaf"
+        @assert !isnothing(node.leaf_index) "Leaf node should have leaf_index"
+        @assert 0 <= node.leaf_index < config.num_leaves_per_root "Invalid leaf_index"
+    end
+
+    # Check no self-loops
+    @assert all(diag(graph.adjacency_matrix) .== 0) "Self-loops detected"
+
+    # Check connectivity patterns
+    adj = graph.adjacency_matrix
+
+    # Root chain: each root (except last) should connect to next root
+    for root_idx in 1:(config.num_roots-1)
+        @assert adj[root_idx, root_idx+1] > 0 "Missing root chain connection: $root_idx → $(root_idx+1)"
+    end
+
+    # Root stars: each root should connect to exactly num_leaves_per_root leaves
+    for root_idx in 1:config.num_roots
+        leaf_start = config.num_roots + (root_idx-1)*config.num_leaves_per_root + 1
+        leaf_end = config.num_roots + root_idx*config.num_leaves_per_root
+
+        connected_leaves = sum(adj[root_idx, leaf_start:leaf_end])
+        @assert connected_leaves == config.num_leaves_per_root "Root $root_idx should connect to $(config.num_leaves_per_root) leaves, found $connected_leaves"
+    end
+
+    # No leaf-to-leaf connections
+    leaf_start = config.num_roots + 1
+    @assert all(adj[leaf_start:end, leaf_start:end] .== 0) "Leaf-to-leaf connections detected"
+
+    return true
+end
+
+# ============================================================================
+# Graph Manipulation Utilities
+# ============================================================================
+
+"""
+    get_root_node_indices(config::ChainGraphConfig) -> UnitRange{Int}
+
+Get the 1-based indices of root nodes in the graph.
+"""
+function get_root_node_indices(config::ChainGraphConfig)::UnitRange{Int}
+    return 1:config.num_roots
+end
+
+"""
+    get_leaf_node_indices(config::ChainGraphConfig, root_idx::Int) -> UnitRange{Int}
+
+Get the 1-based indices of leaf nodes for a specific root.
+"""
+function get_leaf_node_indices(config::ChainGraphConfig, root_idx::Int)::UnitRange{Int}
+    @assert 1 <= root_idx <= config.num_roots "Invalid root index"
+    leaf_start = config.num_roots + (root_idx-1)*config.num_leaves_per_root + 1
+    leaf_end = config.num_roots + root_idx*config.num_leaves_per_root
+    return leaf_start:leaf_end
+end
+
+"""
+    get_node_index(config::ChainGraphConfig, root_idx::Int, leaf_idx::Union{Int,Nothing}=nothing) -> Int
+
+Get the 1-based node index for a root or leaf position.
+"""
+function get_node_index(config::ChainGraphConfig, root_idx::Int, leaf_idx::Union{Int,Nothing}=nothing)::Int
+    @assert 1 <= root_idx <= config.num_roots "Invalid root index"
+    if isnothing(leaf_idx)
+        return root_idx  # Root node
+    else
+        @assert 0 <= leaf_idx < config.num_leaves_per_root "Invalid leaf index"
+        return config.num_roots + (root_idx-1)*config.num_leaves_per_root + leaf_idx + 1
+    end
+end
+
+"""
+    create_empty_chain_graph(config::ChainGraphConfig) -> LeafyChainGraph
+
+Create an empty leafy chain graph with the specified configuration.
+
+The graph consists of:
+- 128 roots arranged in a chain structure
+- Each root has 7 leaves arranged in a star structure
+- Total: 1024 nodes (128 roots + 896 leaves)
+
+# Arguments
+- `config`: ChainGraphConfig with graph parameters
+
+# Returns
+- Empty LeafyChainGraph ready for triple injection
+"""
+function create_empty_chain_graph(config::ChainGraphConfig)::LeafyChainGraph
+    @assert config.num_roots > 0 "num_roots must be positive"
+    @assert config.num_leaves_per_root > 0 "num_leaves_per_root must be positive"
+
+    total_nodes = config.num_roots * (1 + config.num_leaves_per_root)
+    @assert total_nodes <= config.max_sequence_length "total nodes exceed max_sequence_length"
+
+    # Create nodes
+    nodes = Vector{ChainGraphNode}(undef, config.max_sequence_length)
+    node_idx = 1
+
+    # Create root nodes (0 to num_roots-1)
+    for root_idx in 0:(config.num_roots-1)
+        nodes[node_idx] = ChainGraphNode(
+            id = node_idx - 1,  # 0-based indexing
+            node_type = :root,
+            root_index = root_idx,
+            token_id = config.pad_token_id,  # Initially padding
+            token_text = "<pad>",
+            is_padding = true
+        )
+        node_idx += 1
+    end
+
+    # Create leaf nodes (num_roots to total_nodes-1)
+    for root_idx in 0:(config.num_roots-1)
+        for leaf_idx in 0:(config.num_leaves_per_root-1)
+            nodes[node_idx] = ChainGraphNode(
+                id = node_idx - 1,  # 0-based indexing
+                node_type = :leaf,
+                root_index = root_idx,
+                leaf_index = leaf_idx,
+                token_id = config.pad_token_id,  # Initially padding
+                token_text = "<pad>",
+                is_padding = true
+            )
+            node_idx += 1
+        end
+    end
+
+    # Build adjacency matrix
+    adj_matrix = build_adjacency_matrix(config)
+
+    # Initialize shortest paths (will be computed later)
+    shortest_paths = floyd_warshall(adj_matrix)
+
+    # Initialize arrays
+    root_tokens = fill(config.pad_token_id, config.num_roots)
+    root_texts = fill("<pad>", config.num_roots)
+    leaf_tokens = fill(config.pad_token_id, (config.num_roots, config.num_leaves_per_root))
+    leaf_relations = Matrix{Union{Symbol,Nothing}}(fill(nothing, (config.num_roots, config.num_leaves_per_root)))
+    injected_mask = Matrix{Bool}(falses(config.num_roots, config.num_leaves_per_root))
+
+    return LeafyChainGraph(
+        nodes = nodes,
+        adjacency_matrix = adj_matrix,
+        shortest_paths = shortest_paths,
+        root_tokens = root_tokens,
+        root_texts = root_texts,
+        leaf_tokens = leaf_tokens,
+        leaf_relations = leaf_relations,
+        injected_mask = injected_mask,
+        source_sequence_id = "",
+        sequence_length = 0,
+        num_injections = 0,
+        config = config
+    )
+end
+
 # Export functions for external use
 export default_chain_graph_config,
     create_empty_chain_graph,
@@ -321,4 +497,8 @@ export default_chain_graph_config,
     inject_triple!,
     graph_to_sequence,
     create_attention_mask,
-    create_position_ids
+    create_position_ids,
+    validate_chain_graph,
+    get_root_node_indices,
+    get_leaf_node_indices,
+    get_node_index

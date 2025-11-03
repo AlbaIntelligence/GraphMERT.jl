@@ -36,8 +36,8 @@ Cardiovascular disease is a major complication of diabetes.
 
 # Extract knowledge graph (simplified demo)
 try
-    options = ProcessingOptions(domain="biomedical")
-    kg = extract_knowledge_graph(text, model; options=options)
+    options = ProcessingOptions(domain = "biomedical")
+    kg = extract_knowledge_graph(text, model; options = options)
     println("Sample KG: $(length(kg.entities)) entities, $(length(kg.relations)) relations")
 catch e
     println("⚠️  Model not available - using placeholder KG")
@@ -52,14 +52,14 @@ try
     if kg === nothing
         error("Knowledge graph not available")
     end
-    factscore_result = evaluate_factscore(kg, text; domain_name="biomedical", include_domain_metrics=true)
+    factscore_result = evaluate_factscore(kg, text; domain_name = "biomedical", include_domain_metrics = true)
     println("FActScore*: $(round(factscore_result.overall_score, digits=4))")
     println("Supported triples: $(factscore_result.num_supported)/$(factscore_result.num_total)")
 
     # Calculate confidence interval
     if factscore_result.num_total > 0
         ci_lower, ci_upper = calculate_factscore_confidence_interval(
-            factscore_result.overall_score, factscore_result.num_total
+            factscore_result.overall_score, factscore_result.num_total,
         )
         println("95% CI: [$(round(ci_lower, digits=4)), $(round(ci_upper, digits=4))]")
     end
@@ -91,13 +91,13 @@ try
     questions = [
         "What treats diabetes?",
         "What are symptoms of diabetes?",
-        "What causes cardiovascular disease?"
+        "What causes cardiovascular disease?",
     ]
 
     ground_truth = [
         "Metformin",
         "Elevated blood glucose",
-        "Diabetes"
+        "Diabetes",
     ]
 
     graphrag_result = evaluate_graphrag(kg, questions, ground_truth)
@@ -121,8 +121,7 @@ println("  Note: Full validation requires complete evaluation pipeline")
 
 # 6. Statistical analysis
 println("\n6. Statistical analysis:")
-try
-    if factscore_result !== nothing && factscore_result.num_total > 0
+if factscore_result !== nothing && factscore_result.num_total > 0
     # Compare with paper target
     paper_target = 0.698
     observed_score = factscore_result.overall_score
