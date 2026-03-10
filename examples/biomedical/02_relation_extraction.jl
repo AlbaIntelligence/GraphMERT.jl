@@ -61,7 +61,7 @@ for relation in relations
   # Find head and tail entities by ID
   head_entity = nothing
   tail_entity = nothing
-  
+
   for entity in entities
     if entity.id == relation.head
       head_entity = entity
@@ -69,7 +69,7 @@ for relation in relations
       tail_entity = entity
     end
   end
-  
+
   if head_entity !== nothing && tail_entity !== nothing
     println("   $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text) (conf: $(round(relation.confidence, digits=3)))")
   end
@@ -104,7 +104,7 @@ if !isempty(high_confidence)
   for relation in high_confidence
     head_entity = nothing
     tail_entity = nothing
-    
+
     for entity in entities
       if entity.id == relation.head
         head_entity = entity
@@ -112,7 +112,7 @@ if !isempty(high_confidence)
         tail_entity = entity
       end
     end
-    
+
     if head_entity !== nothing && tail_entity !== nothing
       println("     $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text)")
     end

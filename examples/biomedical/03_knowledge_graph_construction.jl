@@ -87,10 +87,10 @@ all_relations = Vector{GraphMERT.Relation}()
 
 for (i, text) in enumerate(texts)
     println("  Processing text $i/$(length(texts))...")
-    
+
     # Extract entities from this text
     text_entities = extract_entities(bio_domain, text, options)
-    
+
     # Extract relations between entities in this text
     if !isempty(text_entities)
         relations = extract_relations(bio_domain, text_entities, text, options)

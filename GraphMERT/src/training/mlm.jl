@@ -315,7 +315,7 @@ function calculate_mlm_loss(
 end
 
 """
-    calculate_boundary_loss(logits::Array{Float32,3}, span_boundaries::Vector{Tuple{Int,Int}}, 
+    calculate_boundary_loss(logits::Array{Float32,3}, span_boundaries::Vector{Tuple{Int,Int}},
                            input_ids::Matrix{Int}, config::MLMConfig)
 
 Calculate boundary loss for span masking.

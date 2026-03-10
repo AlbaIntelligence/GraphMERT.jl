@@ -23,7 +23,7 @@ using GraphMERT: SeedInjectionConfig, SemanticTriple, EntityLinkingResult,
 function main()
   println("🧬 GraphMERT Seed KG Injection Demo")
   println("="^50)
-  
+
   # Load and register biomedical domain
   println("\n📋 Loading biomedical domain...")
   include("../../GraphMERT/src/domains/biomedical.jl")

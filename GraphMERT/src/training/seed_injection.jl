@@ -54,7 +54,7 @@ function link_entity_sapbert(
 
     # Delegate to domain provider's link_entity method
     linking_result = link_entity(domain, entity_text, config)
-    
+
     if linking_result === nothing || !isa(linking_result, Dict)
         # Domain doesn't support entity linking or returned invalid format
         # Return empty results
@@ -73,7 +73,7 @@ function link_entity_sapbert(
                 types = get(candidate, :types, String[])
                 score = get(candidate, :score, 0.0)
                 source = get(candidate, :source, get_domain_name(domain))
-                
+
                 # Filter by threshold
                 if score ≥ config.entity_linking_threshold && !isempty(kb_id)
                     push!(
@@ -98,7 +98,7 @@ function link_entity_sapbert(
         types = get(candidate, :types, String[])
         score = get(candidate, :score, 0.0)
         source = get(candidate, :source, get_domain_name(domain))
-        
+
         if score ≥ config.entity_linking_threshold && !isempty(kb_id)
             push!(
                 results,
@@ -208,7 +208,7 @@ function select_triples_for_entity(
     # Note: We need to get entity text from kb_id, but create_seed_triples takes entity_text
     # For now, we'll use the kb_id as a fallback. Domains should handle this appropriately.
     seed_triples = create_seed_triples(domain, entity_kb_id, config)
-    
+
     if !isempty(seed_triples) && isa(seed_triples, Vector)
         # Filter triples where this entity is the head
         for triple in seed_triples
@@ -225,7 +225,7 @@ function select_triples_for_entity(
                 tail_tokens = get(triple, :tail_tokens, Int[])
                 score = get(triple, :score, 0.0)
                 source = get(triple, :source, get_domain_name(domain))
-                
+
                 if (head_kb_id === entity_kb_id || head == entity_kb_id) && !isempty(head) && !isempty(relation) && !isempty(tail)
                     push!(
                         triples,
@@ -307,7 +307,7 @@ function inject_seed_kg(
     for (i, sequence) in enumerate(sequences)
         # Extract entities using domain provider
         entities = extract_entities(domain, sequence, options)
-        
+
         # Extract entity text strings for linking
         entity_texts = [e.text for e in entities]
 

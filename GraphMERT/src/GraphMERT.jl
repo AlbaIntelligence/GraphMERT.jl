@@ -214,7 +214,7 @@ function extract_knowledge_graph(
   # This function is kept here for backward compatibility but delegates to api/extraction.jl
   # Create a dummy model for now (in real usage, this would be provided)
   model = create_graphmert_model(GraphMERTConfig())
-  
+
   # Use the domain-aware extraction function from api/extraction.jl
   return extract_knowledge_graph(text, model; options=options)
 end
@@ -373,12 +373,12 @@ function fallback_entity_recognition(text::String, domain::Union{Any, Nothing}=n
         entities = extract_entities(domain, text, options)
         return [e.text for e in entities]
     end
-    
+
     # Basic fallback: simple noun phrase / keyword extraction
     # Split by whitespace and capture medically relevant tokens even if lowercase
     words = split(text)
     entities = String[]
-    
+
     # Heuristic: keep reasonably long tokens that look like content words
     for (i, word) in enumerate(words)
         clean = strip(replace(word, r"[^\p{L}]" => ""))
@@ -396,7 +396,7 @@ function fallback_entity_recognition(text::String, domain::Union{Any, Nothing}=n
             push!(entities, clean)
         end
     end
-    
+
     return entities
 end
 
@@ -426,10 +426,10 @@ function fallback_relation_matching(entities::Vector{String}, text::String, doma
                 text
             ))
         end
-        
+
         options = ProcessingOptions(domain=get_domain_name(domain))
         relations = extract_relations(domain, entity_objects, text, options)
-        
+
         # Convert to Dict format for backward compatibility
         result = Dict{String, Dict{String, Any}}()
         for rel in relations
@@ -443,7 +443,7 @@ function fallback_relation_matching(entities::Vector{String}, text::String, doma
         end
         return result
     end
-    
+
     # Basic fallback: simple co-occurrence based relations
     relations = Dict{String, Dict{String, Any}}()
 

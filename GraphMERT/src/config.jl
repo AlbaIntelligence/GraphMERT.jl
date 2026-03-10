@@ -170,7 +170,7 @@ function validate_config(config::Dict{String,Any})
     )
       push!(errors, "confidence_threshold must be between 0.0 and 1.0")
     end
-    
+
     if haskey(processing_config, "domain") && !isempty(processing_config["domain"])
       # Domain is valid if non-empty string
       # Actual domain validation happens when domain is registered

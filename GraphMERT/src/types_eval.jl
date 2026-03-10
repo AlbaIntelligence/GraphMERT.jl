@@ -36,4 +36,3 @@ struct GraphRAG
 end
 
 end # module
-
