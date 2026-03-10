@@ -5,7 +5,7 @@ This module provides Wikipedia-specific relation extraction functionality
 for general knowledge relations (historical, cultural, academic, etc.).
 """
 
-using ..GraphMERT: Entity, Relation, ProcessingOptions
+# Types assumed to be available in global scope when included
 
 """
     extract_wikipedia_relations(entities::Vector{Entity}, text::String, config::ProcessingOptions, domain::WikipediaDomain)
@@ -21,7 +21,7 @@ Extract Wikipedia relations between entities.
 # Returns
 - `Vector{Relation}`: Extracted relations
 """
-function extract_wikipedia_relations(entities::Vector{Any}, text::String, config::Any, domain::Any)
+function extract_wikipedia_relations(entities::Vector{Entity}, text::String, config::ProcessingOptions, domain::WikipediaDomain)
     relations = Vector{Relation}()
     
     if length(entities) < 2

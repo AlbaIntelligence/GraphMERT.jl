@@ -30,11 +30,10 @@ function main()
 
     # Load and register the Wikipedia domain
     println("\n1. Loading Wikipedia domain...")
-    include("../../GraphMERT/src/domains/wikipedia.jl")
-
-    wiki_domain = load_wikipedia_domain()
-    register_domain!("wikipedia", wiki_domain)
+    initialize_default_domains()
     set_default_domain("wikipedia")
+
+    wiki_domain = get_domain("wikipedia")
 
     println("   ✅ Wikipedia domain loaded and registered\n")
 
@@ -75,17 +74,17 @@ function main()
     # Process each text using domain system
     all_results = Vector{Dict{String, Any}}()
 
-    options = ProcessingOptions(domain="wikipedia")
+    options = ProcessingOptions(domain = "wikipedia")
 
     for (i, text) in enumerate(wikipedia_texts)
         println("📖 Processing text $i/$(length(wikipedia_texts))...")
         println("   Text preview: $(strip(text[1:min(100, length(text))]))...\n")
 
         # Extract entities using Wikipedia domain
-        entities = extract_entities(wiki_domain, text, options)
+        entities = Base.invokelatest(extract_entities, wiki_domain, text, options)
 
         # Extract relations using Wikipedia domain
-        relations = extract_relations(wiki_domain, entities, text, options)
+        relations = Base.invokelatest(extract_relations, wiki_domain, entities, text, options)
 
         # Store results
         result = Dict(

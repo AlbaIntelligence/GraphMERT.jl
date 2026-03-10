@@ -297,31 +297,37 @@ function forward_pass_mnm(
     masked_graph::LeafyChainGraph
 )::Array{Float32, 3}  # Returns logits [batch, seq_len, vocab_size]
 
-    # TODO: EPIC 3 STORY 3.1 TASK 3.1.2 - Implement full MNM forward pass
-    #
-    # CURRENT STATUS: Stub implementation returning dummy logits
-    # REASON: Depends on unimplemented GraphMERTModel components (embeddings, hgat, transformer, lm_head)
-    #         and graph processing functions (graph_to_sequence, apply_hgat_fusion)
-    #
-    # REQUIRED COMPONENTS (to be implemented in future EPICs):
-    # 1. graph_to_sequence(masked_graph) -> Vector{Int}  # Convert LeafyChainGraph to token sequence
-    # 2. model.embeddings(input_ids) -> Matrix{Float32}  # Token embeddings [seq_len, hidden_dim]
-    # 3. apply_hgat_fusion(model.hgat, token_embeddings, masked_graph) -> Matrix{Float32}  # H-GAT fusion
-    # 4. model.transformer(fused_embeddings) -> Matrix{Float32}  # Transformer layers
-    # 5. model.lm_head(hidden_states) -> Matrix{Float32}  # Language modeling head [seq_len, vocab_size]
-    #
-    # FINAL IMPLEMENTATION SHOULD BE:
-    # input_ids = graph_to_sequence(masked_graph)
-    # token_embeddings = model.embeddings(input_ids)
-    # fused_embeddings = apply_hgat_fusion(model.hgat, token_embeddings, masked_graph)
-    # hidden_states = model.transformer(fused_embeddings)
-    # logits = model.lm_head(hidden_states)
-    # return reshape(logits, 1, size(logits)...)  # Add batch dimension
+    # Convert leafy chain graph to token sequence
+    input_ids_vec = graph_to_sequence(masked_graph)                 # Vector{Int} of length max_sequence_length
+    seq_len = length(input_ids_vec)
 
-    # Temporary stub: return random logits with correct shape
-    seq_len = masked_graph.config.num_roots + masked_graph.config.num_roots * masked_graph.config.num_leaves_per_root
-    vocab_size = 30522  # Default vocab size
-    return rand(Float32, 1, seq_len, vocab_size)
+    # RoBERTa expects (seq_len, batch_size)
+    input_ids = reshape(input_ids_vec, seq_len, 1)
+
+    # Create 3D attention mask (batch, seq, seq) using RoBERTa utility
+    attention_mask = create_attention_mask(input_ids)
+
+    # Position and token type IDs (seq_len, batch_size)
+    position_ids = reshape(collect(0:(seq_len - 1)), seq_len, 1)
+    token_type_ids = zeros(Int, seq_len, 1)
+
+    # Forward pass through RoBERTa encoder to obtain contextual states
+    encoder_output, _ = model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
+    # encoder_output: (batch_size=1, seq_len, hidden_dim)
+
+    # Project hidden states to vocabulary logits with the LM head
+    batch_size, _, _ = size(encoder_output)
+    hidden_dim = model.config.hidden_dim
+
+    # Reshape to (hidden_dim, batch * seq) for Dense, then back to (batch, seq, vocab)
+    encoder_reshaped = reshape(encoder_output, batch_size * seq_len, hidden_dim)
+    encoder_reshaped = permutedims(encoder_reshaped, (2, 1))              # (hidden_dim, batch*seq)
+    lm_2d = model.lm_head(encoder_reshaped)                                # (vocab_size, batch*seq)
+    vocab_size = size(lm_2d, 1)
+    lm_3d = reshape(lm_2d, vocab_size, batch_size, seq_len)                # (vocab, batch, seq)
+    lm_3d = permutedims(lm_3d, (2, 3, 1))                                  # (batch, seq, vocab)
+
+    return Array{Float32,3}(lm_3d)
 end
 
 """

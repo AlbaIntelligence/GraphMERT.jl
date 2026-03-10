@@ -503,3 +503,23 @@ export default_chain_graph_config,
     get_root_node_indices,
     get_leaf_node_indices,
     get_node_index
+
+"""
+    create_leafy_chain_from_text(text::String, config::ChainGraphConfig=default_chain_graph_config())
+
+Convenience helper to create a `LeafyChainGraph` directly from raw text using a simple
+tokenization scheme. This is primarily used in tests and high-level demos.
+"""
+function create_leafy_chain_from_text(
+    text::String,
+    config::ChainGraphConfig = default_chain_graph_config(),
+)
+    # Basic tokenization using utility function (words only, no subword modeling)
+    raw_tokens = tokenize_text(text)
+    tokens = String.(raw_tokens)
+
+    # Convert to dummy integer IDs by hashing, clamped to a safe range and cast to Int
+    token_ids = [Int(mod(abs(hash(t)), 10_000)) + 10 for t in tokens]
+
+    return create_empty_chain_graph(token_ids, tokens, config)
+end

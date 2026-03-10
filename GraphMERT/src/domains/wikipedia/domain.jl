@@ -12,12 +12,6 @@ using Logging
 # Import domain interface (these will be available from the main module)
 # Note: When this module is included from GraphMERT.jl, these will already be loaded
 
-# Import Wikipedia submodules
-include("entities.jl")
-include("relations.jl")
-include("prompts.jl")
-include("wikidata.jl")  # Wikidata integration
-
 """
     WikipediaDomain
 
@@ -86,6 +80,12 @@ mutable struct WikipediaDomain <: DomainProvider
     end
 end
 
+# Import Wikipedia submodules
+include("entities.jl")
+include("relations.jl")
+include("prompts.jl")
+include("wikidata.jl")  # Wikidata integration
+
 # ============================================================================
 # Required DomainProvider Methods
 # ============================================================================
@@ -113,7 +113,7 @@ end
 
 Extract Wikipedia entities from text.
 """
-function extract_entities(domain::WikipediaDomain, text::String, config::Any)
+function extract_entities(domain::WikipediaDomain, text::String, config::ProcessingOptions)
     # Delegate to Wikipedia entities module
     return extract_wikipedia_entities(text, config, domain)
 end
@@ -123,7 +123,7 @@ end
 
 Extract Wikipedia relations between entities.
 """
-function extract_relations(domain::WikipediaDomain, entities::Vector{Any}, text::String, config::Any)
+function extract_relations(domain::WikipediaDomain, entities::Vector{Entity}, text::String, config::ProcessingOptions)
     # Delegate to Wikipedia relations module
     return extract_wikipedia_relations(entities, text, config, domain)
 end

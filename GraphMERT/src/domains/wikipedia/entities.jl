@@ -5,7 +5,7 @@ This module provides Wikipedia-specific entity extraction functionality
 for general knowledge entities (people, places, organizations, concepts, etc.).
 """
 
-using ..GraphMERT: Entity, TextPosition, ProcessingOptions
+# Types assumed to be available in global scope when included
 
 """
     extract_wikipedia_entities(text::String, config::ProcessingOptions, domain::WikipediaDomain)
@@ -20,7 +20,7 @@ Extract Wikipedia entities from text using pattern matching.
 # Returns
 - `Vector{Entity}`: Extracted entities
 """
-function extract_wikipedia_entities(text::String, config::Any, domain::Any)
+function extract_wikipedia_entities(text::String, config::ProcessingOptions, domain::WikipediaDomain)
     entities = Vector{Entity}()
     
     # Split text into words

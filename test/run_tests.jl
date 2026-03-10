@@ -15,8 +15,8 @@ using Dates
 # Activate the project environment
 Pkg.activate("../")
 
-# Configure logging
-Logging.configure(level=Logging.Info)
+# Configure logging (keep it simple for now)
+global_logger(Logging.ConsoleLogger(stderr, Logging.Info))
 
 function main()
     println("="^80)

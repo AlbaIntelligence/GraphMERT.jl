@@ -132,6 +132,9 @@ include("api/config.jl")
 include("api/helpers.jl")
 include("api/serialization.jl")
 
+# Visualization
+include("visualization/visualization.jl")
+
 # Optimization
 include("optimization/memory.jl")
 include("optimization/speed.jl")
@@ -153,10 +156,11 @@ export SpatialAttentionConfig, create_attention_decay_mask, create_graph_attenti
 # Export domain-related functions
 export DomainProvider, DomainConfig
 export register_domain!, get_domain, list_domains
-export set_default_domain, get_default_domain, has_domain
+export set_default_domain, get_default_domain, get_default_domain_name, has_domain
 export extract_entities, extract_relations
 export validate_entity, validate_relation
 export calculate_entity_confidence, calculate_relation_confidence
+export load_wikipedia_domain, load_biomedical_domain
 
 # Export helper LLM functions
 export create_helper_llm_client, discover_entities, match_relations
@@ -232,16 +236,9 @@ model = load_model("path/to/model.onnx")
 ```
 """
 function load_model(model_path::String)
-  # Basic implementation: create a GraphMERT model from scratch
-  # In a full implementation, this would load pre-trained weights from model_path
-
-  # Use default configuration for now
-  config = GraphMERTConfig()
-
-  # Use the existing create_graphmert_model function
-  model = create_graphmert_model(config)
-
-  return model
+  # Delegate to the persistence-layer loader, which handles missing files
+  # and returns `nothing` when loading fails.
+  return load_model(model_path; device=:cpu, strict=true)
 end
 
 """
@@ -275,6 +272,52 @@ end
 # ============================================================================
 
 """
+load_wikipedia_domain(wikidata_client::Union{Any, Nothing} = nothing)
+
+Load and register the Wikipedia domain.
+
+# Arguments
+- `wikidata_client::Union{Any, Nothing}`: Optional Wikidata client for entity linking
+
+# Returns
+- `WikipediaDomain`: The created domain instance
+
+# Example
+```julia
+using GraphMERT
+domain = load_wikipedia_domain()
+register_domain!("wikipedia", domain)
+```
+"""
+function load_wikipedia_domain(wikidata_client::Union{Any, Nothing} = nothing)
+include(joinpath(@__DIR__, "domains", "wikipedia.jl"))
+return Base.invokelatest(GraphMERT.WikipediaDomain, wikidata_client)
+end
+
+"""
+load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing)
+
+Load and register the biomedical domain.
+
+# Arguments
+- `umls_client::Union{Any, Nothing}`: Optional UMLS client for entity linking
+
+# Returns
+- `BiomedicalDomain`: The created domain instance
+
+# Example
+```julia
+using GraphMERT
+domain = load_biomedical_domain()
+register_domain!("biomedical", domain)
+```
+"""
+function load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing)
+    include(joinpath(@__DIR__, "domains", "biomedical.jl"))
+    return Base.invokelatest(GraphMERT.BiomedicalDomain, umls_client)
+end
+
+"""
     initialize_default_domains()
 
 Initialize and register default domains (biomedical and Wikipedia) for convenience.
@@ -285,16 +328,13 @@ Call this after loading domain modules if you want them available by default.
 # Example
 ```julia
 using GraphMERT
-include("GraphMERT/src/domains/biomedical.jl")
-include("GraphMERT/src/domains/wikipedia.jl")
 initialize_default_domains()
 ```
 """
 function initialize_default_domains()
-    # Try to load biomedical domain
+    # Try to load biomedical domain (not implemented yet)
     try
         if !has_domain("biomedical")
-            include("domains/biomedical.jl")
             biomedical_domain = load_biomedical_domain()
             register_domain!("biomedical", biomedical_domain)
             @info "Initialized biomedical domain"
@@ -302,11 +342,10 @@ function initialize_default_domains()
     catch e
         @warn "Could not initialize biomedical domain: $e"
     end
-    
+
     # Try to load Wikipedia domain
     try
         if !has_domain("wikipedia")
-            include("domains/wikipedia.jl")
             wikipedia_domain = load_wikipedia_domain()
             register_domain!("wikipedia", wikipedia_domain)
             @info "Initialized Wikipedia domain"
@@ -335,16 +374,26 @@ function fallback_entity_recognition(text::String, domain::Union{Any, Nothing}=n
         return [e.text for e in entities]
     end
     
-    # Basic fallback: simple noun phrase extraction
-    # Split by whitespace and capitalize potential entities
+    # Basic fallback: simple noun phrase / keyword extraction
+    # Split by whitespace and capture medically relevant tokens even if lowercase
     words = split(text)
     entities = String[]
     
-    # Simple heuristic: capitalize potential proper nouns and noun phrases
+    # Heuristic: keep reasonably long tokens that look like content words
     for (i, word) in enumerate(words)
-        # Skip very short words
-        if length(word) > 3 && isuppercase(word[1])
-            push!(entities, word)
+        clean = strip(replace(word, r"[^\p{L}]" => ""))
+        # Skip very short or empty tokens
+        if length(clean) ≤ 3
+            continue
+        end
+
+        lower = lowercase(clean)
+        # Always keep if it starts with uppercase (proper nouns)
+        if isuppercase(clean[1])
+            push!(entities, clean)
+        # Also keep common biomedical keywords regardless of casing
+        elseif occursin(r"(diabet|metformin|insulin|glucos|cancer|tumor|protein|gene)", lower)
+            push!(entities, clean)
         end
     end
     
@@ -502,5 +551,115 @@ export ChainGraphNode,
   SeedInjectionConfig,
   EntityLinkingResult,
   SemanticTriple
+
+# Export from Visualization module
+export kg_to_graphs_format, visualize_graph, plot_knowledge_graph
+export filter_by_confidence, filter_by_entity_type, filter_by_relation_type
+export simplify_graph, cluster_entities, create_visualization_summary
+export validate_visualization_input
+
+# ============================================================================
+# Visualization Functions (delegating to Visualization submodule)
+# ============================================================================
+
+"""
+    kg_to_graphs_format(kg::KnowledgeGraph; validate::Bool=true)
+
+Convert a KnowledgeGraph to Graphs.jl/MetaGraphs.jl format.
+
+Delegates to Visualization.kg_to_graphs_format.
+"""
+kg_to_graphs_format(kg::KnowledgeGraph; validate::Bool=true) =
+    Visualization.kg_to_graphs_format(kg, validate=validate)
+
+"""
+    visualize_graph(kg::KnowledgeGraph; kwargs...)
+
+Create a static visualization of a knowledge graph.
+
+Delegates to Visualization.visualize_graph.
+"""
+visualize_graph(kg::KnowledgeGraph; kwargs...) =
+    Visualization.visualize_graph(kg; kwargs...)
+
+"""
+    plot_knowledge_graph(kg::KnowledgeGraph; kwargs...)
+
+Alias for visualize_graph.
+
+Delegates to Visualization.plot_knowledge_graph.
+"""
+plot_knowledge_graph(kg::KnowledgeGraph; kwargs...) =
+    Visualization.plot_knowledge_graph(kg; kwargs...)
+
+"""
+    filter_by_confidence(kg::KnowledgeGraph, min_confidence::Float64)
+
+Filter knowledge graph by confidence.
+
+Delegates to Visualization.filter_by_confidence.
+"""
+filter_by_confidence(kg::KnowledgeGraph, min_confidence::Float64) =
+    Visualization.filter_by_confidence(kg, min_confidence)
+
+"""
+    filter_by_entity_type(kg::KnowledgeGraph, entity_types::Vector{String})
+
+Filter knowledge graph by entity types.
+
+Delegates to Visualization.filter_by_entity_type.
+"""
+filter_by_entity_type(kg::KnowledgeGraph, entity_types::Vector{String}) =
+    Visualization.filter_by_entity_type(kg, entity_types)
+
+"""
+    filter_by_relation_type(kg::KnowledgeGraph, relation_types::Vector{String})
+
+Filter knowledge graph by relation types.
+
+Delegates to Visualization.filter_by_relation_type.
+"""
+filter_by_relation_type(kg::KnowledgeGraph, relation_types::Vector{String}) =
+    Visualization.filter_by_relation_type(kg, relation_types)
+
+"""
+    simplify_graph(kg::KnowledgeGraph; kwargs...)
+
+Simplify a knowledge graph for visualization.
+
+Delegates to Visualization.simplify_graph.
+"""
+simplify_graph(kg::KnowledgeGraph; kwargs...) =
+    Visualization.simplify_graph(kg; kwargs...)
+
+"""
+    cluster_entities(kg::KnowledgeGraph, method::Symbol=:entity_type)
+
+Cluster entities in a knowledge graph.
+
+Delegates to Visualization.cluster_entities.
+"""
+cluster_entities(kg::KnowledgeGraph, method::Symbol=:entity_type) =
+    Visualization.cluster_entities(kg, method)
+
+"""
+    create_visualization_summary(kg::KnowledgeGraph)
+
+Create a summary of knowledge graph statistics for visualization.
+
+Delegates to Visualization.create_visualization_summary.
+"""
+create_visualization_summary(kg::KnowledgeGraph) =
+    Visualization.create_visualization_summary(kg)
+
+"""
+    validate_visualization_input(kg::KnowledgeGraph)
+
+Validate that a knowledge graph is suitable for visualization.
+
+Delegates to Visualization.validate_visualization_input.
+"""
+validate_visualization_input(kg::KnowledgeGraph) =
+    Visualization.validate_visualization_input(kg)
 
 end # module GraphMERT

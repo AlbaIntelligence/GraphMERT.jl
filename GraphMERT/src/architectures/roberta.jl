@@ -21,53 +21,53 @@ Configuration for RoBERTa encoder architecture.
 
 """
 struct RoBERTaConfig
-  vocab_size::Int
-  hidden_size::Int
-  num_attention_heads::Int
-  num_hidden_layers::Int
-  intermediate_size::Int
-  max_position_embeddings::Int
-  type_vocab_size::Int
-  layer_norm_eps::Float64
-  hidden_dropout_prob::Float64
-  attention_probs_dropout_prob::Float64
+    vocab_size::Int
+    hidden_size::Int
+    num_attention_heads::Int
+    num_hidden_layers::Int
+    intermediate_size::Int
+    max_position_embeddings::Int
+    type_vocab_size::Int
+    layer_norm_eps::Float64
+    hidden_dropout_prob::Float64
+    attention_probs_dropout_prob::Float64
 
-  function RoBERTaConfig(;
-    vocab_size::Int=50265,
-    hidden_size::Int=768,
-    num_attention_heads::Int=12,
-    num_hidden_layers::Int=12,
-    intermediate_size::Int=3072,
-    max_position_embeddings::Int=512,
-    type_vocab_size::Int=1,
-    layer_norm_eps::Float64=1e-12,
-    hidden_dropout_prob::Float64=0.1,
-    attention_probs_dropout_prob::Float64=0.1,
-  )
-    @assert vocab_size > 0 "Vocabulary size must be positive"
-    @assert hidden_size > 0 "Hidden size must be positive"
-    @assert num_attention_heads > 0 "Number of attention heads must be positive"
-    @assert num_hidden_layers > 0 "Number of hidden layers must be positive"
-    @assert intermediate_size > 0 "Intermediate size must be positive"
-    @assert max_position_embeddings > 0 "Max position embeddings must be positive"
-    @assert type_vocab_size > 0 "Type vocabulary size must be positive"
-    @assert layer_norm_eps > 0 "Layer norm epsilon must be positive"
-    @assert 0.0 <= hidden_dropout_prob <= 1.0 "Hidden dropout probability must be between 0.0 and 1.0"
-    @assert 0.0 <= attention_probs_dropout_prob <= 1.0 "Attention dropout probability must be between 0.0 and 1.0"
-
-    new(
-      vocab_size,
-      hidden_size,
-      num_attention_heads,
-      num_hidden_layers,
-      intermediate_size,
-      max_position_embeddings,
-      type_vocab_size,
-      layer_norm_eps,
-      hidden_dropout_prob,
-      attention_probs_dropout_prob,
+    function RoBERTaConfig(;
+        vocab_size::Int = 50265,
+        hidden_size::Int = 768,
+        num_attention_heads::Int = 12,
+        num_hidden_layers::Int = 12,
+        intermediate_size::Int = 3072,
+        max_position_embeddings::Int = 512,
+        type_vocab_size::Int = 1,
+        layer_norm_eps::Float64 = 1e-12,
+        hidden_dropout_prob::Float64 = 0.1,
+        attention_probs_dropout_prob::Float64 = 0.1,
     )
-  end
+        @assert vocab_size > 0 "Vocabulary size must be positive"
+        @assert hidden_size > 0 "Hidden size must be positive"
+        @assert num_attention_heads > 0 "Number of attention heads must be positive"
+        @assert num_hidden_layers > 0 "Number of hidden layers must be positive"
+        @assert intermediate_size > 0 "Intermediate size must be positive"
+        @assert max_position_embeddings > 0 "Max position embeddings must be positive"
+        @assert type_vocab_size > 0 "Type vocabulary size must be positive"
+        @assert layer_norm_eps > 0 "Layer norm epsilon must be positive"
+        @assert 0.0 <= hidden_dropout_prob <= 1.0 "Hidden dropout probability must be between 0.0 and 1.0"
+        @assert 0.0 <= attention_probs_dropout_prob <= 1.0 "Attention dropout probability must be between 0.0 and 1.0"
+
+        new(
+            vocab_size,
+            hidden_size,
+            num_attention_heads,
+            num_hidden_layers,
+            intermediate_size,
+            max_position_embeddings,
+            type_vocab_size,
+            layer_norm_eps,
+            hidden_dropout_prob,
+            attention_probs_dropout_prob,
+        )
+    end
 end
 
 # ============================================================================
@@ -81,27 +81,27 @@ Embedding layer for RoBERTa encoder.
 
 """
 struct RoBERTaEmbeddings
-  word_embeddings::Embedding
-  position_embeddings::Embedding
-  token_type_embeddings::Embedding
-  layer_norm::LayerNorm
-  dropout::Dropout
+    word_embeddings::Embedding
+    position_embeddings::Embedding
+    token_type_embeddings::Embedding
+    layer_norm::LayerNorm
+    dropout::Dropout
 
-  function RoBERTaEmbeddings(config::RoBERTaConfig)
-    word_embeddings = Embedding(config.vocab_size, config.hidden_size)
-    position_embeddings = Embedding(config.max_position_embeddings, config.hidden_size)
-    token_type_embeddings = Embedding(config.type_vocab_size, config.hidden_size)
-    layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
-    dropout = Dropout(config.hidden_dropout_prob)
+    function RoBERTaEmbeddings(config::RoBERTaConfig)
+        word_embeddings = Embedding(config.vocab_size, config.hidden_size)
+        position_embeddings = Embedding(config.max_position_embeddings, config.hidden_size)
+        token_type_embeddings = Embedding(config.type_vocab_size, config.hidden_size)
+        layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        dropout = Dropout(config.hidden_dropout_prob)
 
-    new(
-      word_embeddings,
-      position_embeddings,
-      token_type_embeddings,
-      layer_norm,
-      dropout,
-    )
-  end
+        new(
+            word_embeddings,
+            position_embeddings,
+            token_type_embeddings,
+            layer_norm,
+            dropout,
+        )
+    end
 end
 
 """
@@ -111,33 +111,33 @@ Self-attention mechanism for RoBERTa.
 
 """
 struct RoBERTaSelfAttention
-  query::Dense
-  key::Dense
-  value::Dense
-  dropout::Dropout
-  num_attention_heads::Int
-  attention_head_size::Int
-  all_head_size::Int
+    query::Dense
+    key::Dense
+    value::Dense
+    dropout::Dropout
+    num_attention_heads::Int
+    attention_head_size::Int
+    all_head_size::Int
 
-  function RoBERTaSelfAttention(config::RoBERTaConfig)
-    all_head_size = config.hidden_size
-    attention_head_size = all_head_size ÷ config.num_attention_heads
+    function RoBERTaSelfAttention(config::RoBERTaConfig)
+        all_head_size = config.hidden_size
+        attention_head_size = all_head_size ÷ config.num_attention_heads
 
-    query = Dense(config.hidden_size, all_head_size)
-    key = Dense(config.hidden_size, all_head_size)
-    value = Dense(config.hidden_size, all_head_size)
-    dropout = Dropout(config.attention_probs_dropout_prob)
+        query = Dense(config.hidden_size, all_head_size)
+        key = Dense(config.hidden_size, all_head_size)
+        value = Dense(config.hidden_size, all_head_size)
+        dropout = Dropout(config.attention_probs_dropout_prob)
 
-    new(
-      query,
-      key,
-      value,
-      dropout,
-      config.num_attention_heads,
-      attention_head_size,
-      all_head_size,
-    )
-  end
+        new(
+            query,
+            key,
+            value,
+            dropout,
+            config.num_attention_heads,
+            attention_head_size,
+            all_head_size,
+        )
+    end
 end
 
 """
@@ -146,17 +146,17 @@ end
 Output layer for self-attention.
 """
 struct RoBERTaSelfOutput
-  dense::Dense
-  layer_norm::LayerNorm
-  dropout::Dropout
+    dense::Dense
+    layer_norm::LayerNorm
+    dropout::Dropout
 
-  function RoBERTaSelfOutput(config::RoBERTaConfig)
-    dense = Dense(config.hidden_size, config.hidden_size)
-    layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
-    dropout = Dropout(config.hidden_dropout_prob)
+    function RoBERTaSelfOutput(config::RoBERTaConfig)
+        dense = Dense(config.hidden_size, config.hidden_size)
+        layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        dropout = Dropout(config.hidden_dropout_prob)
 
-    new(dense, layer_norm, dropout)
-  end
+        new(dense, layer_norm, dropout)
+    end
 end
 
 """
@@ -166,15 +166,15 @@ Complete attention mechanism for RoBERTa.
 
 """
 struct RoBERTaAttention
-  self::RoBERTaSelfAttention
-  output::RoBERTaSelfOutput
+    self::RoBERTaSelfAttention
+    output::RoBERTaSelfOutput
 
-  function RoBERTaAttention(config::RoBERTaConfig)
-    self = RoBERTaSelfAttention(config)
-    output = RoBERTaSelfOutput(config)
+    function RoBERTaAttention(config::RoBERTaConfig)
+        self = RoBERTaSelfAttention(config)
+        output = RoBERTaSelfOutput(config)
 
-    new(self, output)
-  end
+        new(self, output)
+    end
 end
 
 """
@@ -183,15 +183,15 @@ end
 Intermediate layer for RoBERTa.
 """
 struct RoBERTaIntermediate
-  dense::Dense
-  activation::Function
+    dense::Dense
+    activation::Function
 
-  function RoBERTaIntermediate(config::RoBERTaConfig)
-    dense = Dense(config.hidden_size, config.intermediate_size)
-    activation = gelu  # GELU activation function
+    function RoBERTaIntermediate(config::RoBERTaConfig)
+        dense = Dense(config.hidden_size, config.intermediate_size)
+        activation = gelu  # GELU activation function
 
-    new(dense, activation)
-  end
+        new(dense, activation)
+    end
 end
 
 """
@@ -201,17 +201,17 @@ Output layer for RoBERTa.
 
 """
 struct RoBERTaOutput
-  dense::Dense
-  layer_norm::LayerNorm
-  dropout::Dropout
+    dense::Dense
+    layer_norm::LayerNorm
+    dropout::Dropout
 
-  function RoBERTaOutput(config::RoBERTaConfig)
-    dense = Dense(config.intermediate_size, config.hidden_size)
-    layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
-    dropout = Dropout(config.hidden_dropout_prob)
+    function RoBERTaOutput(config::RoBERTaConfig)
+        dense = Dense(config.intermediate_size, config.hidden_size)
+        layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        dropout = Dropout(config.hidden_dropout_prob)
 
-    new(dense, layer_norm, dropout)
-  end
+        new(dense, layer_norm, dropout)
+    end
 end
 
 """
@@ -221,17 +221,17 @@ Single layer of RoBERTa encoder.
 
 """
 struct RoBERTaLayer
-  attention::RoBERTaAttention
-  intermediate::RoBERTaIntermediate
-  output::RoBERTaOutput
+    attention::RoBERTaAttention
+    intermediate::RoBERTaIntermediate
+    output::RoBERTaOutput
 
-  function RoBERTaLayer(config::RoBERTaConfig)
-    attention = RoBERTaAttention(config)
-    intermediate = RoBERTaIntermediate(config)
-    output = RoBERTaOutput(config)
+    function RoBERTaLayer(config::RoBERTaConfig)
+        attention = RoBERTaAttention(config)
+        intermediate = RoBERTaIntermediate(config)
+        output = RoBERTaOutput(config)
 
-    new(attention, intermediate, output)
-  end
+        new(attention, intermediate, output)
+    end
 end
 
 # ============================================================================
@@ -245,13 +245,13 @@ Complete RoBERTa encoder architecture.
 
 """
 struct RoBERTaEncoder
-  layers::Vector{RoBERTaLayer}
-  config::RoBERTaConfig
+    layers::Vector{RoBERTaLayer}
+    config::RoBERTaConfig
 
-  function RoBERTaEncoder(config::RoBERTaConfig)
-    layers = [RoBERTaLayer(config) for _ = 1:config.num_hidden_layers]
-    new(layers, config)
-  end
+    function RoBERTaEncoder(config::RoBERTaConfig)
+        layers = [RoBERTaLayer(config) for _ ∈ 1:config.num_hidden_layers]
+        new(layers, config)
+    end
 end
 
 """
@@ -261,18 +261,18 @@ Complete RoBERTa model for GraphMERT.
 
 """
 struct RoBERTaModel
-  embeddings::RoBERTaEmbeddings
-  encoder::RoBERTaEncoder
-  pooler::Dense
-  config::RoBERTaConfig
+    embeddings::RoBERTaEmbeddings
+    encoder::RoBERTaEncoder
+    pooler::Dense
+    config::RoBERTaConfig
 
-  function RoBERTaModel(config::RoBERTaConfig)
-    embeddings = RoBERTaEmbeddings(config)
-    encoder = RoBERTaEncoder(config)
-    pooler = Dense(config.hidden_size, config.hidden_size)
+    function RoBERTaModel(config::RoBERTaConfig)
+        embeddings = RoBERTaEmbeddings(config)
+        encoder = RoBERTaEncoder(config)
+        pooler = Dense(config.hidden_size, config.hidden_size)
 
-    new(embeddings, encoder, pooler, config)
-  end
+        new(embeddings, encoder, pooler, config)
+    end
 end
 
 # ============================================================================
@@ -286,31 +286,31 @@ Forward pass for RoBERTa embeddings.
 
 """
 function (embeddings::RoBERTaEmbeddings)(
-  input_ids::Matrix{Int},
-  position_ids::Matrix{Int},
-  token_type_ids::Matrix{Int},
+    input_ids::Matrix{Int},
+    position_ids::Matrix{Int},
+    token_type_ids::Matrix{Int},
 )
-  # Word embeddings - Flux.Embedding expects (vocab_size, batch_size) input
-  # But we have (seq_len, batch_size), so we need to transpose
-  word_embeddings = embeddings.word_embeddings(input_ids')
+    # Word embeddings - Flux.Embedding expects (vocab_size, batch_size) input
+    # But we have (seq_len, batch_size), so we need to transpose
+    word_embeddings = embeddings.word_embeddings(input_ids')
 
-  # Position embeddings
-  position_embeddings = embeddings.position_embeddings(position_ids')
+    # Position embeddings
+    position_embeddings = embeddings.position_embeddings(position_ids')
 
-  # Token type embeddings
-  token_type_embeddings = embeddings.token_type_embeddings(token_type_ids')
+    # Token type embeddings
+    token_type_embeddings = embeddings.token_type_embeddings(token_type_ids')
 
-  # Combine embeddings - result is (hidden_size, seq_len, batch_size)
-  embeddings_output = word_embeddings .+ position_embeddings .+ token_type_embeddings
+    # Combine embeddings - result is (hidden_size, seq_len, batch_size)
+    embeddings_output = word_embeddings .+ position_embeddings .+ token_type_embeddings
 
-  # Transpose to (batch_size, seq_len, hidden_size) for layer norm
-  embeddings_output = permutedims(embeddings_output, [3, 2, 1])
+    # Transpose to (batch_size, seq_len, hidden_size) for layer norm
+    embeddings_output = permutedims(embeddings_output, [3, 2, 1])
 
-  # Layer normalization and dropout
-  embeddings_output = embeddings.layer_norm(embeddings_output)
-  embeddings_output = embeddings.dropout(embeddings_output)
+    # Layer normalization and dropout
+    embeddings_output = embeddings.layer_norm(embeddings_output)
+    embeddings_output = embeddings.dropout(embeddings_output)
 
-  return embeddings_output
+    return embeddings_output
 end
 
 """
@@ -320,55 +320,55 @@ Forward pass for RoBERTa self-attention.
 
 """
 function (attention::RoBERTaSelfAttention)(
-  hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
-  attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
+    hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
+    attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
 )
-  batch_size, seq_length, hidden_size = size(hidden_states)
+    batch_size, seq_length, hidden_size = size(hidden_states)
 
-  # Linear transformations - Dense layers expect (features, batch_size * seq_len)
-  # Reshape to (hidden_size, batch_size * seq_length)
-  hidden_states_reshaped = reshape(hidden_states, :, batch_size * seq_length)
+    # Linear transformations - Dense layers expect (features, batch_size * seq_len)
+    # Reshape to (hidden_size, batch_size * seq_length)
+    hidden_states_reshaped = reshape(hidden_states, :, batch_size * seq_length)
 
-  query_layer = attention.query(hidden_states_reshaped)
-  key_layer = attention.key(hidden_states_reshaped)
-  value_layer = attention.value(hidden_states_reshaped)
+    query_layer = attention.query(hidden_states_reshaped)
+    key_layer = attention.key(hidden_states_reshaped)
+    value_layer = attention.value(hidden_states_reshaped)
 
-  # Reshape back to (batch_size, seq_length, num_heads * head_size)
-  query_layer = reshape(query_layer, batch_size, seq_length, attention.all_head_size)
-  key_layer = reshape(key_layer, batch_size, seq_length, attention.all_head_size)
-  value_layer = reshape(value_layer, batch_size, seq_length, attention.all_head_size)
+    # Reshape back to (batch_size, seq_length, num_heads * head_size)
+    query_layer = reshape(query_layer, batch_size, seq_length, attention.all_head_size)
+    key_layer = reshape(key_layer, batch_size, seq_length, attention.all_head_size)
+    value_layer = reshape(value_layer, batch_size, seq_length, attention.all_head_size)
 
-  # Split into heads
-  query_layer = reshape(query_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
-  key_layer = reshape(key_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
-  value_layer = reshape(value_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
+    # Split into heads
+    query_layer = reshape(query_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
+    key_layer = reshape(key_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
+    value_layer = reshape(value_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
 
-  # Transpose for attention computation: (batch_size, num_heads, seq_length, head_size)
-  query_layer = permutedims(query_layer, [1, 3, 2, 4])
-  key_layer = permutedims(key_layer, [1, 3, 2, 4])
-  value_layer = permutedims(value_layer, [1, 3, 2, 4])
+    # Transpose for attention computation: (batch_size, num_heads, seq_length, head_size)
+    query_layer = permutedims(query_layer, [1, 3, 2, 4])
+    key_layer = permutedims(key_layer, [1, 3, 2, 4])
+    value_layer = permutedims(value_layer, [1, 3, 2, 4])
 
-  # Attention scores: (batch_size, num_heads, seq_length, seq_length)
-  attention_scores = batched_mul(query_layer, permutedims(key_layer, [1, 2, 4, 3]))
-  attention_scores = attention_scores ./ sqrt(Float32(attention.attention_head_size))
+    # Attention scores: (batch_size, num_heads, seq_length, seq_length)
+    attention_scores = batched_mul(query_layer, permutedims(key_layer, [1, 2, 4, 3]))
+    attention_scores = attention_scores ./ sqrt(Float32(attention.attention_head_size))
 
-  # Apply attention mask
-  attention_scores = attention_scores .+ attention_mask
+    # Apply attention mask
+    attention_scores = attention_scores .+ attention_mask
 
-  # Softmax
-  attention_probs = softmax(attention_scores, dims=4)
-  attention_probs = attention.dropout(attention_probs)
+    # Softmax
+    attention_probs = softmax(attention_scores, dims = 4)
+    attention_probs = attention.dropout(attention_probs)
 
-  # Apply attention to values: (batch_size, num_heads, seq_length, head_size)
-  context_layer = batched_mul(attention_probs, value_layer)
+    # Apply attention to values: (batch_size, num_heads, seq_length, head_size)
+    context_layer = batched_mul(attention_probs, value_layer)
 
-  # Transpose back: (batch_size, seq_length, num_heads, head_size)
-  context_layer = permutedims(context_layer, [1, 3, 2, 4])
+    # Transpose back: (batch_size, seq_length, num_heads, head_size)
+    context_layer = permutedims(context_layer, [1, 3, 2, 4])
 
-  # Concatenate heads: (batch_size, seq_length, hidden_size)
-  context_layer = reshape(context_layer, batch_size, seq_length, attention.all_head_size)
+    # Concatenate heads: (batch_size, seq_length, hidden_size)
+    context_layer = reshape(context_layer, batch_size, seq_length, attention.all_head_size)
 
-  return context_layer
+    return context_layer
 end
 
 """
@@ -378,33 +378,33 @@ Forward pass for a single RoBERTa layer.
 
 """
 function (layer::RoBERTaLayer)(
-  hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
-  attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
+    hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
+    attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
 )
-  # Self-attention
-  attention_output = layer.attention.self(hidden_states, attention_mask)
-  # Self-attention output projection
-  batch_size, seq_len, hidden_size = size(attention_output)
-  attention_output_reshaped = reshape(attention_output, hidden_size, batch_size * seq_len)
-  attention_output = layer.attention.output.dense(attention_output_reshaped)
-  attention_output = reshape(attention_output, batch_size, seq_len, hidden_size)
-  attention_output = layer.attention.output.dropout(attention_output)
-  attention_output = layer.attention.output.layer_norm(attention_output .+ hidden_states)
+    # Self-attention
+    attention_output = layer.attention.self(hidden_states, attention_mask)
+    # Self-attention output projection
+    batch_size, seq_len, hidden_size = size(attention_output)
+    attention_output_reshaped = reshape(attention_output, hidden_size, batch_size * seq_len)
+    attention_output = layer.attention.output.dense(attention_output_reshaped)
+    attention_output = reshape(attention_output, batch_size, seq_len, hidden_size)
+    attention_output = layer.attention.output.dropout(attention_output)
+    attention_output = layer.attention.output.layer_norm(attention_output .+ hidden_states)
 
-  # Intermediate layer
-  intermediate_reshaped = reshape(attention_output, hidden_size, batch_size * seq_len)
-  intermediate_output = layer.intermediate.dense(intermediate_reshaped)
-  intermediate_output = reshape(intermediate_output, :, batch_size * seq_len)
-  intermediate_output = layer.intermediate.activation.(intermediate_output)
-  intermediate_output = reshape(intermediate_output, size(layer.intermediate.dense.W, 2), batch_size * seq_len)
+    # Intermediate layer
+    intermediate_reshaped = reshape(attention_output, hidden_size, batch_size * seq_len)
+    intermediate_output = layer.intermediate.dense(intermediate_reshaped)
+    intermediate_output = reshape(intermediate_output, :, batch_size * seq_len)
+    intermediate_output = layer.intermediate.activation.(intermediate_output)
+    intermediate_output = reshape(intermediate_output, size(layer.intermediate.dense.W, 2), batch_size * seq_len)
 
-  # Output layer
-  layer_output = layer.output.dense(intermediate_output)
-  layer_output = reshape(layer_output, batch_size, seq_len, hidden_size)
-  layer_output = layer.output.dropout(layer_output)
-  layer_output = layer.output.layer_norm(layer_output .+ attention_output)
+    # Output layer
+    layer_output = layer.output.dense(intermediate_output)
+    layer_output = reshape(layer_output, batch_size, seq_len, hidden_size)
+    layer_output = layer.output.dropout(layer_output)
+    layer_output = layer.output.layer_norm(layer_output .+ attention_output)
 
-  return layer_output
+    return layer_output
 end
 
 """
@@ -414,13 +414,13 @@ Forward pass for RoBERTa encoder.
 
 """
 function (encoder::RoBERTaEncoder)(
-  hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
-  attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
+    hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
+    attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
 )
-  for layer in encoder.layers
-    hidden_states = layer(hidden_states, attention_mask)
-  end
-  return hidden_states
+    for layer in encoder.layers
+        hidden_states = layer(hidden_states, attention_mask)
+    end
+    return hidden_states
 end
 
 """
@@ -430,22 +430,22 @@ Forward pass for complete RoBERTa model.
 
 """
 function (model::RoBERTaModel)(
-  input_ids::Matrix{Int},  # (seq_len, batch_size)
-  attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
-  position_ids::Matrix{Int},  # (seq_len, batch_size)
-  token_type_ids::Matrix{Int},  # (seq_len, batch_size)
+    input_ids::Matrix{Int},  # (seq_len, batch_size)
+    attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
+    position_ids::Matrix{Int},  # (seq_len, batch_size)
+    token_type_ids::Matrix{Int},  # (seq_len, batch_size)
 )
-  # Embeddings
-  embedding_output = model.embeddings(input_ids, position_ids, token_type_ids)  # (batch_size, seq_len, hidden_size)
+    # Embeddings
+    embedding_output = model.embeddings(input_ids, position_ids, token_type_ids)  # (batch_size, seq_len, hidden_size)
 
-  # Encoder
-  encoder_output = model.encoder(embedding_output, attention_mask)  # (batch_size, seq_len, hidden_size)
+    # Encoder
+    encoder_output = model.encoder(embedding_output, attention_mask)  # (batch_size, seq_len, hidden_size)
 
-  # Pooler - use first token (equivalent to [CLS])
-  pooled_output = model.pooler(encoder_output[:, 1, :]')  # (hidden_size, batch_size)
-  pooled_output = pooled_output'  # (batch_size, hidden_size)
+    # Pooler - use first token (equivalent to [CLS])
+    pooled_output = model.pooler(encoder_output[:, 1, :]')  # (hidden_size, batch_size)
+    pooled_output = pooled_output'  # (batch_size, hidden_size)
 
-  return encoder_output, pooled_output
+    return encoder_output, pooled_output
 end
 
 # ============================================================================
@@ -459,31 +459,31 @@ Create attention mask from input IDs.
 
 """
 function create_attention_mask(input_ids::Matrix{Int})
-  # input_ids: (seq_len, batch_size)
-  # Create 3D attention mask: (batch_size, seq_len, seq_len)
-  seq_len, batch_size = size(input_ids)
+    # input_ids: (seq_len, batch_size)
+    # Create 3D attention mask: (batch_size, seq_len, seq_len)
+    seq_len, batch_size = size(input_ids)
 
-  # Create 2D mask first: (batch_size, seq_len) where 1 = valid, 0 = padding
-  seq_mask = (input_ids' .!= 0) .* 1.0f0  # (batch_size, seq_len)
+    # Create 2D mask first: (batch_size, seq_len) where 1 = valid, 0 = padding
+    seq_mask = (input_ids' .!= 0) .* 1.0f0  # (batch_size, seq_len)
 
-  # Expand to 3D: (batch_size, seq_len, seq_len)
-  attention_mask = reshape(seq_mask, batch_size, seq_len, 1)
-  attention_mask = repeat(attention_mask, 1, 1, seq_len)
+    # Expand to 3D: (batch_size, seq_len, seq_len)
+    attention_mask = reshape(seq_mask, batch_size, seq_len, 1)
+    attention_mask = repeat(attention_mask, 1, 1, seq_len)
 
-  # Apply masking for padding tokens
-  for b in 1:batch_size
-    for i in 1:seq_len
-      for j in 1:seq_len
-        if seq_mask[b, i] == 0 || seq_mask[b, j] == 0
-          attention_mask[b, i, j] = -Inf32
-        else
-          attention_mask[b, i, j] = 0.0f0
+    # Apply masking for padding tokens
+    for b in 1:batch_size
+        for i in 1:seq_len
+            for j in 1:seq_len
+                if seq_mask[b, i] == 0 || seq_mask[b, j] == 0
+                    attention_mask[b, i, j] = -Inf32
+                else
+                    attention_mask[b, i, j] = 0.0f0
+                end
+            end
         end
-      end
     end
-  end
 
-  return attention_mask
+    return attention_mask
 end
 
 """
@@ -493,9 +493,9 @@ Create position IDs for input sequence.
 
 """
 function create_position_ids(seq_length::Int, batch_size::Int)
-  # Return (seq_length, batch_size) matrix
-  position_ids = repeat(reshape(0:(seq_length-1), seq_length, 1), 1, batch_size)
-  return position_ids
+    # Return (seq_length, batch_size) matrix
+    position_ids = repeat(reshape(0:(seq_length-1), seq_length, 1), 1, batch_size)
+    return position_ids
 end
 
 """
@@ -505,9 +505,9 @@ Create token type IDs for input sequence.
 
 """
 function create_token_type_ids(seq_length::Int, batch_size::Int)
-  # For RoBERTa, token type IDs are all zeros
-  token_type_ids = zeros(Int, seq_length, batch_size)
-  return token_type_ids
+    # For RoBERTa, token type IDs are all zeros
+    token_type_ids = zeros(Int, seq_length, batch_size)
+    return token_type_ids
 end
 
 """
@@ -517,9 +517,9 @@ Get the number of parameters in the model.
 
 """
 function get_model_parameters(model::RoBERTaModel)
-  # This would calculate the actual number of parameters
-  # For now, return the target 80M parameters
-  return 80_000_000
+    # This would calculate the actual number of parameters
+    # For now, return the target 80M parameters
+    return 80_000_000
 end
 
 """
@@ -529,11 +529,11 @@ Load a pre-trained RoBERTa model from files.
 
 """
 function load_roberta_model(config_path::String, weights_path::String)
-  # This would load the actual model from files
-  # For now, create a new model with default config
-  config = RoBERTaConfig()
-  model = RoBERTaModel(config)
-  return model
+    # This would load the actual model from files
+    # For now, create a new model with default config
+    config = RoBERTaConfig()
+    model = RoBERTaModel(config)
+    return model
 end
 
 """
@@ -543,7 +543,7 @@ Save a RoBERTa model to files.
 
 """
 function save_roberta_model(model::RoBERTaModel, config_path::String, weights_path::String)
-  # This would save the actual model to files
-  # For now, just return success
-  return true
+    # This would save the actual model to files
+    # For now, just return success
+    return true
 end

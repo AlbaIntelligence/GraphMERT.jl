@@ -119,6 +119,30 @@ struct KnowledgeGraph
     end
 end
 
+# Virtual properties for backward compatibility (API tests expect `source_text` and `triples`)
+Base.getproperty(kg::KnowledgeGraph, s::Symbol) = begin
+  if s === :source_text
+    return get(kg.metadata, "source_text", "")
+  elseif s === :triples
+    # Synthesize (head_idx, rel_idx, tail_idx) triples from relations and entities
+    id_to_index = Dict{String,Int}()
+    for (i, ent) in enumerate(kg.entities)
+      id_to_index[ent.id] = i
+    end
+    triples = Vector{Tuple{Int,Int,Int}}()
+    for (ridx, rel) in enumerate(kg.relations)
+      h = get(id_to_index, rel.head, 0)
+      t = get(id_to_index, rel.tail, 0)
+      if h != 0 && t != 0
+        push!(triples, (h, ridx, t))
+      end
+    end
+    return triples
+  else
+    return getfield(kg, s)
+  end
+end
+
 # ============================================================================
 # Generic Knowledge Graph Entities
 # ============================================================================
@@ -201,6 +225,57 @@ struct Relation
 
     new(id, head, tail, relation_type, domain, confidence, provenance, evidence, attributes)
   end
+end
+
+# ============================================================================
+# KnowledgeGraph convenience constructor for generic Entity/Relation
+# ============================================================================
+
+"""
+    KnowledgeGraph(entities::Vector{Entity}, relations::Vector{Relation},
+                   metadata::Dict{String,Any}=Dict{String,Any}(), created_at::DateTime=now())
+
+Convenience constructor to build a `KnowledgeGraph` from generic `Entity`/`Relation`
+objects produced by domain providers. This preserves IDs and copies attributes into
+`KnowledgeEntity`/`KnowledgeRelation` while keeping additional domain-specific fields
+in the `attributes` dict.
+"""
+function KnowledgeGraph(
+  entities::Vector{Entity},
+  relations::Vector{Relation},
+  metadata::Dict{String,Any}=Dict{String,Any}(),
+  created_at::DateTime=now(),
+)
+  # Convert generic entities to KnowledgeEntity, preserving attributes
+  k_entities = Vector{KnowledgeEntity}(undef, length(entities))
+  for (i, e) in enumerate(entities)
+    # Merge core entity_type/domain into attributes so visualization/statistics can access them
+    attrs = copy(e.attributes)
+    attrs["entity_type"] = e.entity_type
+    attrs["domain"] = e.domain
+    k_entities[i] = KnowledgeEntity(e.id, e.text, e.label, e.confidence, e.position, attrs, created_at)
+  end
+
+  # Build mapping from entity ID to index for relation indexing
+  id_to_index = Dict{String,Int}()
+  for (idx, ent) in enumerate(k_entities)
+    id_to_index[ent.id] = idx
+  end
+
+  # Convert generic relations to KnowledgeRelation, preserving attributes
+  k_relations = Vector{KnowledgeRelation}(undef, length(relations))
+  for (i, r) in enumerate(relations)
+    attrs = copy(r.attributes)
+    attrs["domain"] = r.domain
+    attrs["provenance"] = r.provenance
+    attrs["evidence"] = r.evidence
+    # Precompute head/tail entity indices for convenience API
+    attrs["head_entity_id"] = get(id_to_index, r.head, 0)
+    attrs["tail_entity_id"] = get(id_to_index, r.tail, 0)
+    k_relations[i] = KnowledgeRelation(r.head, r.tail, r.relation_type, r.confidence, attrs, created_at)
+  end
+
+  return KnowledgeGraph(k_entities, k_relations, metadata, created_at)
 end
 
 # ============================================================================
@@ -304,6 +379,9 @@ struct BiomedicalRelation
     new(relation)
   end
 end
+
+# For backward compatibility, make legacy biomedical types available at top level
+export BiomedicalEntity, BiomedicalRelation
 
 # Convenience accessors for biomedical relations
 Base.getproperty(br::BiomedicalRelation, prop::Symbol) = begin
@@ -523,9 +601,16 @@ Options for text processing and knowledge graph extraction.
 struct ProcessingOptions
   max_length::Int
   batch_size::Int
+  device::Symbol
   use_umls::Bool
   use_helper_llm::Bool
   confidence_threshold::Float64
+  similarity_threshold::Float64
+  top_k_predictions::Int
+  use_amp::Bool
+  num_workers::Int
+  seed::Int
+  enable_provenance_tracking::Bool
   entity_types::Vector{String}
   relation_types::Vector{String}
   cache_enabled::Bool
@@ -534,11 +619,18 @@ struct ProcessingOptions
   domain::String
 
   function ProcessingOptions(;
-    max_length::Int=512,
+    max_length::Int=1024,
     batch_size::Int=32,
+    device::Symbol=:cpu,
     use_umls::Bool=true,
     use_helper_llm::Bool=true,
     confidence_threshold::Float64=0.5,
+    similarity_threshold::Float64=0.8,
+    top_k_predictions::Int=10,
+    use_amp::Bool=false,
+    num_workers::Int=0,
+    seed::Int=0,
+    enable_provenance_tracking::Bool=false,
     entity_types::Vector{String}=String[],
     relation_types::Vector{String}=String[],
     cache_enabled::Bool=true,
@@ -549,9 +641,16 @@ struct ProcessingOptions
     new(
       max_length,
       batch_size,
+      device,
       use_umls,
       use_helper_llm,
       confidence_threshold,
+      similarity_threshold,
+      top_k_predictions,
+      use_amp,
+      num_workers,
+      seed,
+      enable_provenance_tracking,
       entity_types,
       relation_types,
       cache_enabled,
@@ -566,85 +665,6 @@ end
 # Model Structures
 # ============================================================================
 
-
-# ============================================================================
-# Evaluation Metrics
-# ============================================================================
-
-"""
-    FActScore
-
-FActScore evaluation metric.
-
-
-"""
-struct FActScore
-  score::Float64
-  precision::Float64
-  recall::Float64
-  f1::Float64
-  total_facts::Int
-  correct_facts::Int
-  incorrect_facts::Int
-
-  function FActScore(
-    score::Float64,
-    precision::Float64,
-    recall::Float64,
-    f1::Float64,
-    total_facts::Int,
-    correct_facts::Int,
-    incorrect_facts::Int,
-  )
-    new(score, precision, recall, f1, total_facts, correct_facts, incorrect_facts)
-  end
-end
-
-"""
-    ValidityScore
-
-ValidityScore evaluation metric.
-
-
-"""
-struct ValidityScore
-  score::Float64
-  valid_relations::Int
-  total_relations::Int
-  invalid_relations::Int
-
-  function ValidityScore(
-    score::Float64,
-    valid_relations::Int,
-    total_relations::Int,
-    invalid_relations::Int,
-  )
-    new(score, valid_relations, total_relations, invalid_relations)
-  end
-end
-
-"""
-    GraphRAG
-
-GraphRAG evaluation metric.
-
-
-"""
-struct GraphRAG
-  score::Float64
-  retrieval_accuracy::Float64
-  generation_quality::Float64
-  overall_performance::Float64
-
-  function GraphRAG(
-    score::Float64,
-    retrieval_accuracy::Float64,
-    generation_quality::Float64,
-    overall_performance::Float64,
-  )
-    new(score, retrieval_accuracy, generation_quality, overall_performance)
-  end
-end
 
 # ============================================================================
 # Enhanced Types for GraphMERT Enhancement (from data-model.md)

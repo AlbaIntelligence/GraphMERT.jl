@@ -139,6 +139,18 @@ function get_default_domain()
 end
 
 """
+    get_default_domain_name()
+
+Get the name (identifier) of the default domain.
+
+# Returns
+- `String` domain name or `nothing` if no default is set
+"""
+function get_default_domain_name()
+    return DOMAIN_REGISTRY.default_domain
+end
+
+"""
     has_domain(domain_name::String)
 
 Check if a domain is registered.
@@ -153,4 +165,4 @@ end
 # Export functions
 export DomainRegistry, DOMAIN_REGISTRY
 export register_domain!, get_domain, list_domains
-export set_default_domain, get_default_domain, has_domain
+export set_default_domain, get_default_domain, get_default_domain_name, has_domain
