@@ -1,7 +1,7 @@
 # GraphMERT Specification Consistency Report
 
-**Date**: 2025-01-24  
-**Purpose**: Verify consistency between original paper and expanded rewrite specifications  
+**Date**: 2025-01-24
+**Purpose**: Verify consistency between original paper and expanded rewrite specifications
 **Status**: ✅ **FIXED - All Critical Issues Resolved**
 
 ---
@@ -20,7 +20,7 @@ After comprehensive review of the original GraphMERT paper (`paper.tex`) against
 
 **Location**: `08-seed-kg-injection.md`, lines 344-345
 
-**Issue**: 
+**Issue**:
 - **Incorrect**: `df.score_bucket = floor.(Int, df.score ./ score_bucket_size)`
 - **Correct** (Paper Algorithm 1, line 1503): `row.score_bucket = floor((max_s - row.score) / score_bucket_size)`
 
@@ -51,40 +51,40 @@ df.score_bucket = floor.(Int, (max_s .- df.score) ./ score_bucket_size)
 ## Consistency Verification by Document
 
 ### ✅ Document 01: Architecture Overview
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 4 (Methodology)  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 4 (Methodology)
 **Findings**: Matches paper architecture description, expands with implementation details
 
-### ✅ Document 02: Leafy Chain Graph Structure  
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate (921 lines, comprehensive)  
-**Paper References**: Section 4.1, Figures 2-3  
-**Findings**: 
+### ✅ Document 02: Leafy Chain Graph Structure
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate (921 lines, comprehensive)
+**Paper References**: Section 4.1, Figures 2-3
+**Findings**:
 - Correctly describes fixed structure (128 roots, 7 leaves per root = 1024 total nodes)
 - Matches paper description of regular structure
 - Provides detailed algorithms beyond paper
 
 ### ✅ Document 03: RoBERTa Encoder Architecture
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 4.2  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 4.2
 **Findings**: Matches paper's RoBERTa-based architecture description
 
 ### ✅ Document 04: H-GAT Component
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 2.5.2, Equations 1-3  
-**Findings**: 
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 2.5.2, Equations 1-3
+**Findings**:
 - Mathematical formulations match paper exactly:
   - `e_ij^(r) = LeakyReLU(a_r^T [W_r t_i || W_r h_j])` ✓
   - `α_ij^(r) = softmax_j(e_ij^(r))` ✓
   - `t_i' = Σ_j α_ij^(r) W_r h_j` ✓
 
 ### ✅ Document 05: Attention Mechanisms
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 4.2.1, Equations 545-552  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 4.2.1, Equations 545-552
 **Findings**:
 - **Correct**: `f(sp(i,j)) = λ^GELU(√(sp(i,j)) - p)` ✓
 - **Correct**: λ = 0.6 (paper line 809) ✓
@@ -92,9 +92,9 @@ df.score_bucket = floor.(Int, (max_s .- df.score) ./ score_bucket_size)
 - **Correct**: Exponential mask shared across layers ✓
 
 ### ✅ Document 06: MLM Training
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 4.2.2, Equation 4  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 4.2.2, Equation 4
 **Findings**:
 - **Correct**: MLM loss formulation matches paper Equation 561-562 ✓
 - **Correct**: Includes span boundary loss (SBO) from SpanBERT ✓
@@ -102,9 +102,9 @@ df.score_bucket = floor.(Int, (max_s .- df.score) ./ score_bucket_size)
 - **Correct**: Span masking with geometric distribution ✓
 
 ### ✅ Document 07: MNM Training
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 4.2.2, Equations 5-6  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 4.2.2, Equations 5-6
 **Findings**:
 - **Correct**: MNM loss formulation matches paper Equation 563 ✓
 - **Correct**: Joint loss: `L = L_MLM + μ·L_MNM` with μ = 1.0 ✓
@@ -112,9 +112,9 @@ df.score_bucket = floor.(Int, (max_s .- df.score) ./ score_bucket_size)
 - **Correct**: Masking probability 0.15 ✓
 
 ### ✅ Document 08: Seed KG Injection
-**Status**: ✅ **FIXED** (was inconsistent, now correct)  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 4.3, Appendix B (Algorithm 1)  
+**Status**: ✅ **FIXED** (was inconsistent, now correct)
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 4.3, Appendix B (Algorithm 1)
 **Findings**:
 - **Fixed**: Score bucketing formula now matches Algorithm 1 ✓
 - **Fixed**: Hyperparameters now match paper values (0.01, 100) ✓
@@ -124,9 +124,9 @@ df.score_bucket = floor.(Int, (max_s .- df.score) ./ score_bucket_size)
 - **Correct**: α threshold 0.55 (paper line 766) ✓
 
 ### ✅ Document 09: Triple Extraction Pipeline
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 4.4, Figures 4, 7-8  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 4.4, Figures 4, 7-8
 **Findings**:
 - **Correct**: 5-stage pipeline matches paper description ✓
 - **Correct**: Top-k = 20 tokens (paper line 822) ✓
@@ -134,28 +134,28 @@ df.score_bucket = floor.(Int, (max_s .- df.score) ./ score_bucket_size)
 - **Correct**: Helper LLM for tail formation ✓
 
 ### ✅ Document 10: Evaluation Metrics
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Section 5.2, 5.3  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Section 5.2, 5.3
 **Findings**:
 - **Correct**: FActScore* formula matches paper Equation 710-715 ✓
 - **Correct**: ValidityScore methodology matches paper ✓
 - **Correct**: GraphRAG evaluation matches paper ✓
 
 ### ✅ Document 11: Data Structures
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
-**Paper References**: Throughout paper  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
+**Paper References**: Throughout paper
 **Findings**: Types match paper descriptions and are appropriately expanded for Julia
 
 ### ✅ Document 12: Implementation Mapping
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
 **Findings**: Maps specifications to existing code correctly
 
 ### ✅ Document 13: Gaps Analysis
-**Status**: ✅ Consistent  
-**Detail Level**: ✅ Appropriate  
+**Status**: ✅ Consistent
+**Detail Level**: ✅ Appropriate
 **Findings**: Accurate assessment of what's missing
 
 ---
@@ -374,7 +374,7 @@ After comprehensive review and fixing the critical injection algorithm bug, all 
 
 ---
 
-**Reviewed by**: AI Assistant  
-**Date**: 2025-01-24  
-**Paper Version**: arXiv:2510.09580  
+**Reviewed by**: AI Assistant
+**Date**: 2025-01-24
+**Paper Version**: arXiv:2510.09580
 **Expanded Rewrite Version**: 1.0 (after fixes)

@@ -35,8 +35,8 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 When you start a new task, skim these in order and only dive deeper if needed:
 
 1. **Roadmap and current status (specs)**
-   - `original_paper/expanded_rewrite/00-IMPLEMENTATION-ROADMAP.md`
-   - `original_paper/expanded_rewrite/STATUS.md`
+   - `original_paper/expanded_rewrite/00-IMPLEMENTATION-ROADMAP-SUMMARY.md`
+   - `original_paper/expanded_rewrite/STATUS-SUMMARY.md`
    - `reports/CODE_REVIEW.md` and `reports/GENERALIZATION_PLAN.md`
 2. **Core architecture and types**
    - `original_paper/expanded_rewrite/01-architecture-overview.md`

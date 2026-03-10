@@ -142,7 +142,7 @@ The four critical documents **unblock ALL implementation work**:
 ### Evaluation
 
 - [ ] **10-evaluation-metrics.md** (~400 lines)
-  - FActScore*, ValidityScore, GraphRAG
+  - FActScore\*, ValidityScore, GraphRAG
   - **Priority**: P1 (High - validation)
 
 ### Implementation Details
