@@ -8,6 +8,7 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 ## Immediate Action Plan
 
 ### Phase 1: Foundation (Week 1)
+
 **Goal**: Set up domain abstraction layer
 
 1. ✅ Create domain interface (`src/domains/interface.jl`)
@@ -16,6 +17,7 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 4. ⏳ Refactor `config.jl` to support domain configuration
 
 ### Phase 2: Core Refactoring (Week 2)
+
 **Goal**: Remove all hardcoded domain logic from core
 
 5. ⏳ Refactor `api/extraction.jl` to use domain providers
@@ -24,12 +26,14 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 8. ⏳ Refactor `GraphMERT.jl` main module to use domain system
 
 ### Phase 3: Domain Modules (Week 3)
+
 **Goal**: Create domain-specific modules
 
 9. ⏳ Create biomedical domain module (`src/domains/biomedical/`)
 10. ⏳ Create Wikipedia domain module (`src/domains/wikipedia/`)
 
 ### Phase 4: Cleanup & Testing (Week 4)
+
 **Goal**: Move files, update examples, test
 
 11. ⏳ Move domain-specific files to appropriate modules
@@ -40,10 +44,12 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 ## Files Created
 
 ### Domain Interface Layer
+
 - ✅ `GraphMERT/src/domains/interface.jl` - Domain provider interface
 - ✅ `GraphMERT/src/domains/registry.jl` - Domain registry
 
 ### Documentation
+
 - ✅ `GENERALIZATION_PLAN.md` - Comprehensive generalization plan
 - ✅ `IMPLEMENTATION_FILES.md` - File structure and organization
 - ✅ `BIOMEDICAL_DOMAIN_IMPLEMENTATION.md` - Biomedical domain details
@@ -52,6 +58,7 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 ## Files to Create (Next Steps)
 
 ### Biomedical Domain Module
+
 1. `GraphMERT/src/domains/biomedical/domain.jl` - Main provider
 2. `GraphMERT/src/domains/biomedical/entities.jl` - Entity extraction
 3. `GraphMERT/src/domains/biomedical/relations.jl` - Relation extraction
@@ -64,6 +71,7 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 10. `GraphMERT/src/domains/biomedical/pubmed.jl` - PubMed processing (move)
 
 ### Wikipedia Domain Module
+
 11. `GraphMERT/src/domains/wikipedia/domain.jl` - Main provider
 12. `GraphMERT/src/domains/wikipedia/entities.jl` - Entity extraction
 13. `GraphMERT/src/domains/wikipedia/relations.jl` - Relation extraction
@@ -75,6 +83,7 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 ## Files to Modify
 
 ### Core Modules
+
 - `GraphMERT/src/GraphMERT.jl` - Update to use domain system
 - `GraphMERT/src/types.jl` - Add domain field, remove biomedical specializations
 - `GraphMERT/src/api/extraction.jl` - Use domain providers
@@ -94,21 +103,25 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 ## Key Design Decisions
 
 ### 1. Domain Provider Interface
+
 - All domains must implement `DomainProvider` abstract type
 - Required methods: entity/relation extraction, validation, confidence
 - Optional methods: entity linking, seed triples, evaluation metrics, prompts
 
 ### 2. Domain Registry
+
 - Central registry for all domains
 - Default domain can be set
 - Domains registered at module load time
 
 ### 3. Backward Compatibility
+
 - Default to "biomedical" domain if not specified
 - Provide compatibility layer for old API
 - Deprecation warnings for old functions
 
 ### 4. Separation of Concerns
+
 - Core modules: Domain-agnostic algorithms
 - Domain modules: Domain-specific logic
 - Clear boundaries between core and domain
@@ -132,12 +145,14 @@ with separate pluggable modules for biomedical and Wikipedia domains.
 ### Example Migration
 
 **Before**:
+
 ```julia
 using GraphMERT
 graph = extract_knowledge_graph(text)  # Uses biomedical implicitly
 ```
 
 **After**:
+
 ```julia
 using GraphMERT
 using GraphMERT.Domains.Biomedical
@@ -171,12 +186,15 @@ graph = extract_knowledge_graph(text, domain="biomedical")
 ## Questions to Resolve
 
 1. Should domain be a required parameter or optional (default to biomedical)?
+
    - **Recommendation**: Optional with default "biomedical" for backward compatibility
 
 2. Should domains be loaded automatically or manually registered?
+
    - **Recommendation**: Manual registration for explicit control
 
 3. Should domain-specific models be supported?
+
    - **Recommendation**: Yes, via domain configuration
 
 4. How to handle domain-specific evaluation metrics?
@@ -185,6 +203,7 @@ graph = extract_knowledge_graph(text, domain="biomedical")
 ## Contact & Support
 
 For questions about this generalization plan, refer to:
+
 - `GENERALIZATION_PLAN.md` - Detailed plan
 - `BIOMEDICAL_DOMAIN_IMPLEMENTATION.md` - Biomedical specifics
 - `WIKIPEDIA_DOMAIN_IMPLEMENTATION.md` - Wikipedia specifics

@@ -10,15 +10,18 @@ Implements `DomainProvider` for Wikipedia/general knowledge domain. Acts as the 
 and coordinates all Wikipedia-specific functionality.
 
 **Key Responsibilities**:
+
 - Implement all required DomainProvider methods
 - Coordinate between Wikipedia submodules
 - Initialize Wikipedia entity and relation types
 - Provide domain name and configuration
 
 **Entity Types**:
+
 - PERSON, ORGANIZATION, LOCATION, CONCEPT, EVENT, TECHNOLOGY, ARTWORK, PERIOD, THEORY, METHOD, INSTITUTION, COUNTRY
 
 **Relation Types**:
+
 - CREATED_BY, WORKED_AT, BORN_IN, DIED_IN, FOUNDED, LED, INFLUENCED, DEVELOPED, INVENTED, DISCOVERED, WROTE, PAINTED, COMPOSED, DIRECTED, ACTED_IN, OCCURRED_IN, HAPPENED_DURING, PART_OF_EVENT, RELATED_TO, SIMILAR_TO, OPPOSITE_OF, PRECEDED_BY, FOLLOWED_BY
 
 ### 2. `entities.jl` - Entity Types and Extraction
@@ -26,12 +29,14 @@ and coordinates all Wikipedia-specific functionality.
 **New file** - Implement Wikipedia entity extraction
 
 **Key Functions**:
+
 - `register_wikipedia_entity_types()` - Register PERSON, ORGANIZATION, etc.
 - `extract_wikipedia_entities(text, config)` - Extract entities using patterns
 - `validate_wikipedia_entity(text, type)` - Validate entity against type
 - `calculate_wikipedia_entity_confidence(text, type, context)` - Calculate confidence
 
 **Extraction Patterns**:
+
 - Person names: Capitalized words, titles, name patterns
 - Organizations: Institution suffixes (University, Corp, Inc)
 - Locations: Geographic indicators (City, Country, Mountain)
@@ -44,12 +49,14 @@ and coordinates all Wikipedia-specific functionality.
 **New file** - Implement Wikipedia relation extraction
 
 **Key Functions**:
+
 - `register_wikipedia_relation_types()` - Register CREATED_BY, WORKED_AT, etc.
 - `extract_wikipedia_relations(entities, text, config)` - Extract relations
 - `validate_wikipedia_relation(head, relation, tail)` - Validate relation
 - `calculate_wikipedia_relation_confidence(head, relation, tail, context)` - Calculate confidence
 
 **Relation Patterns**:
+
 - Person-Organization: "worked at", "founded", "led"
 - Person-Location: "born in", "died in", "lived in"
 - Person-Artwork: "created", "painted", "wrote", "composed"
@@ -62,12 +69,14 @@ and coordinates all Wikipedia-specific functionality.
 **New file** - Wikipedia-specific validation
 
 **Key Functions**:
+
 - `validate_entity_type(entity_text, entity_type)` - Type-specific validation
 - `validate_relation_type(head_type, relation, tail_type)` - Relation compatibility
 - `validate_entity_patterns(entity_text, entity_type)` - Pattern matching
 - `validate_wikipedia_formatting(entity_text)` - Wikipedia-specific formatting
 
 **Validation Rules**:
+
 - Person: Capitalized names, proper name patterns
 - Organization: Common suffixes, legal entity indicators
 - Location: Geographic terms, place indicators
@@ -79,12 +88,14 @@ and coordinates all Wikipedia-specific functionality.
 **New file** - Wikipedia-specific confidence calculation
 
 **Key Functions**:
+
 - `calculate_base_confidence(entity_text, entity_type)` - Base confidence
 - `calculate_pattern_confidence(entity_text, patterns)` - Pattern-based confidence
 - `calculate_context_confidence(entity_text, context)` - Context-based confidence
 - `calculate_wikidata_confidence(entity_text, wikidata_result)` - Wikidata-enhanced confidence
 
 **Confidence Factors**:
+
 - Capitalization: Proper nouns get higher confidence
 - Pattern matching: Matches to known patterns increase confidence
 - Context: Surrounding text context affects confidence
@@ -95,11 +106,13 @@ and coordinates all Wikipedia-specific functionality.
 **New file** - Wikipedia-specific LLM prompts
 
 **Key Functions**:
+
 - `create_entity_discovery_prompt(text, domain)` - Wikipedia entity discovery
 - `create_relation_matching_prompt(entities, text, domain)` - Relation matching
 - `create_tail_formation_prompt(tokens, text, domain)` - Tail entity formation
 
 **Prompt Examples**:
+
 - Entity discovery: Focus on people, places, organizations, concepts
 - Relation matching: Focus on historical, cultural, academic relationships
 - Tail formation: Form coherent entity names from predicted tokens
@@ -109,6 +122,7 @@ and coordinates all Wikipedia-specific functionality.
 **New file** - Wikidata integration for entity linking
 
 **Key Functions**:
+
 - `link_entity_to_wikidata(entity_text, config)` - Link entity to Wikidata QID
 - `get_wikidata_item_details(qid)` - Get item details
 - `search_wikidata_items(query)` - Search Wikidata
@@ -144,12 +158,14 @@ relations = extract_relations(domain, entities, text, ProcessingOptions())
 ## Integration with Existing Code
 
 The Wikipedia domain module reuses:
+
 - Core extraction pipeline
 - Graph construction (leafy chain)
 - Training pipeline (MLM + MNM)
 - Generic evaluation metrics (FActScore, ValidityScore)
 
 But provides:
+
 - Domain-specific entity/relation types
 - Domain-specific extraction patterns
 - Domain-specific validation rules

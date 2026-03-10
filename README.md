@@ -270,24 +270,16 @@ You can create custom domains by implementing the `DomainProvider` interface. Se
 - Pathway associations
 - Treatment protocols
 
-## Training and Fine-tuning
+## Training and fine-tuning
 
-```julia
-# Load training data
-training_data = load_biomedical_corpus("path/to/corpus")
+For details on MLM+MNM training, seed injection, and the end-to-end training pipeline, follow the specifications in:
 
-# Configure training
-training_config = MLM_MNM_Training(
-    mlm_probability = 0.15,
-    mnm_probability = 0.15,
-    learning_rate = 2e-5,
-    batch_size = 16,
-    num_epochs = 3
-)
+- `original_paper/expanded_rewrite/06-training-mlm.md`
+- `original_paper/expanded_rewrite/07-training-mnm.md`
+- `original_paper/expanded_rewrite/08-seed-kg-injection.md`
+- `original_paper/expanded_rewrite/09-triple-extraction.md`
 
-# Fine-tune model
-trained_model = train_graphmert(training_data, training_config)
-```
+and the corresponding implementation files under `GraphMERT/src/training/`. The exact training scripts and hyperparameters are intentionally kept in those spec documents to avoid duplicating long examples here.
 
 ## API Reference
 
@@ -378,4 +370,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Note**: This implementation is based on the research paper "GraphMERT: Efficient and Scalable Distillation of Reliable Knowledge Graphs from Unstructured Data" (arXiv:2510.09580).
-

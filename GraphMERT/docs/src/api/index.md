@@ -69,6 +69,7 @@ Preprocess text for GraphMERT processing.
 See [Domain API Reference](domain.md) for complete domain system documentation.
 
 **Key Functions:**
+
 - `register_domain!(domain_name, provider)` - Register a domain
 - `get_domain(domain_name)` - Get a domain provider
 - `list_domains()` - List all registered domains
@@ -76,6 +77,7 @@ See [Domain API Reference](domain.md) for complete domain system documentation.
 - `get_default_domain()` - Get default domain
 
 **Domain Provider Methods:**
+
 - `extract_entities(domain, text, config)` - Extract domain-specific entities
 - `extract_relations(domain, entities, text, config)` - Extract domain-specific relations
 - `validate_entity(domain, entity_text, entity_type, context)` - Validate entities
@@ -89,20 +91,18 @@ See [Domain API Reference](domain.md) for complete domain system documentation.
 
 ## Data Structures
 
+For the exact field layouts, see `GraphMERT/src/types.jl`. This section gives a compact, conceptual view; the tests in `GraphMERT/test/unit/test_api.jl` and `GraphMERT/test/unit/test_extraction.jl` are the canonical API spec.
+
 ### `KnowledgeGraph`
 
-Main output structure containing the complete knowledge graph.
+Main output structure containing the extracted knowledge graph.
 
-**Fields:**
+- Wraps **entities**, **relations**, a **metadata** dictionary, and a **created_at** timestamp.
+- Metadata typically includes at least `domain`, `source_text`, and simple counts; callers should not rely on a fixed metadata schema.
 
-- `entities::Vector{Entity}` - List of extracted entities (generic, domain-agnostic)
-- `relations::Vector{Relation}` - List of extracted relations (generic, domain-agnostic)
-- `metadata::Dict{String, Any}` - Graph-level metadata (includes `domain` field)
-- `created_at::DateTime` - Creation timestamp
+Internally, entities and relations are stored as `KnowledgeEntity` / `KnowledgeRelation` values; helper constructors allow building a `KnowledgeGraph` from generic `Entity` / `Relation` vectors.
 
-**Note:** Entities and relations are now generic (`Entity`, `Relation`) rather than domain-specific (`BiomedicalEntity`, `BiomedicalRelation`). The `domain` field in metadata indicates which domain was used for extraction.
-
-### `Entity` (Generic, Domain-Agnostic)
+### `Entity` (generic, domain-agnostic)
 
 Represents an extracted entity (works for all domains).
 
@@ -118,7 +118,7 @@ Represents an extracted entity (works for all domains).
 - `confidence::Float64` - Confidence score (0.0-1.0)
 - `provenance::String` - Source text
 
-### `Relation` (Generic, Domain-Agnostic)
+### `Relation` (generic, domain-agnostic)
 
 Represents an extracted relation (works for all domains).
 
@@ -133,47 +133,31 @@ Represents an extracted relation (works for all domains).
 
 ## Configuration
 
-### `ProcessingOptions` (Updated for Domain System)
+### `ProcessingOptions`
 
-Configuration for text processing with domain support.
+Configuration for text processing and extraction.
 
-**Fields:**
+- **Required**: `domain::String` (e.g. `"biomedical"`, `"wikipedia"`).
+- Core knobs:
+  - `max_length::Int`, `batch_size::Int`
+  - `confidence_threshold::Float64`
+  - `use_umls::Bool`, `use_helper_llm::Bool`
+  - `similarity_threshold::Float64`, `top_k_predictions::Int`
+- Additional fields control device (`device`), AMP, workers, seeding, provenance tracking, caching, and verbosity; see `ProcessingOptions` in `types.jl` for the full list.
 
-- `domain::String` - **Required**: Domain identifier (e.g., "biomedical", "wikipedia")
-- `confidence_threshold::Float64` - Minimum confidence for inclusion
-- `max_entities::Int` - Maximum number of entities to extract
-- `max_relations::Int` - Maximum number of relations to extract
-- `use_umls::Bool` - Enable UMLS integration (biomedical domain only)
-- `helper_llm_enabled::Bool` - Enable helper LLM
-- `performance_mode::Symbol` - Performance mode (:fast, :balanced, :accurate)
+Example:
 
-**Example:**
 ```julia
-# Biomedical domain
-options_bio = ProcessingOptions(
-    domain="biomedical",
-    confidence_threshold=0.8,
-    use_umls=true
-)
-
-# Wikipedia domain
-options_wiki = ProcessingOptions(
-    domain="wikipedia",
-    confidence_threshold=0.7
+options = ProcessingOptions(
+    domain = "biomedical",
+    confidence_threshold = 0.8,
+    use_umls = true,
 )
 ```
 
 ### `GraphMERTConfig`
 
-Comprehensive configuration for GraphMERT.
-
-**Fields:**
-
-- `model_path::String` - Path to model file
-- `processing_options::ProcessingOptions` - Processing options (includes domain)
-- `performance_config::PerformanceConfig` - Performance settings
-- `memory_limit::Int` - Memory limit in MB
-- `batch_size::Int` - Batch size for processing
+Configuration for building `GraphMERTModel` instances (see `models/graphmert.jl`). It bundles RoBERTa, H-GAT, and attention settings plus high-level model dimensions. For most users, loading a model via `load_model(path)` and passing `ProcessingOptions` is sufficient; advanced configurations are primarily relevant to training code and follow the spec in `original_paper/expanded_rewrite/`.
 
 ## Evaluation Functions
 
@@ -200,6 +184,7 @@ Calculate FActScore for a knowledge graph with optional domain-specific metrics.
 - `FActScoreResult` with `metadata["domain_metrics"]` if domain metrics are included
 
 **Example:**
+
 ```julia
 result = evaluate_factscore(kg, text, domain_name="biomedical")
 if haskey(result.metadata, "domain_metrics")
@@ -230,6 +215,7 @@ Calculate ValidityScore for a knowledge graph with optional domain-specific metr
 - `ValidityScoreResult` with `metadata["domain_metrics"]` if domain metrics are included
 
 **Example:**
+
 ```julia
 result = evaluate_validity(kg, domain_name="biomedical")
 if haskey(result.metadata, "domain_metrics")

@@ -17,10 +17,12 @@ register_domain!(domain_name::String, provider::DomainProvider)
 Register a domain provider in the global registry.
 
 **Parameters:**
+
 - `domain_name::String` - Domain identifier (e.g., "biomedical", "wikipedia")
 - `provider::DomainProvider` - Domain provider instance
 
 **Example:**
+
 ```julia
 using GraphMERT
 include("GraphMERT/src/domains/biomedical.jl")
@@ -38,12 +40,15 @@ get_domain(domain_name::String) -> Union{DomainProvider, Nothing}
 Get a domain provider from the registry.
 
 **Parameters:**
+
 - `domain_name::String` - Domain identifier
 
 **Returns:**
+
 - Domain provider instance or `nothing` if not found
 
 **Example:**
+
 ```julia
 domain = get_domain("biomedical")
 if domain !== nothing
@@ -60,9 +65,11 @@ list_domains() -> Vector{String}
 List all registered domain names.
 
 **Returns:**
+
 - Vector of domain name strings
 
 **Example:**
+
 ```julia
 domains = list_domains()
 println("Available domains: ", join(domains, ", "))
@@ -77,9 +84,11 @@ set_default_domain(domain_name::String)
 Set the default domain for operations.
 
 **Parameters:**
+
 - `domain_name::String` - Domain identifier to set as default
 
 **Example:**
+
 ```julia
 set_default_domain("biomedical")
 ```
@@ -93,9 +102,11 @@ get_default_domain() -> Union{DomainProvider, Nothing}
 Get the default domain provider.
 
 **Returns:**
+
 - Default domain provider instance or `nothing` if no default is set
 
 **Example:**
+
 ```julia
 domain = get_default_domain()
 if domain !== nothing
@@ -112,12 +123,15 @@ has_domain(domain_name::String) -> Bool
 Check if a domain is registered.
 
 **Parameters:**
+
 - `domain_name::String` - Domain identifier
 
 **Returns:**
+
 - `true` if domain is registered, `false` otherwise
 
 **Example:**
+
 ```julia
 if has_domain("biomedical")
     println("Biomedical domain is available")
@@ -139,9 +153,11 @@ register_entity_types(domain::DomainProvider) -> Dict{String, Dict{String, Any}}
 Register entity types for this domain.
 
 **Returns:**
+
 - Dictionary mapping entity type names to metadata
 
 **Example:**
+
 ```julia
 entity_types = register_entity_types(domain)
 for (type_name, metadata) in entity_types
@@ -158,9 +174,11 @@ register_relation_types(domain::DomainProvider) -> Dict{String, Dict{String, Any
 Register relation types for this domain.
 
 **Returns:**
+
 - Dictionary mapping relation type names to metadata
 
 **Example:**
+
 ```julia
 relation_types = register_relation_types(domain)
 for (type_name, metadata) in relation_types
@@ -177,14 +195,17 @@ extract_entities(domain::DomainProvider, text::String, config::ProcessingOptions
 Extract entities from text using domain-specific patterns and rules.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `text::String` - Input text
 - `config::ProcessingOptions` - Processing options
 
 **Returns:**
+
 - Vector of `Entity` objects
 
 **Example:**
+
 ```julia
 text = "Diabetes is treated with metformin."
 options = ProcessingOptions(domain="biomedical")
@@ -204,15 +225,18 @@ extract_relations(domain::DomainProvider, entities::Vector{Entity}, text::String
 Extract relations between entities using domain-specific patterns and rules.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `entities::Vector{Entity}` - Extracted entities
 - `text::String` - Input text
 - `config::ProcessingOptions` - Processing options
 
 **Returns:**
+
 - Vector of `Relation` objects
 
 **Example:**
+
 ```julia
 entities = extract_entities(domain, text, options)
 relations = extract_relations(domain, entities, text, options)
@@ -233,15 +257,18 @@ validate_entity(domain::DomainProvider, entity_text::String, entity_type::String
 Validate that an entity text matches its claimed type according to domain rules.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `entity_text::String` - Entity text to validate
 - `entity_type::String` - Claimed entity type
 - `context::Dict{String, Any}` - Additional context (optional)
 
 **Returns:**
+
 - `true` if valid, `false` otherwise
 
 **Example:**
+
 ```julia
 is_valid = validate_entity(domain, "metformin", "DRUG", Dict{String, Any}())
 ```
@@ -255,6 +282,7 @@ validate_relation(domain::DomainProvider, head::String, relation_type::String, t
 Validate that a relation is valid according to domain rules.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `head::String` - Head entity text
 - `relation_type::String` - Relation type
@@ -262,9 +290,11 @@ Validate that a relation is valid according to domain rules.
 - `context::Dict{String, Any}` - Additional context (optional)
 
 **Returns:**
+
 - `true` if valid, `false` otherwise
 
 **Example:**
+
 ```julia
 is_valid = validate_relation(domain, "metformin", "TREATS", "diabetes", Dict{String, Any}())
 ```
@@ -278,15 +308,18 @@ calculate_entity_confidence(domain::DomainProvider, entity_text::String, entity_
 Calculate confidence score for an entity based on domain-specific rules.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `entity_text::String` - Entity text
 - `entity_type::String` - Entity type
 - `context::Dict{String, Any}` - Additional context (optional)
 
 **Returns:**
+
 - Float64 between 0.0 and 1.0
 
 **Example:**
+
 ```julia
 confidence = calculate_entity_confidence(domain, "metformin", "DRUG", Dict{String, Any}())
 ```
@@ -300,6 +333,7 @@ calculate_relation_confidence(domain::DomainProvider, head::String, relation_typ
 Calculate confidence score for a relation based on domain-specific rules.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `head::String` - Head entity text
 - `relation_type::String` - Relation type
@@ -307,9 +341,11 @@ Calculate confidence score for a relation based on domain-specific rules.
 - `context::Dict{String, Any}` - Additional context (optional)
 
 **Returns:**
+
 - Float64 between 0.0 and 1.0
 
 **Example:**
+
 ```julia
 confidence = calculate_relation_confidence(domain, "metformin", "TREATS", "diabetes", Dict{String, Any}())
 ```
@@ -323,9 +359,11 @@ get_domain_name(domain::DomainProvider) -> String
 Get the name/identifier of this domain.
 
 **Returns:**
+
 - Domain name string
 
 **Example:**
+
 ```julia
 domain_name = get_domain_name(domain)
 println("Using domain: $domain_name")
@@ -340,9 +378,11 @@ get_domain_config(domain::DomainProvider) -> DomainConfig
 Get the configuration for this domain.
 
 **Returns:**
+
 - `DomainConfig` object
 
 **Example:**
+
 ```julia
 config = get_domain_config(domain)
 println("Entity types: ", config.entity_types)
@@ -360,14 +400,17 @@ link_entity(domain::DomainProvider, entity_text::String, config::Any) -> Union{D
 Link entity to external knowledge base (e.g., UMLS for biomedical, Wikidata for Wikipedia).
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `entity_text::String` - Entity text to link
 - `config::Any` - Configuration (can be SeedInjectionConfig or ProcessingOptions)
 
 **Returns:**
+
 - Dict with `:candidates` or `:candidate` key, or `nothing` if not supported
 
 **Example:**
+
 ```julia
 linking_result = link_entity(domain, "metformin", config)
 if linking_result !== nothing
@@ -387,14 +430,17 @@ create_seed_triples(domain::DomainProvider, entity_text::String, config::Any) ->
 Create seed KG triples for an entity from domain-specific knowledge base.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `entity_text::String` - Entity text or KB ID
 - `config::Any` - Configuration
 
 **Returns:**
+
 - Vector of `SemanticTriple` objects or Dicts
 
 **Example:**
+
 ```julia
 triples = create_seed_triples(domain, "metformin", config)
 for triple in triples
@@ -411,13 +457,16 @@ create_evaluation_metrics(domain::DomainProvider, kg::KnowledgeGraph) -> Dict{St
 Create domain-specific evaluation metrics.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `kg::KnowledgeGraph` - Knowledge graph to evaluate
 
 **Returns:**
+
 - Dictionary with metric names and values
 
 **Example:**
+
 ```julia
 metrics = create_evaluation_metrics(domain, kg)
 println("Total entities: ", metrics["total_entities"])
@@ -433,14 +482,17 @@ create_prompt(domain::DomainProvider, task_type::Symbol, context::Dict{String, A
 Generate LLM prompt for domain-specific task.
 
 **Parameters:**
+
 - `domain::DomainProvider` - Domain provider instance
 - `task_type::Symbol` - Task type (`:entity_discovery`, `:relation_matching`, `:tail_formation`)
 - `context::Dict{String, Any}` - Context dictionary
 
 **Returns:**
+
 - String prompt
 
 **Example:**
+
 ```julia
 context = Dict("text" => "Diabetes is treated with metformin.")
 prompt = create_prompt(domain, :entity_discovery, context)
@@ -464,6 +516,7 @@ end
 Configuration structure for a domain provider.
 
 **Fields:**
+
 - `name::String` - Domain name
 - `entity_types::Vector{String}` - List of entity type names
 - `relation_types::Vector{String}` - List of relation type names
@@ -492,9 +545,11 @@ end
 Processing options with domain specification.
 
 **Key Field:**
+
 - `domain::String` - Domain identifier. Must match a registered domain name.
 
 **Example:**
+
 ```julia
 # Biomedical domain
 options_bio = ProcessingOptions(domain="biomedical", confidence_threshold=0.8)
@@ -514,12 +569,15 @@ load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing) -> Biomedical
 Load and return the biomedical domain instance.
 
 **Parameters:**
+
 - `umls_client::Union{Any, Nothing}` - Optional UMLS client for entity linking
 
 **Returns:**
+
 - `BiomedicalDomain` instance
 
 **Example:**
+
 ```julia
 include("GraphMERT/src/domains/biomedical.jl")
 bio_domain = load_biomedical_domain()
@@ -535,12 +593,15 @@ load_wikipedia_domain(wikidata_client::Union{Any, Nothing} = nothing) -> Wikiped
 Load and return the Wikipedia domain instance.
 
 **Parameters:**
+
 - `wikidata_client::Union{Any, Nothing}` - Optional Wikidata client for entity linking
 
 **Returns:**
+
 - `WikipediaDomain` instance
 
 **Example:**
+
 ```julia
 include("GraphMERT/src/domains/wikipedia.jl")
 wiki_domain = load_wikipedia_domain()
@@ -602,6 +663,7 @@ end
 Generic entity structure used by all domains.
 
 **Key Fields:**
+
 - `entity_type::String` - Domain-specific entity type (e.g., "DISEASE", "PERSON")
 - `domain::String` - Domain identifier (e.g., "biomedical", "wikipedia")
 - `attributes::Dict{String, Any}` - Domain-specific attributes (e.g., CUI for biomedical, QID for Wikipedia)
@@ -622,6 +684,7 @@ end
 Generic relation structure used by all domains.
 
 **Key Fields:**
+
 - `relation_type::String` - Domain-specific relation type (e.g., "TREATS", "BORN_IN")
 - `head::String` - Entity ID of head entity
 - `tail::String` - Entity ID of tail entity

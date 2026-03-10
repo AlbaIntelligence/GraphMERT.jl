@@ -5,10 +5,12 @@
 ### Created Files
 
 #### Domain Interface Layer
+
 1. ✅ `GraphMERT/src/domains/interface.jl` - Domain provider interface
 2. ✅ `GraphMERT/src/domains/registry.jl` - Domain registry
 
 #### Biomedical Domain Module (to be created)
+
 3. `GraphMERT/src/domains/biomedical/domain.jl` - Main biomedical domain provider
 4. `GraphMERT/src/domains/biomedical/entities.jl` - Biomedical entity types and extraction
 5. `GraphMERT/src/domains/biomedical/relations.jl` - Biomedical relation types and extraction
@@ -21,6 +23,7 @@
 12. `GraphMERT/src/domains/biomedical/pubmed.jl` - PubMed processing (move from src/text/)
 
 #### Wikipedia Domain Module (to be created)
+
 13. `GraphMERT/src/domains/wikipedia/domain.jl` - Main Wikipedia domain provider
 14. `GraphMERT/src/domains/wikipedia/entities.jl` - Wikipedia entity types and extraction
 15. `GraphMERT/src/domains/wikipedia/relations.jl` - Wikipedia relation types and extraction
@@ -32,6 +35,7 @@
 ### Files to Modify
 
 #### Core Modules
+
 - `GraphMERT/src/GraphMERT.jl` - Update to use domain system
 - `GraphMERT/src/types.jl` - Add domain field, remove biomedical specializations
 - `GraphMERT/src/api/extraction.jl` - Use domain providers instead of hardcoded logic
@@ -56,21 +60,25 @@
 ## Implementation Priority
 
 ### Phase 1: Foundation (HIGH PRIORITY)
+
 1. Domain interface implementation ✅
 2. Domain registry implementation ✅
 3. Refactor types.jl to be domain-agnostic
 
 ### Phase 2: Core Refactoring (HIGH PRIORITY)
+
 4. Refactor api/extraction.jl
 5. Refactor llm/helper.jl
 6. Refactor training/seed_injection.jl
 7. Refactor GraphMERT.jl main module
 
 ### Phase 3: Domain Modules (MEDIUM PRIORITY)
+
 8. Create biomedical domain module
 9. Create Wikipedia domain module
 
 ### Phase 4: Cleanup (LOW PRIORITY)
+
 10. Move domain-specific files
 11. Update examples
 12. Update documentation

@@ -3,18 +3,21 @@
 ## ✅ Completed Work
 
 ### Phase 1: Foundation
+
 - ✅ Domain interface (`domains/interface.jl`)
 - ✅ Domain registry (`domains/registry.jl`)
 - ✅ Types refactored with domain field
 - ✅ Config updated for domain support
 
 ### Phase 2: Core Refactoring
+
 - ✅ API extraction refactored to use domain providers
 - ✅ LLM helper refactored to use domain prompts
 - ✅ Seed injection refactored to use domain entity linking
 - ✅ Main GraphMERT.jl module refactored
 
 ### Phase 3: Domain Modules
+
 - ✅ Biomedical domain module created
 - ✅ Wikipedia domain module created
 - ✅ Both domains load and register successfully
@@ -26,17 +29,20 @@
 **Goal**: Ensure the domain system works end-to-end
 
 - [ ] **Test biomedical domain extraction**
+
   - Test entity extraction with biomedical text
   - Test relation extraction
   - Verify UMLS integration works
   - Test with existing biomedical examples
 
 - [ ] **Test Wikipedia domain extraction**
+
   - Test entity extraction with Wikipedia-style text
   - Test relation extraction
   - Verify both domains can be used simultaneously
 
 - [ ] **Integration testing**
+
   - Test `extract_knowledge_graph` with both domains
   - Test domain switching at runtime
   - Test backward compatibility (default domain behavior)
@@ -53,13 +59,16 @@
 **Status**: ✅ **COMPLETED**
 
 **Completed Tasks**:
+
 - [x] Refactor `domains/biomedical/entities.jl` to be self-contained
+
   - ✅ Moved all entity extraction logic, enums, patterns, validation, and confidence calculation from `biomedical/entities.jl`
   - ✅ Removed dependency on old `biomedical/entities.jl` file
   - ✅ Includes `BiomedicalEntityType` enum for backward compatibility
   - ✅ All biomedical-specific patterns and validation preserved
 
 - [x] Refactor `domains/biomedical/relations.jl` to be self-contained
+
   - ✅ Moved all relation extraction logic, enums, classification, validation, and confidence calculation from `biomedical/relations.jl`
   - ✅ Removed dependency on old `biomedical/relations.jl` file
   - ✅ Includes `BiomedicalRelationType` enum for backward compatibility
@@ -78,16 +87,20 @@
 **Status**: ✅ **COMPLETED**
 
 **Completed Tasks**:
+
 - [x] Move `graphs/biomedical.jl` → `domains/biomedical/graph.jl`
+
   - ✅ File moved to biomedical domain directory
   - ✅ Added MetaGraphs import for compatibility
   - ✅ Available for inclusion when needed
 
 - [x] Move `evaluation/diabetes.jl` → `domains/biomedical/evaluation.jl`
+
   - ✅ File moved to biomedical domain directory
   - ✅ Available for inclusion when needed
 
 - [x] Move `text/pubmed.jl` → `domains/biomedical/pubmed.jl`
+
   - ✅ File moved to biomedical domain directory
   - ✅ Available for inclusion when needed
 
@@ -96,6 +109,7 @@
   - ✅ Modules can be included on-demand when needed
 
 **Note**: These modules are domain-specific and loaded on-demand rather than automatically. They can be included explicitly when needed:
+
 - `include("GraphMERT/src/domains/biomedical/graph.jl")`
 - `include("GraphMERT/src/domains/biomedical/evaluation.jl")`
 - `include("GraphMERT/src/domains/biomedical/pubmed.jl")`
@@ -107,13 +121,16 @@
 **Status**: ✅ **PARTIALLY COMPLETED**
 
 **Completed Tasks**:
+
 - [x] **Updated biomedical example** (`examples/biomedical/01_basic_entity_extraction.jl`)
+
   - ✅ Updated to load and register biomedical domain
   - ✅ Uses domain system for entity extraction
   - ✅ Demonstrates domain provider usage
   - ✅ Shows confidence scoring and entity statistics
 
 - [x] **Updated Wikipedia example** (`examples/wikipedia/01_wikipedia_entity_extraction.jl`)
+
   - ✅ Updated to use Wikipedia domain
   - ✅ Uses domain system for entity and relation extraction
   - ✅ Demonstrates domain provider usage
@@ -126,6 +143,7 @@
   - ✅ Shows default domain behavior
 
 **Remaining Tasks**:
+
 - [x] Update `02_relation_extraction.jl` to use domain system
   - ✅ Updated to load and register biomedical domain
   - ✅ Uses `extract_entities` and `extract_relations` from domain provider
@@ -161,6 +179,7 @@
 **Status**: ✅ **PARTIALLY COMPLETED**
 
 **Completed Tasks**:
+
 - [x] **Complete UMLS integration in biomedical domain**
   - ✅ Enhanced `link_entity` to return proper format (Dict with :candidates or :candidate)
   - ✅ Implemented `create_seed_triples` fully
@@ -174,12 +193,15 @@
   - ⚠️ Note: Uses placeholder/mock data structure - ready for real UMLS API integration
 
 **Remaining Tasks**:
+
 - [ ] **Test with real UMLS data** (when UMLS API access is available)
+
   - Replace placeholder implementations with actual API calls
   - Test entity linking with real UMLS entities
   - Test triple retrieval with real UMLS relations
 
 - [x] **Implement Wikidata integration for Wikipedia domain**
+
   - ✅ Created `wikidata.jl` module
   - ✅ Implemented `link_entity` for Wikidata
   - ✅ Implemented `create_seed_triples` for Wikidata
@@ -193,6 +215,7 @@
   - ⚠️ Note: Uses placeholder/mock data structure - ready for real Wikidata API integration
 
 - [ ] **Test with real Wikidata data** (when Wikidata API access is available)
+
   - Replace placeholder implementations with actual API calls
   - Test entity linking with real Wikidata entities
   - Test triple retrieval with real Wikidata relations
@@ -221,6 +244,7 @@
 **Goal**: Improve usability and documentation
 
 - [x] **Update main README.md**
+
   - ✅ Added domain system overview section
   - ✅ Updated Quick Start with domain system examples
   - ✅ Added domain features to Key Features list
@@ -231,6 +255,7 @@
   - ✅ Updated Overview to mention domain-agnostic architecture
 
 - [x] **Create domain developer guide**
+
   - ✅ Comprehensive step-by-step guide for creating custom domains
   - ✅ Detailed documentation of all required methods
   - ✅ Documentation of optional methods (link_entity, create_seed_triples, create_evaluation_metrics, create_prompt)
@@ -252,6 +277,7 @@
 **Goal**: Ensure existing code still works
 
 - [x] **Default domain behavior**
+
   - ✅ Ensure `default_processing_options()` defaults to "biomedical"
   - ✅ Auto-register biomedical domain if available (optional)
   - ✅ Provide clear error messages when domain not registered
@@ -266,6 +292,7 @@
 **Goal**: Ensure domain system doesn't add overhead
 
 - [ ] **Profile domain switching**
+
   - Measure overhead of domain provider calls
   - Optimize if needed
   - Cache domain lookups if beneficial
@@ -278,11 +305,13 @@
 ## 🎯 Immediate Next Actions (This Week)
 
 1. **Test the domain system** with real examples
+
    - Create simple test script
    - Verify biomedical extraction works
    - Verify Wikipedia extraction works
 
 2. **Fix biomedical domain dependencies**
+
    - Make entities.jl and relations.jl self-contained
    - Remove circular dependencies
    - Test domain loading

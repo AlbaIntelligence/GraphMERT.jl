@@ -6,11 +6,14 @@
   #   nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   # };
 
-  outputs = { nixpkgs, ... }:
+  outputs =
+    { nixpkgs, ... }:
     let
       pkgs = import nixpkgs {
         system = "x86_64-linux";
-        config = { allowUnfree = true; };
+        config = {
+          allowUnfree = true;
+        };
       };
 
       commandName = "envFHS";
@@ -32,7 +35,8 @@
 
       #
       # Basic packages used in all environments
-      standardPackages = ps:
+      standardPackages =
+        ps:
         (with ps; [
           # Utilities
           curl
@@ -72,7 +76,8 @@
         ]);
 
       # Graphical packages used in all environments
-      graphicalPackages = ps:
+      graphicalPackages =
+        ps:
         (with ps; [
           alsa-lib
           at-spi2-atk
@@ -112,30 +117,32 @@
           vulkan-validation-layers
           wayland # for Julia
           zlib
-        ]) ++ (with ps.xorg; [
-          libICE
-          libSM
-          libX11
-          libXScrnSaver
-          libXcomposite
-          libXcursor
-          libXcursor
-          libXdamage
-          libXext
-          libXfixes
-          libXi
-          libXinerama
-          libXrandr
-          libXrender
-          libXt
-          libXtst
-          libXxf86vm
+
+          # X11 packages
+          libice
+          libsm
+          libx11
+          libxscrnsaver
+          libxcomposite
+          libxcursor
+          libxcursor
+          libxdamage
+          libxext
+          libxfixes
+          libxi
+          libxinerama
+          libxrandr
+          libxrender
+          libxt
+          libxtst
+          libxxf86vm
           libxcb
           libxkbfile
           xorgproto
         ]);
 
-      nvidiaPackages = ps:
+      nvidiaPackages =
+        ps:
         (with ps; [
           cudatoolkit_11
           cudnn_cudatoolkit_11
@@ -146,13 +153,15 @@
       #   quarto = ps.callPackage ./scientific_nix/quarto.nix {rWrapper = null;};
       # in [quarto];
 
-      pythonPackages = ps:
+      pythonPackages =
+        ps:
         (ps.callPackage ./flake_List_Python_Packages.nix {
           pkgs = ps;
           pythonVersion = pythonVersion;
         });
 
-      targetPkgs = ps:
+      targetPkgs =
+        ps:
         (standardPackages ps)
         ++ ps.lib.optionals enableGraphical (graphicalPackages ps)
         ++ ps.lib.optionals enableJulia [
@@ -161,11 +170,18 @@
           })
           # ps.julia
           ps.openspecfun
-        ] ++ ps.lib.optionals enableQuarto [ ps.quarto ]
+        ]
+        ++ ps.lib.optionals enableQuarto [ ps.quarto ]
         ++ ps.lib.optionals enableNVIDIA (nvidiaPackages ps)
         ++ ps.lib.optionals enablePython (pythonPackages ps)
-        ++ ps.lib.optionals enableNodeJS
-        (with ps; [ nodejs nodePackages.npm nodePackages.yarn ]);
+        ++ ps.lib.optionals enableNodeJS (
+          with ps;
+          [
+            nodejs
+            nodePackages.npm
+            nodePackages.yarn
+          ]
+        );
 
       std_envvars = ''
         export EXTRA_CCFLAGS="-I/usr/include"
@@ -187,7 +203,8 @@
         export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
       '';
 
-      envvars = std_envvars
+      envvars =
+        std_envvars
         + pkgs.lib.optionalString enableGraphical graphical_envvars
         + pkgs.lib.optionalString enableNVIDIA nvidia_envvars
         + pkgs.lib.optionalString enableJulia juliaEnvvars;
@@ -203,9 +220,13 @@
         profile = envvars;
 
         # Misc extras
-        extraOutputsToInstall = [ "man" "dev" ];
+        extraOutputsToInstall = [
+          "man"
+          "dev"
+        ];
       };
-    in {
+    in
+    {
       defaultPackage.x86_64-linux = envFHS;
       packages.x86_64-linux.envFHS = envFHS;
       devShells.x86_64-linux.default = envFHS;

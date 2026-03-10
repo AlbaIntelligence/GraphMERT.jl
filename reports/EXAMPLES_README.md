@@ -40,9 +40,10 @@ The Wikipedia examples demonstrate GraphMERT's generalizability beyond biomedica
    - Shows adaptation to general domain entities
    - Includes performance comparison with biomedical domain
 
-2. **`examples/wikipedia/02_wikipedia_knowledge_graph.jl`** (Coming Soon)
-   - Will demonstrate knowledge graph construction from Wikipedia articles
-   - Shows cross-domain knowledge graph analysis
+2. **`examples/wikipedia/02_wikipedia_visualization.jl`** ✅
+   - Demonstrates knowledge graph visualization from extracted entities
+   - Shows static and interactive graph plotting capabilities
+   - Includes graph export functionality and statistical summaries
 
 ## 🧪 Test Suite
 
@@ -100,6 +101,7 @@ julia examples/biomedical/03_knowledge_graph_construction.jl
 ```bash
 # Run Wikipedia examples
 julia examples/wikipedia/01_wikipedia_entity_extraction.jl
+julia examples/wikipedia/02_wikipedia_visualization.jl
 ```
 
 ### Running Tests
@@ -207,7 +209,7 @@ When adding new examples or tests:
 ## 🎯 Future Enhancements
 
 - [ ] Interactive Jupyter notebook examples
-- [ ] Real-time visualization of knowledge graphs
+- [x] Static and interactive visualization of knowledge graphs
 - [ ] Comparative analysis with other methods
 - [ ] Large-scale dataset examples
 - [ ] Multi-language support examples
