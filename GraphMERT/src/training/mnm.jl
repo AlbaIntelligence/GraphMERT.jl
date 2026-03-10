@@ -300,6 +300,8 @@ function forward_pass_mnm(
     # Convert leafy chain graph to token sequence
     input_ids_vec = graph_to_sequence(masked_graph)                 # Vector{Int} of length max_sequence_length
     seq_len = length(input_ids_vec)
+    # RoBERTa embedding expects 1-based indices; chain graph may use 0 for padding
+    input_ids_vec = [x == 0 ? 1 : x for x in input_ids_vec]
 
     # RoBERTa expects (seq_len, batch_size)
     input_ids = reshape(input_ids_vec, seq_len, 1)
@@ -307,8 +309,8 @@ function forward_pass_mnm(
     # Create 3D attention mask (batch, seq, seq) using RoBERTa utility
     attention_mask = create_attention_mask(input_ids)
 
-    # Position and token type IDs (seq_len, batch_size)
-    position_ids = reshape(collect(0:(seq_len - 1)), seq_len, 1)
+    # Position and token type IDs (seq_len, batch_size); position embedding is 1-based
+    position_ids = reshape(collect(1:seq_len), seq_len, 1)
     token_type_ids = zeros(Int, seq_len, 1)
 
     # Forward pass through RoBERTa encoder to obtain contextual states

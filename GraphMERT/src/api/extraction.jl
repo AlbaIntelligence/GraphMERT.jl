@@ -45,7 +45,7 @@ function match_relations_for_entities(
 )
   # Use domain provider for relation extraction
   try
-    relations = GraphMERT.extract_relations(domain, entities, text, options)
+    relations = Base.invokelatest(GraphMERT.extract_relations, domain, entities, text, options)
     return relations
   catch e
     @warn "Domain relation extraction failed: $e, falling back to simple co-occurrence relations."
@@ -275,6 +275,24 @@ function extract_knowledge_graph(
   relations = match_relations_for_entities(entities, text, domain_provider, options)
   @info "Extracted $(length(relations)) relations using domain: $(options.domain)"
 
+  # Stages 3–5 (optional): When model is provided, run tail prediction, tail formation, and filtering
+  if model !== nothing && !isempty(relations)
+    triples = _build_triples_from_relations(entities, relations)
+    top_k = options.top_k_predictions
+    β = options.similarity_threshold
+    id_to_entity = Dict(e.id => e for e in entities)
+    for i in eachindex(triples)
+      he, rel_type, _tail_text, conf = triples[i]
+      tok_tuples = predict_tail_tokens(model, he, rel_type, text, top_k)
+      possible_tails = form_tail_from_tokens(tok_tuples, text, nothing)
+      if !isempty(possible_tails)
+        triples[i] = (he, rel_type, possible_tails[1], conf)
+      end
+    end
+    filtered = filter_and_deduplicate_triples(triples, text, β)
+    entities, relations = _triples_to_entities_relations(entities, filtered, options.domain)
+  end
+
   # Create knowledge graph
   return GraphMERT.KnowledgeGraph(
     entities,
@@ -289,6 +307,50 @@ function extract_knowledge_graph(
       "source_text" => text,
     ),
   )
+end
+
+# ============================================================================
+# Triples helpers (stages 3–5)
+# ============================================================================
+
+function _build_triples_from_relations(entities::Vector, relations::Vector)
+  id_to_entity = Dict(e.id => e for e in entities)
+  triples = Tuple{Any,String,String,Float64}[]
+  for r in relations
+    he = get(id_to_entity, r.head, nothing)
+    te = get(id_to_entity, r.tail, nothing)
+    he === nothing && continue
+    tail_text = te !== nothing ? te.text : r.tail
+    push!(triples, (he, r.relation_type, tail_text, r.confidence))
+  end
+  return triples
+end
+
+function _triples_to_entities_relations(
+  entities::Vector,
+  filtered_triples::Vector{<:Tuple},
+  domain::String,
+)
+  out_entities = copy(entities)
+  entity_by_text = Dict(e.text => e for e in out_entities)
+  out_relations = GraphMERT.Relation[]
+  for (head_entity, rel_type, tail_text, conf) in filtered_triples
+    tail_entity = get(entity_by_text, tail_text, nothing)
+    if tail_entity === nothing
+      # New entity for tail
+      tail_id = "tail_$(hash(tail_text))"
+      tail_entity = GraphMERT.Entity(
+        tail_id, tail_text, tail_text, "UNKNOWN", domain,
+        Dict{String,Any}(), GraphMERT.TextPosition(1, 1, 1, 1), conf, "",
+      )
+      push!(out_entities, tail_entity)
+      entity_by_text[tail_text] = tail_entity
+    end
+    push!(out_relations, GraphMERT.Relation(
+      head_entity.id, tail_entity.id, rel_type, conf, domain, "", "", Dict{String,Any}(),
+    ))
+  end
+  return out_entities, out_relations
 end
 
 # ============================================================================
@@ -309,7 +371,8 @@ function discover_head_entities(
   options::GraphMERT.ProcessingOptions = GraphMERT.default_processing_options(),
 )
   try
-    return GraphMERT.extract_entities(domain, text, options)
+    # Use invokelatest so concrete domain methods (e.g. BiomedicalDomain) are selected after load
+    return Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
   catch e
     @warn "Domain entity extraction failed: $e. Falling back to simple entity recognition."
     # Fallback: use simple pattern-based recognition to create generic entities

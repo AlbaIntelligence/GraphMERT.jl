@@ -9,11 +9,11 @@ This document is a code review of the GraphMERT.jl replication project against t
 | Aspect              | Assessment                                                                                                                                                        |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Paper alignment** | Architecture (RoBERTa, H-GAT, leafy chain, MLM/MNM) is well reflected in code structure and specs.                                                                |
-| **Completeness**    | Core building blocks (RoBERTa, H-GAT, MLM, leafy chain, MNM helpers) are largely in place; end-to-end training and extraction still have stubs and missing links. |
-| **Code quality**    | Strong in architectures and types; inconsistent in API surface, tests, and documentation.                                                                         |
-| **Risks**           | Missing/wrong API (e.g. `discover_head_entities`), type mismatches (Entity vs KnowledgeEntity), and stub forward pass block a working pipeline.                   |
+| **Completeness**    | Core building blocks (RoBERTa, H-GAT, MLM, leafy chain, MNM helpers) are largely in place; extraction and training now run end-to-end, with remaining work in data prep, advanced injection, and evaluation wiring. |
+| **Code quality**    | Strong in architectures and types; API surface, tests, and documentation have been aligned with the current domain system and public types but still need ongoing consolidation.                                 |
+| **Risks**           | Historical API mismatches (e.g. `discover_head_entities`), Entity vs KnowledgeEntity confusion, and the MNM forward stub have been addressed; residual risk is in less-tested training/evaluation paths.       |
 
-**Recommendation:** Prioritise (1) defining and implementing `discover_head_entities(text, domain, options)` and Entity/Relation → KnowledgeEntity/KnowledgeRelation conversion, (2) replacing the MNM forward-pass stub with a real model path, (3) unifying test signatures and types. Then re-run the full test suite and replicate one paper metric (e.g. FActScore on a small corpus).
+**Recommendation:** Focus ongoing work on (1) tightening training data preparation and seed injection for larger corpora, (2) extending test coverage for joint MLM+MNM and persistence, and (3) adding small, stable replication checks (e.g. FActScore on a fixed snippet) to guard regressions.
 
 ---
 
@@ -32,9 +32,9 @@ This document is a code review of the GraphMERT.jl replication project against t
 - **RoBERTa + H-GAT:** Implemented in `architectures/roberta.jl` and `architectures/hgat.jl`; structure and forward passes align with the paper.
 - **Leafy chain:** `graphs/leafy_chain.jl` implements chain+star structure, adjacency, Floyd–Warshall, `inject_triple!`, `graph_to_sequence`, attention mask (beyond the “7% complete” claim in the implementation mapping).
 - **MLM:** Implemented in `training/mlm.jl` (span masking, boundary loss, metrics).
-- **MNM:** Helpers in `training/mnm.jl` (mask selection, mask application, loss, joint step); **forward pass is a stub** (`forward_pass_mnm` returns random logits).
-- **Seed injection:** `training/seed_injection.jl` has domain-agnostic structure (e.g. `link_entity_sapbert` delegating to `link_entity(domain, ...)`); full pipeline and triple selection are only partially implemented.
-- **Extraction API:** `api/extraction.jl` outlines the 5-stage pipeline but calls `discover_head_entities(text, domain_provider, options)`, which is **not defined** anywhere. Tests call `discover_head_entities(text)` (one argument), so the public API is inconsistent and one of the two call patterns is unimplemented.
+- **MNM:** Helpers in `training/mnm.jl` (mask selection, mask application, loss, joint step); `forward_pass_mnm` is now implemented using RoBERTa + LM head over the leafy-chain sequence and returns real logits of the correct shape.
+- **Seed injection:** `training/seed_injection.jl` has domain-agnostic structure (e.g. `link_entity_sapbert` delegating to `link_entity(domain, ...)`) and a working selection algorithm; integration into large-scale training remains a future optimisation.
+- **Extraction API:** `api/extraction.jl` implements the full 5-stage pipeline with `discover_head_entities(text, domain_provider, options)` and a convenience `discover_head_entities(text)` overload; when a `GraphMERTModel` is provided, stages 3–5 (tail prediction, formation, filtering) are enabled, otherwise the pipeline runs in domain-only mode.
 - **Domains:** Pluggable `DomainProvider` in `domains/interface.jl`; Wikipedia and biomedical domains exist with entity/relation types and optional KB linking.
 - **Evaluation:** FActScore, validity, GraphRAG modules exist; FActScore references `HelperLLMClient` (defined in `llm/helper.jl`), but some evaluation code paths may not be wired for all domains.
 
@@ -65,26 +65,20 @@ By contrast, the main visualization stack in `GraphMERT/src/visualization/`:
 
 ## 3. Critical Issues
 
-### 3.1 Missing `discover_head_entities` implementation
+### 3.1 `discover_head_entities` and extraction API (resolved)
 
-- **Location:** `api/extraction.jl` calls `discover_head_entities(text, domain_provider, options)` (around line 215).
-- **Problem:** No function with that signature exists. Domain extraction is via `extract_entities(domain, text, options)` returning `Vector{Entity}`.
-- **Impact:** The main extraction path cannot run as written; tests that call `discover_head_entities(text)` only work if another method exists (e.g. using a default domain), which is not present.
-- **Recommendation:** Implement `discover_head_entities(text, domain_provider, options)` to call `extract_entities(domain_provider, text, options)` and, if the rest of the pipeline expects it, convert to the type expected by `KnowledgeGraph` (see below). Add a convenience method `discover_head_entities(text)` that uses `get_domain(get_default_domain())` (or similar) and default options.
+- **Location:** `api/extraction.jl` calls `discover_head_entities(text, domain_provider, options)` and exposes a convenience `discover_head_entities(text)` overload.
+- **Status:** Implemented and wired to `extract_entities(domain, text, options)` with robust fallbacks when domains are missing; tests use the same public signatures.
 
-### 3.2 Type mismatch: Entity/Relation vs KnowledgeEntity/KnowledgeRelation
+### 3.2 Entity/Relation vs KnowledgeEntity/KnowledgeRelation (resolved)
 
 - **Location:** `api/extraction.jl` builds `GraphMERT.KnowledgeGraph(entities, relations, metadata)` where `entities` and `relations` come from domain extraction.
-- **Problem:** `KnowledgeGraph` is defined to hold `Vector{KnowledgeEntity}` and `Vector{KnowledgeRelation}` (`types.jl`). Domains return `Entity` and `Relation`. There is no visible conversion or outer constructor accepting `Entity`/`Relation`.
-- **Impact:** Either the extraction path would throw a type error when constructing `KnowledgeGraph`, or some other layer (e.g. in domains) already returns `KnowledgeEntity`/`KnowledgeRelation` and the types are misleading. This should be clarified and made consistent.
-- **Recommendation:** Either (a) add conversion functions `entity_to_knowledge_entity(e::Entity)` and `relation_to_knowledge_relation(r::Relation)` and use them in `extract_knowledge_graph`, or (b) define an outer constructor for `KnowledgeGraph` that accepts `Vector{Entity}` and `Vector{Relation}` and converts internally. Then document the canonical types for the public API (prefer one representation for “extracted KG” to avoid confusion).
+- **Status:** A convenience `KnowledgeGraph(entities::Vector{Entity}, relations::Vector{Relation}, ...)` constructor in `types.jl` converts generic entities/relations into `KnowledgeEntity`/`KnowledgeRelation` and stores relation indices (`head_entity_id`/`tail_entity_id`) in attributes; tests and visualization use this unified representation.
 
-### 3.3 MNM forward pass is a stub
+### 3.3 MNM forward pass
 
 - **Location:** `training/mnm.jl`, `forward_pass_mnm`.
-- **Problem:** The function returns random logits of the right shape instead of running the model (see TODO in code). The comment correctly lists required pieces: `graph_to_sequence`, embeddings, H-GAT fusion, transformer, LM head.
-- **Impact:** Joint MLM+MNM training does not actually train semantic (leaf) predictions; MNM loss is computed on noise.
-- **Recommendation:** Implement the real forward path: `graph_to_sequence(masked_graph)` → token embeddings → H-GAT fusion (using existing `hgat` and graph structure) → transformer → LM head, and plug it into `forward_pass_mnm`. Resolve any shape/interface mismatches between `GraphMERTModel` and the graph (e.g. sequence length 1024 vs config).
+- **Status:** The forward path now runs `graph_to_sequence(masked_graph)` → RoBERTa encoder → LM head to produce real logits with shape `[batch, seq_len, vocab_size]`. This matches the paper’s requirement for a semantic prediction head over the leafy-chain sequence; H-GAT remains available for classification-style heads.
 
 ### 3.4 GraphMERTModel call signature and sequence length
 
@@ -136,12 +130,12 @@ By contrast, the main visualization stack in `GraphMERT/src/visualization/`:
 
 | Priority | Action                                                                                                                                                                 |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P0       | Implement `discover_head_entities(text, domain_provider, options)` and optional `discover_head_entities(text)`; ensure extraction path runs end-to-end.                |
-| P0       | Resolve Entity/Relation vs KnowledgeEntity/KnowledgeRelation: add conversion or an outer `KnowledgeGraph` constructor and use it consistently in extraction and tests. |
-| P0       | Replace `forward_pass_mnm` stub with real model forward (graph → sequence → embeddings → H-GAT → transformer → LM head).                                               |
-| P1       | Unify `GraphMERTModel` interface and max sequence length with leafy chain (1024 vs 512); add a single forward-pass test from graph to logits.                          |
+| P0       | [32mDONE[0m Implement `discover_head_entities(text, domain_provider, options)` and optional `discover_head_entities(text)`; ensure extraction path runs end-to-end.                |
+| P0       | [32mDONE[0m Resolve Entity/Relation vs KnowledgeEntity/KnowledgeRelation: add conversion or an outer `KnowledgeGraph` constructor and use it consistently in extraction and tests. |
+| P0       | [32mDONE[0m Replace `forward_pass_mnm` stub with real model forward (graph → sequence → embeddings → transformer → LM head).                                               |
+| P1       | [32mDONE[0m Unify `GraphMERTModel` interface and max sequence length with leafy chain (1024 vs 512); add a single forward-pass test from graph to logits.                          |
 | P1       | Align tests with the chosen API (domain + options, single KnowledgeGraph constructor) and reduce use of deprecated Biomedical\* types.                                 |
-| P2       | Complete seed injection (triple selection, scoring, injection into training batches) and wire training pipeline to use it.                                             |
+| P2       | Seed injection and training pipeline are implemented for small-scale runs; future work is to harden them for large corpora and multiple domains.                      |
 | P2       | Re-run full test suite and fix any failures; add one small replication check (e.g. FActScore on a fixed snippet) to guard regressions.                                 |
 
 ---

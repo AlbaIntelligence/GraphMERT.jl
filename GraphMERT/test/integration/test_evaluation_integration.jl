@@ -70,12 +70,22 @@ using GraphMERT
     metadata = Dict("text" => "Chemotherapy treats cancer.", "confidence" => 0.8)
     kg = KnowledgeGraph(entities, relations, metadata)
 
-    # Run evaluation multiple times
+    # Run evaluation multiple times (heuristic-only, no LLM/UMLS)
     results1 = evaluate_factscore(kg, "Chemotherapy treats cancer.")
     results2 = evaluate_factscore(kg, "Chemotherapy treats cancer.")
 
-    @test results1.factscore == results2.factscore
-    @test results1.total_triples == results2.total_triples
+    # Replication check: for this simple KG, heuristic FActScore should be 1.0 over 1 triple
+    @test results1.factscore == 1.0
+    @test results1.total_triples == 1
+    @test results2.factscore == results1.factscore
+    @test results2.total_triples == results1.total_triples
+
+    # ValidityScore replication: with current heuristic rules, this triple is not ontologically valid
+    validity1 = evaluate_validity(kg)
+    validity2 = evaluate_validity(kg)
+    @test validity1.total_triples == 1
+    @test validity1.validity_score == 0.0
+    @test validity2.validity_score == validity1.validity_score
   end
 
   @testset "Edge Cases" begin

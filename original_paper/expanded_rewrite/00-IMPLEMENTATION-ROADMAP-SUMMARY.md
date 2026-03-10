@@ -61,4 +61,3 @@ Focus on these before polishing:
 - Start here to understand **what to build next**.
 - Jump to the full `00-IMPLEMENTATION-ROADMAP.md` only when you need detailed rationale, time estimates, or historical notes.
 - When editing or adding roadmap content, keep this summary to **1–2 screens** and push long explanations into the full document.
-

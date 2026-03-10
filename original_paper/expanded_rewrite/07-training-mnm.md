@@ -59,4 +59,3 @@ Training scaffolding lives in:
 - `training/pipeline.jl`
 
 Keep this document short; add new detailed sections to `07-training-mnm-FULL.md` as needed.
-

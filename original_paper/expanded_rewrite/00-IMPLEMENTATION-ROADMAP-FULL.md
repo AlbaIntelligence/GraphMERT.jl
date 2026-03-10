@@ -26,14 +26,14 @@ While the main specification (`00-INDEX.md`) is organized logically to understan
 
 ### ✅ Complete and Working (Good Foundation)
 
-| Component | File | Lines | Status | Quality |
-|-----------|------|-------|--------|---------|
-| RoBERTa Encoder | `architectures/roberta.jl` | 444 | ✅ | Excellent |
-| H-GAT Component | `architectures/hgat.jl` | 437 | ✅ | Excellent |
-| MLM Training | `training/mlm.jl` | 436 | ✅ | Excellent |
-| Core Types | `types.jl` | 272 | ✅ | Good |
-| Biomedical Entities | `biomedical/entities.jl` | ? | ✅ | Good |
-| Biomedical Relations | `biomedical/relations.jl` | ? | ✅ | Good |
+| Component            | File                       | Lines | Status | Quality   |
+| -------------------- | -------------------------- | ----- | ------ | --------- |
+| RoBERTa Encoder      | `architectures/roberta.jl` | 444   | ✅     | Excellent |
+| H-GAT Component      | `architectures/hgat.jl`    | 437   | ✅     | Excellent |
+| MLM Training         | `training/mlm.jl`          | 436   | ✅     | Excellent |
+| Core Types           | `types.jl`                 | 272   | ✅     | Good      |
+| Biomedical Entities  | `biomedical/entities.jl`   | ?     | ✅     | Good      |
+| Biomedical Relations | `biomedical/relations.jl`  | ?     | ✅     | Good      |
 
 **Assessment**: Strong foundation for transformer-based architecture. The core ML components (RoBERTa, H-GAT, MLM) are well-implemented.
 
@@ -41,13 +41,13 @@ While the main specification (`00-INDEX.md`) is organized logically to understan
 
 ### 🔴 Critical Missing (Blocks Progress)
 
-| Component | File | Lines | Status | Impact |
-|-----------|------|-------|--------|--------|
-| Leafy Chain Graph | `graphs/leafy_chain.jl` | 30 | 🔴 Stub | **BLOCKING** |
-| MNM Training | `training/mnm.jl` | 30 | 🔴 Stub | **BLOCKING** |
-| Seed Injection | `training/seed_injection.jl` | 19 | 🔴 Stub | **BLOCKING** |
-| Training Pipeline | `training/pipeline.jl` | 19 | 🔴 Stub | **BLOCKING** |
-| Triple Extraction | `api/extraction.jl` | ? | 🔴 Partial | High |
+| Component         | File                         | Lines | Status     | Impact       |
+| ----------------- | ---------------------------- | ----- | ---------- | ------------ |
+| Leafy Chain Graph | `graphs/leafy_chain.jl`      | 30    | 🔴 Stub    | **BLOCKING** |
+| MNM Training      | `training/mnm.jl`            | 30    | 🔴 Stub    | **BLOCKING** |
+| Seed Injection    | `training/seed_injection.jl` | 19    | 🔴 Stub    | **BLOCKING** |
+| Training Pipeline | `training/pipeline.jl`       | 19    | 🔴 Stub    | **BLOCKING** |
+| Triple Extraction | `api/extraction.jl`          | ?     | 🔴 Partial | High         |
 
 **Assessment**: These are the **critical path** components. System cannot function without them.
 
@@ -55,13 +55,13 @@ While the main specification (`00-INDEX.md`) is organized logically to understan
 
 ### 🟡 Partial or Needs Enhancement
 
-| Component | File | Status | Notes |
-|-----------|------|--------|-------|
-| Attention Mechanisms | Embedded in `hgat.jl` | 🟡 | Needs extraction/documentation |
-| Graph Encodings | Various | 🟡 | Scattered, needs consolidation |
-| UMLS Integration | `biomedical/umls.jl` | 🟡 | Basic structure, needs full API |
-| Helper LLM | `llm/helper.jl` | 🟡 | Stub, needs implementation |
-| Evaluation | `evaluation/*.jl` | 🟡 | Partial implementations |
+| Component            | File                  | Status | Notes                           |
+| -------------------- | --------------------- | ------ | ------------------------------- |
+| Attention Mechanisms | Embedded in `hgat.jl` | 🟡     | Needs extraction/documentation  |
+| Graph Encodings      | Various               | 🟡     | Scattered, needs consolidation  |
+| UMLS Integration     | `biomedical/umls.jl`  | 🟡     | Basic structure, needs full API |
+| Helper LLM           | `llm/helper.jl`       | 🟡     | Stub, needs implementation      |
+| Evaluation           | `evaluation/*.jl`     | 🟡     | Partial implementations         |
 
 ---
 

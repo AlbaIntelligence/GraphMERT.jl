@@ -37,4 +37,3 @@ Implementation reference: `GraphMERT/src/architectures/roberta.jl`.
 
 - In GraphMERT, RoBERTa is **not used in isolation**; it is always part of `GraphMERTModel` together with H-GAT and classification heads.
 - See `models/graphmert.jl` and the architecture overview for how it composes with the rest of the system.
-

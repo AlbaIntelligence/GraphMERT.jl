@@ -281,12 +281,9 @@ function create_seed_triples(domain::BiomedicalDomain, entity_text::String, conf
         return Vector{Any}()
     end
     
-    # Convert UMLS relations to SemanticTriple format
-    triples = Vector{Any}()
-    
-    # Get SemanticTriple type from main module
-    SemanticTripleType = Main.GraphMERT.SemanticTriple
-    
+    # Convert UMLS relations to SemanticTriple format (SemanticTriple from parent GraphMERT module)
+    triples = Vector{SemanticTriple}()
+
     for relation in relations_list
         if !isa(relation, Dict)
             continue
@@ -318,7 +315,7 @@ function create_seed_triples(domain::BiomedicalDomain, entity_text::String, conf
         # Create SemanticTriple
         # Note: head_cui is the CUI we queried, tail_cui is the target CUI
         try
-            triple = SemanticTripleType(
+            triple = SemanticTriple(
                 entity_name,      # head
                 cui,              # head_cui
                 mapped_relation,  # relation

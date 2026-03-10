@@ -805,10 +805,8 @@ Extract biomedical relations between entities.
 - `Vector{Relation}`: Extracted relations
 """
 function extract_biomedical_relations(entities::Vector{Any}, text::String, config::Any, domain::Any)
-    # Use GraphMERT.Relation from Main scope
-    RelationType = Main.GraphMERT.Relation
-
-    relations = Vector{RelationType}()
+    # Relation is in scope from parent GraphMERT module
+    relations = Vector{Relation}()
 
     if length(entities) < 2
         return relations
@@ -835,7 +833,7 @@ function extract_biomedical_relations(entities::Vector{Any}, text::String, confi
             confidence = calculate_biomedical_relation_confidence(head_entity.text, relation_type, tail_entity.text, Dict{String, Any}("context" => context))
 
             # Create relation
-            relation = RelationType(
+            relation = Relation(
                 head_entity.id,
                 tail_entity.id,
                 relation_type,

@@ -37,4 +37,3 @@ When adding new gaps or resolving old ones, update:
 - This short file (high-level bullets only).
 - `13-gaps-analysis-FULL.md` (detailed reasoning).
 - `reports/CODE_REVIEW.md` (prioritized, actionable tasks).
-

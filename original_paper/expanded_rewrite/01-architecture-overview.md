@@ -47,4 +47,3 @@ See `06-training-mlm-FULL.md` and `07-training-mnm-FULL.md` for full details.
 
 - For conceptual understanding, this file + the short training and triple-extraction specs should be enough.
 - For implementation details or research work, jump to the `*-FULL.md` specs and the implementation mapping in `12-implementation-mapping-FULL.md`.
-

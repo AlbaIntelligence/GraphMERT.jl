@@ -239,20 +239,27 @@ If a spec and the current code disagree:
 ## 9. Token budget and editing guidelines
 
 - **Overall goal**: keep files **small, focused, and non-duplicative** so agents and humans can load context cheaply.
-- **Specs and plans** (`original_paper/expanded_rewrite/*.md`, `reports/*PLAN*.md`, `reports/CODE_REVIEW.md`):
-  - Treat these as **canonical**; do not duplicate large sections elsewhere.
-  - If you need to refer to them, **link** instead of copying paragraphs.
-- **Operational docs** (`AGENTS.md`, `README.md`, domain guides, usage guides):
-  - Keep each under **a few screens**; if you need more, split into smaller, purpose-specific files.
-  - Prefer short lists and pointers to deeper specs over long narrative text.
-- **Narrative / archive material** (long rewrites, background reports):
-  - Add a short **front-matter summary** at the top and mark clearly as background.
-  - Do not move this content into core docs; just reference it when needed.
+- **Line limit**: Target **400–500 lines** per file for specs and operational docs. If a file grows beyond that, split it (e.g. short stub + `*-FULL.md` or per-section files) and keep the main file as an index or summary that links to the parts.
+- **When to create a new file**: When adding content would push an existing doc over the line limit, or when the content is a distinct concern (e.g. new domain or module). Prefer one more small file over one large file.
+- **Specs and plans** (`original_paper/expanded_rewrite/*.md`, `reports/*.md`):
+  - Treat as **canonical**; do not duplicate large sections elsewhere. **Link** instead of copying.
+  - Use short-named files (e.g. `00-IMPLEMENTATION-ROADMAP.md`) for the concise version and `*-FULL.md` for the long form.
+- **Operational docs** (`AGENTS.md`, `README.md`, domain guides):
+  - Keep each under the line limit; use short lists and pointers to deeper specs.
+- **Narrative / archive material**:
+  - Add a short **front-matter summary** and mark as background; reference from core docs, do not duplicate.
 - **Code and tests**:
-  - Avoid long comment blocks that restate specs; link to the relevant doc or test instead.
-  - Centralize shared helpers (especially in tests) instead of copying utilities across files.
+  - Avoid long comment blocks that restate specs; link to the doc or test. Centralize shared helpers in tests.
 
-Agents implementing new features should explicitly check that their changes **reduce or keep steady** the total number of lines in touched files, unless the task is to add genuinely new functionality or specification content.
+Agents implementing new features should **reduce or keep steady** line count in touched files unless adding genuinely new functionality.
+
+### 9.1 Delegation (sub-agents)
+
+For automated workflows, these roles can be mapped to separate agents:
+
+- **doc-refactor-agent**: Docs and reports only; optimize structure, reduce duplication, add summaries.
+- **api-doc-agent**: `GraphMERT/docs/src/api/*.md` and public API comments; keep aligned with code and tests.
+- **code-structure-agent**: Split or reorganize large `.jl` files without changing behavior.
 
 ---
 

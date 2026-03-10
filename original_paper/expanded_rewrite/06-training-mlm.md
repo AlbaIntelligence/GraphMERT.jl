@@ -39,4 +39,3 @@ Implementation reference: `GraphMERT/src/training/mlm.jl`.
 
 - This doc intentionally omits full pseudocode; see the full spec and tests for that.
 - When changing MLM behavior, keep this file short and update `06-training-mlm-FULL.md` with detailed rationale.
-

@@ -51,4 +51,3 @@ These are the primary types for domain providers and extraction.
   - `LLMRequest`, `LLMResponse`, `EntityLinkingResult`, and evaluation score types.
 
 Refer to `src/types.jl` for exact field definitions and to `*_FULL.md` specs for diagrams and extended discussion.
-

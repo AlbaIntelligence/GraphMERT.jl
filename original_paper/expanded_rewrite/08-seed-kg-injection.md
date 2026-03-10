@@ -53,4 +53,3 @@ Controlled by `SeedInjectionConfig` in `src/types.jl`, including:
 
 - Keep selection logic simple and deterministic at first; refine only when core training is stable.
 - Use this file as a **conceptual overview**; detailed algorithms, edge cases, and examples should live in `08-seed-kg-injection-FULL.md`.
-

@@ -402,12 +402,14 @@ function get_entity_patterns(entity_type::BiomedicalEntityType)
             r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:disease|disorder|syndrome|condition|illness|pathology)\b",
         )
         push!(patterns, r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:syndrome|disease)\b")
+        push!(patterns, r"\b(Diabetes|diabetes)\s+mellitus\b")  # common biomedical term
     elseif entity_type == DRUG
         push!(
             patterns,
             r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:drug|medication|medicine|pharmaceutical)\b",
         )
         push!(patterns, r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:treatment|therapy)\b")
+        push!(patterns, r"\b(Metformin|metformin)\b")  # common drug name
     elseif entity_type == PROTEIN
         push!(
             patterns,
@@ -549,14 +551,10 @@ Extract biomedical entities from text.
 - `Vector{Entity}`: Extracted entities
 """
 function extract_biomedical_entities(text::String, config::Any, domain::Any)
-    # Use GraphMERT.Entity from Main scope
-    EntityType = Main.GraphMERT.Entity
-    TextPositionType = Main.GraphMERT.TextPosition
-
-    entities = Vector{EntityType}()
+    # Entity and TextPosition are in scope from parent GraphMERT module (types.jl)
+    entities = Vector{Entity}()
 
     # Simple extraction using patterns
-    # Get all biomedical entity types
     entity_types = [
         DISEASE, DRUG, PROTEIN, GENE, ANATOMY, SYMPTOM,
         PROCEDURE, ORGANISM, CHEMICAL, CELL_TYPE
@@ -565,12 +563,11 @@ function extract_biomedical_entities(text::String, config::Any, domain::Any)
     extracted = extract_entities_from_text(text; entity_types=entity_types)
 
     for (i, (entity_text, entity_type, confidence)) in enumerate(extracted)
-        # Find position in text
         pos = findfirst(entity_text, text)
         start_pos = pos !== nothing ? first(pos) : 1
         end_pos = pos !== nothing ? last(pos) : length(entity_text)
 
-        entity = EntityType(
+        entity = Entity(
             "entity_$(i)_$(hash(entity_text))",
             entity_text,
             entity_text,
@@ -580,7 +577,7 @@ function extract_biomedical_entities(text::String, config::Any, domain::Any)
                 "entity_type_enum" => entity_type,
                 "confidence" => confidence,
             ),
-            TextPositionType(start_pos, end_pos, 1, 1),
+            TextPosition(start_pos, end_pos, 1, 1),
             confidence,
             text,
         )

@@ -64,4 +64,3 @@ Implementation reference:
 - Use tests in `GraphMERT/test/unit/test_extraction.jl` and any dedicated leafy-chain tests as the executable spec.
 
 When extending the design, keep this file short and push derivations, detailed layouts, and long examples into `02-leafy-chain-graphs-FULL.md`.
-

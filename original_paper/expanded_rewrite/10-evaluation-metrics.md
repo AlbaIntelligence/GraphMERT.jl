@@ -4,7 +4,7 @@ Short overview of the evaluation metrics used for GraphMERT. For rigorous defini
 
 ---
 
-## 1. FActScore*
+## 1. FActScore\*
 
 - Measures **factual accuracy** of extracted knowledge graphs.
 - Compares predicted triples against a reference set with:
@@ -44,4 +44,3 @@ Type: `GraphRAG` in `src/types.jl`, with implementations in `evaluation/graphrag
 
 - Evaluation entry points are exported from `GraphMERT` (e.g. `evaluate_factscore`, `evaluate_graphrag`).
 - When adding or changing metrics, keep this document brief and move detailed math into `10-evaluation-metrics-FULL.md`.
-

@@ -18,6 +18,11 @@ Extract a knowledge graph from input text using a GraphMERT model.
 
 - `KnowledgeGraph` - Extracted knowledge graph
 
+If `model` is a full `GraphMERTModel`, the 5-stage pipeline from the paper is used:
+1) head discovery via the active domain, 2) relation matching, 3) tail prediction with the model,
+4) tail formation, and 5) filtering/deduplication. When a lightweight/mock model is passed,
+stages 1–2 still run and stages 3–5 can be treated as heuristic or skipped by callers.
+
 **Example:**
 
 ```julia

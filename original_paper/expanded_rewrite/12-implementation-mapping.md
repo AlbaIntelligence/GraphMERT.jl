@@ -67,4 +67,3 @@ Short guide mapping major spec sections to code locations. For exhaustive tables
   - Code: `src/visualization/*.jl`, visualization examples.
 
 Use this file when you need a **quick mapping**; jump to the full implementation mapping for detailed status and line-level notes.
-

@@ -21,16 +21,16 @@ Short status view for agents and implementers. For full details, see `STATUS.md`
   - RoBERTa encoder and H-GAT modules.
   - MLM training.
   - Core types (`types.jl`) and most architecture plumbing.
+  - Leafy chain graphs: structure, helpers, and graph→sequence mapping implemented and exercised in tests.
+  - Triple extraction: 5-stage pipeline (`discover_head_entities`, relation matching, optional tail prediction/formation/filtering) runs end-to-end with domains and fallbacks.
+  - MNM helpers and joint loss: masking, loss pieces, and `forward_pass_mnm` (graph→sequence→RoBERTa→LM head) are implemented.
 
 - **Partially done**
-  - Leafy chain graphs: structure and helpers implemented; need continuous validation against spec as training/extraction evolve.
-  - MNM helpers and joint loss: shapes and loss pieces exist, but the forward path is still a stub.
-  - Seed injection: data structures and high-level pipeline present, but selection and integration are incomplete.
-  - Triple extraction: 5-stage pipeline present; domains are not fully powering it yet, so fallbacks are used often.
+  - Seed injection: data structures, selection, and injection API are implemented and used in the training pipeline for small-scale runs; large-corpus tuning remains future work.
+  - Domain-level `extract_entities` / `extract_relations` for biomedical/Wikipedia: basic heuristics exist; richer patterns/LLM support are still in progress.
+  - Model persistence and reload: JSON-based checkpoints exist and are exercised by API tests; weight-level save/load is still a placeholder.
 
 - **Needs work**
-  - Domain-level `extract_entities` / `extract_relations` for biomedical/Wikipedia.
-  - Model persistence and reload tested end-to-end.
   - Evaluation metrics and visualization examples wired into CI in a stable way.
 
 ---

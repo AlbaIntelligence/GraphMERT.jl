@@ -15,7 +15,8 @@ using Flux
 using GraphMERT
 using GraphMERT: MNMConfig, MNMBatch, LeafyChainGraph, ChainGraphNode, SemanticTriple,
   select_leaves_to_mask, apply_mnm_masks, create_mnm_batch,
-  create_empty_chain_graph, inject_triple!, graph_to_sequence, create_attention_mask
+  create_empty_chain_graph, inject_triple!, graph_to_sequence, create_attention_mask,
+  ChainGraphConfig, GraphMERTConfig, GraphMERTModel
 import GraphMERT: calculate_mnm_loss, train_mnm_step, evaluate_mnm, validate_gradient_flow
 
 # Create a simple mock model for testing
@@ -332,5 +333,20 @@ end
     
     # Some relations should be zeroed out (with high probability)
     @test any(relation_ids .== 0) || any(relation_ids .== 1)  # Either some zeroed or all kept
+  end
+
+  @testset "Graph to model forward (contract)" begin
+    # Build a small leafy chain (512 positions) and run one forward pass; check output shape.
+    config = ChainGraphConfig(num_roots = 64, num_leaves_per_root = 7, max_sequence_length = 512, pad_token_id = 1)
+    graph = create_empty_chain_graph(config)
+    @test length(graph_to_sequence(graph)) == config.max_sequence_length
+
+    model_config = GraphMERTConfig(max_sequence_length = config.max_sequence_length)
+    model = GraphMERTModel(model_config)
+    logits = GraphMERT.forward_pass_mnm(model, graph)
+    @test ndims(logits) == 3
+    @test size(logits, 1) == 1
+    @test size(logits, 2) == config.max_sequence_length
+    @test size(logits, 3) == model_config.roberta_config.vocab_size
   end
 end

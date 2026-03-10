@@ -41,4 +41,3 @@ Implementation reference: `GraphMERT/src/architectures/hgat.jl`.
 
 - H-GAT is called from `GraphMERTModel` after RoBERTa.
 - Exact formulas and update rules are in the full spec and should be consulted when changing implementation details.
-

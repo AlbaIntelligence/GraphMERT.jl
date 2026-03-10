@@ -15,7 +15,7 @@ This is the **short, token-efficient** roadmap. For the full, historical and hig
 - **MLM training** (`training/mlm.jl`)
 - **Core types** (`src/types.jl`)
 
-Use the full roadmap only if you need legacy context, effort estimates, or historical notes. For current work, treat these as *done* unless CODE_REVIEW says otherwise.
+Use the full roadmap only if you need legacy context, effort estimates, or historical notes. For current work, treat these as _done_ unless CODE_REVIEW says otherwise.
 
 ---
 
@@ -62,4 +62,3 @@ These are required to get a robust, paper-aligned end-to-end system:
 
 - Keep this file under **~400 lines** with high-level tasks and links.
 - Put detailed plans, tables, and history into `00-IMPLEMENTATION-ROADMAP-FULL.md` and update `reports/CODE_REVIEW.md` for day-to-day tracking.
-

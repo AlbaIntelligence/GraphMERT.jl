@@ -67,12 +67,10 @@ end
   end
 
   @testset "load_model() / save_model() API" begin
-    # Create mock model
-    mock_model = MockAPIModel(30522)
-
-    # Test save model
+    # Use a local model for persistence (test_model is in another testset)
+    persist_model = GraphMERTModel(GraphMERTConfig())
     save_path = "test_model.jld2"
-    success = GraphMERT.save_model(test_model, save_path)
+    success = GraphMERT.save_model(persist_model, save_path)
     @test success == true
     @test isfile(save_path)
 
@@ -145,13 +143,14 @@ end
 
   @testset "Error Handling" begin
     mock_model = MockAPIModel(30522)
+    err_model = GraphMERTModel(GraphMERTConfig())
 
     # Test with invalid inputs
     @test_throws ArgumentError extract_knowledge_graph("", mock_model)
     @test_throws ArgumentError extract_knowledge_graph("a"^10000, mock_model)  # Too long
 
     # Test save_model error handling
-    @test_throws Exception GraphMERT.save_model(test_model, "/invalid/path/model.jld2")
+    @test_throws Exception GraphMERT.save_model(err_model, "/invalid/path/model.jld2")
 
     # Test load_model error handling
     @test GraphMERT.load_model("/nonexistent/file.jld2") === nothing

@@ -36,4 +36,3 @@ Implementation anchors:
   - Keep decay simple and monotonic unless the spec explicitly requires more complex shapes.
   - Update or add small tests that verify mask shapes and basic monotonicity.
 - Put any new math-heavy sections into `05-attention-mechanisms-FULL.md` rather than here.
-

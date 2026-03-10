@@ -92,6 +92,16 @@ struct KnowledgeRelation
   end
 end
 
+# Backward compatibility: API/tests may expect head_entity_id / tail_entity_id (stored in attributes)
+function Base.getproperty(r::KnowledgeRelation, s::Symbol)
+  if s === :head_entity_id
+    return get(r.attributes, "head_entity_id", 0)
+  elseif s === :tail_entity_id
+    return get(r.attributes, "tail_entity_id", 0)
+  end
+  return getfield(r, s)
+end
+
 # ============================================================================
 # Knowledge Graph
 # ============================================================================
