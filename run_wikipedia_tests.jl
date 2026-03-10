@@ -41,14 +41,12 @@ function main()
     domain = get_domain("wikipedia")
     options = ProcessingOptions(
         domain="wikipedia",
-        confidence_threshold=0.5,
-        max_entities=100,
-        max_relations=100
+        confidence_threshold=0.5
     )
     
     # Test articles
-    test_articles = Dict(
-        "louis_xiv" => """
+    test_articles = [
+        ("louis_xiv", """
         Louis XIV (5 September 1638 – 1 September 1715), known as the Sun King, 
         was King of France from 1643 until his death in 1715. His reign of 72 years 
         and 110 days is the longest of any major European monarch.
@@ -59,9 +57,9 @@ function main()
         
         Louis XIV married Maria Theresa of Spain in 1660. They had several children 
         including Louis, Grand Dauphin, who was the father of Louis XV.
-        """,
+        """),
         
-        "henry_iv" => """
+        ("henry_iv", """
         Henry IV (13 December 1553 – 14 May 1610), also known as Henry the Great, 
         was King of France from 1589 to his death in 1610. He was the first Bourbon 
         king of France.
@@ -71,9 +69,9 @@ function main()
         
         Henry IV married Margaret of Valois in 1572. He later married Marie de' Medici 
         in 1600. Their son Louis XIII succeeded him.
-        """,
+        """),
         
-        "marie_antoinette" => """
+        ("marie_antoinette", """
         Marie Antoinette (2 November 1755 – 16 October 1793) was the last Queen 
         of France before the French Revolution. She was born Archduchess Maria Theresa 
         of Austria and married Louis XVI in 1770.
@@ -81,16 +79,16 @@ function main()
         Marie Antoinette and Louis XVI had four children: Marie-Thérèse Charlotte, 
         Louis-Joseph, Louis-Charles (Dauphin), and Sophie. Louis-Charles was the 
         father of Louis XVII.
-        """
-    )
+        """)
+    ]
     
     println("\n2. Running Entity Extraction Tests...")
     println("-"^40)
     
-    total_entities = 0
+    entity_count = 0
     for (name, text) in test_articles
         entities = extract_entities(domain, text, options)
-        total_entities += length(entities)
+        entity_count += length(entities)
         
         println("\n$name:")
         println("  Entities extracted: $(length(entities))")
@@ -107,11 +105,11 @@ function main()
     println("\n3. Running Relation Extraction Tests...")
     println("-"^40)
     
-    total_relations = 0
+    relation_count = 0
     for (name, text) in test_articles
         entities = extract_entities(domain, text, options)
         relations = extract_relations(domain, entities, text, options)
-        total_relations += length(relations)
+        relation_count += length(relations)
         
         println("\n$name:")
         println("  Relations extracted: $(length(relations))")
@@ -123,8 +121,8 @@ function main()
     
     println("\n4. Summary")
     println("="^60)
-    println("Total entities extracted: $total_entities")
-    println("Total relations extracted: $total_relations")
+    println("Total entities extracted: $entity_count")
+    println("Total relations extracted: $relation_count")
     
     # Expected targets
     println("\nTargets:")
