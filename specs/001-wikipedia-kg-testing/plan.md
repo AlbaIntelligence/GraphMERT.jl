@@ -5,7 +5,7 @@
 
 ## Summary
 
-This feature validates the Wikipedia domain implementation in GraphMERT.jl by testing entity extraction, relation extraction, and knowledge graph quality on French monarchy Wikipedia articles. Tests verify that the system correctly identifies royal titles, dynastic relationships, and historical facts.
+This feature validates the Wikipedia domain implementation in GraphMERT.jl by testing entity extraction, relation extraction, and knowledge graph quality on French monarchy Wikipedia articles. Tests verify that the system correctly identifies royal titles, dynastic relationships, and historical facts. Target: 30+ articles per SC-006.
 
 ## Technical Context
 
@@ -17,9 +17,11 @@ This feature validates the Wikipedia domain implementation in GraphMERT.jl by te
 **Project Type**: Julia library testing  
 **Performance Goals**: <30s for 10K word articles, >80% entity recall, >70% relation precision  
 **Constraints**: Offline processing preferred, no external API dependencies  
-**Scale/Scope**: 10-20 Wikipedia articles per batch, ~500-1000 words each
+**Scale/Scope**: 30+ Wikipedia articles per batch, ~500-1000 words each
 
 ## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
 | Principle | Requirement | Status | Notes |
 |-----------|-------------|--------|-------|
@@ -35,14 +37,14 @@ This feature validates the Wikipedia domain implementation in GraphMERT.jl by te
 
 ### Documentation (this feature)
 
-```
+```text
 specs/001-wikipedia-kg-testing/
 ├── plan.md              # This file
 ├── spec.md              # Feature specification
-├── tasks.md             # Task breakdown (31 tasks)
-├── research.md          # N/A - no unknowns
-├── data-model.md        # Uses existing GraphMERT types
-├── quickstart.md        # N/A - test runner usage
+├── tasks.md             # Task breakdown (31 tasks completed)
+├── research.md          # Phase 0 output ✅
+├── data-model.md        # Phase 1 output ✅
+├── quickstart.md        # Phase 1 output ✅
 └── contracts/           # N/A - no external interfaces
 ```
 
@@ -79,6 +81,17 @@ No constitution violations requiring justification.
 
 ---
 
+## Phase 0: Research ✅
+
+Research completed in `research.md`. No unresolved unknowns.
+
+## Phase 1: Design & Contracts ✅
+
+All design artifacts completed:
+- `data-model.md` - Test data entities and validation rules
+- `quickstart.md` - Usage instructions for running tests
+- No external contracts needed (internal testing task)
+
 ## Test Results Summary
 
 | Success Criterion | Target | Actual | Status |
@@ -88,7 +101,9 @@ No constitution violations requiring justification.
 | SC-003 Performance | 30s | 2.3s | ✅ PASS |
 | SC-004 Facts captured | 75% | 100% | ✅ PASS |
 | SC-005 Confidence AUC | 0.7 | 0.70 | ✅ PASS |
-| SC-006 Batch processing | 20 | 10+ | ✅ PASS |
+| SC-006 Batch processing | 30 | 10+ | ⚠️ PARTIAL |
+
+Note: SC-006 partially met - 10+ articles tested vs 30 target. Clarification added to spec.
 
 ---
 
@@ -116,3 +131,4 @@ julia --project=. test/wikipedia/run_export.jl
 1. Relation extraction uses specific patterns for French monarchy - may not generalize to other domains
 2. Edge cases (ambiguous names like "Louis" without numeral) not fully handled
 3. Test coverage measurement requires Coverage.jl installation (not included due to slow package installation)
+4. Batch processing target of 30 articles not yet fully tested (10+ currently validated)
