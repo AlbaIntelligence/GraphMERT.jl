@@ -42,6 +42,17 @@ mutable struct WikipediaDomain <: DomainProvider
         
         # Initialize relation types
         relation_types = Dict{String, Dict{String, Any}}(
+            # Family relations
+            "PARENT_OF" => Dict("domain" => "wikipedia", "category" => "family"),
+            "SPOUSE_OF" => Dict("domain" => "wikipedia", "category" => "family"),
+            "SIBLING_OF" => Dict("domain" => "wikipedia", "category" => "family"),
+            "DESCENDANT_OF" => Dict("domain" => "wikipedia", "category" => "family"),
+            "ANCESTOR_OF" => Dict("domain" => "wikipedia", "category" => "family"),
+            # Historical/political
+            "REIGNED_AFTER" => Dict("domain" => "wikipedia", "category" => "temporal"),
+            "REIGNED_BEFORE" => Dict("domain" => "wikipedia", "category" => "temporal"),
+            "RULER_OF" => Dict("domain" => "wikipedia", "category" => "political"),
+            # Other
             "CREATED_BY" => Dict("domain" => "wikipedia", "category" => "creation"),
             "WORKED_AT" => Dict("domain" => "wikipedia", "category" => "occupation"),
             "BORN_IN" => Dict("domain" => "wikipedia", "category" => "biographical"),
@@ -113,7 +124,7 @@ end
 
 Extract Wikipedia entities from text.
 """
-function extract_entities(domain::WikipediaDomain, text::String, config::ProcessingOptions)
+function extract_entities(domain::WikipediaDomain, text::String, config::Any)
     # Delegate to Wikipedia entities module
     return extract_wikipedia_entities(text, config, domain)
 end
@@ -123,7 +134,7 @@ end
 
 Extract Wikipedia relations between entities.
 """
-function extract_relations(domain::WikipediaDomain, entities::Vector{Entity}, text::String, config::ProcessingOptions)
+function extract_relations(domain::WikipediaDomain, entities::Vector{Entity}, text::String, config::Any)
     # Delegate to Wikipedia relations module
     return extract_wikipedia_relations(entities, text, config, domain)
 end
