@@ -86,7 +86,121 @@ const FRENCH_KINGDOM_ARTICLES = [
     """
     Philip II (21 August 1180 – 14 September 1223) was King of France from 1179 
     until his death. He doubled the royal domain and expanded French territory.
+    """,
+    
     """
+    Louis IX, also known as Saint Louis, was King of France from 1226 until his death in 1270. 
+    He is widely recognized as the most distinguished of the Direct Capetians. Following the 
+    death of his father, Louis VIII, he was crowned in Reims at the age of 12. His mother, 
+    Blanche of Castile, effectively ruled the kingdom as regent until he came of age.
+    """,
+    
+    """
+    Philip II, also known as Philip Augustus, was King of France from 1180 to 1223. 
+    His predecessors had been known as kings of the Franks, but from 1190 onward, 
+    Philip became the first French monarch to style himself "King of France".
+    """,
+    
+    """
+    Francis I was King of France from 1515 until his death in 1547. He was the son of 
+    Charles, Count of Angoulême, and Louise of Savoy. He succeeded his first cousin 
+    once removed and father-in-law Louis XII, who died without a legitimate son.
+    """,
+    
+    """
+    Charles V, called the Wise, was King of France from 1364 to his death in 1380. 
+    His reign marked an early high point for France during the Hundred Years' War as 
+    his armies recovered much of the territory held by the English.
+    """,
+    
+    """
+    Napoleon Bonaparte, later known by his regnal name Napoleon I, was a French general 
+    and statesman who rose to prominence during the French Revolution and led a series 
+    of military campaigns across Europe during the French Revolutionary and Napoleonic Wars 
+    from 1796 to 1815. He led the French Republic as First Consul from 1799 to 1804, 
+    then ruled the French Empire as Emperor of the French from 1804 to 1814.
+    """,
+    
+    """
+    Louis XIII was King of France from 1610 until his death in 1643 and King of Navarre 
+    from 1610 to 1620, when the crown of Navarre was merged with the French crown.
+    """,
+    
+    """
+    Louis XI, called "Louis the Prudent", was King of France from 1461 to 1483. 
+    He succeeded his father, Charles VII. Louis entered into open rebellion against 
+    his father in a short-lived revolt known as the Praguerie in 1440.
+    """,
+    
+    """
+    Henry III was King of France from 1574 until his assassination in 1589 and, 
+    as Henry of Valois, King of Poland and Grand Duke of Lithuania from 1573 to 1575.
+    """,
+    
+    """
+    Charles X was King of France from 16 September 1824 until 2 August 1830. 
+    An uncle of the uncrowned Louis XVII and younger brother of reigning kings 
+    Louis XVI and Louis XVIII, he supported the latter in exile.
+    """,
+    
+    """
+    Napoleon III was President of France from 1848 to 1852 and then Emperor of the 
+    French from 1852 until his deposition in 1870. He was the first president, 
+    second emperor, and last monarch of France. He created the Second French Empire in 1852.
+    """,
+    
+    """
+    Louis XII was King of France from 1498 to 1515. He was the son of Charles, 
+    Duke of Orléans, and Maria of Cleves. He succeeded his first cousin once removed 
+    Charles VIII.
+    """,
+    
+    """
+    Henry II was King of France from 1547 to 1559. He was the second son of 
+    Francis I and Claude of France. He succeeded his father on the throne.
+    """,
+    
+    """
+    Charles VII was King of France from 1422 to 1461. He is often known as Charles 
+    the Victorious or the Well-Served. He helped end the Hundred Years' War and 
+    saw the coronation of Joan of Arc.
+    """,
+    
+    """
+    Louis XVIII was King of France from 1814 to 1824. He was the younger brother 
+    of Louis XVI and the uncle of Louis XVII and Charles X.
+    """,
+    
+    """
+    Philip IV was King of France from 1285 to 1314. He was the second son of 
+    Philip III and Isabella of Aragon. He is often known as Philip the Fair.
+    """,
+    
+    """
+    Charles VI was King of France from 1380 to 1422. He was known as Charles the Mad 
+    or Charles the Beloved. His reign was marked by the Hundred Years' War.
+    """,
+    
+    """
+    Louis XV was King of France from 1715 until his death in 1774. He was the 
+    great-grandson of Louis XIV and succeeded him as a child under the regency 
+    of the Duke of Orléans.
+    """,
+    
+    """
+    Charles IX was King of France from 1560 to 1574. He was the son of Henry II 
+    and Catherine de' Medici. His reign was marked by the French Wars of Religion.
+    """,
+    
+    """
+    Hugh Capet was King of France from 987 to 996. He was the founder of the 
+    Capetian dynasty, which would rule France for over 800 years.
+    """,
+    
+    """
+    Philip III was King of France from 1270 to 1285. He was the son of Louis IX 
+    and Margaret of Provence. He is often known as Philip the Bold.
+    """,
 ]
 
 const REFERENCE_FACTS = [
@@ -189,7 +303,7 @@ function run_quality_assessment()
     
     println("\n[T023] Testing batch processing...")
     println("  Processed $(length(FRENCH_KINGDOM_ARTICLES)) articles in batch")
-    println("  Target: 20 articles - ", length(FRENCH_KINGDOM_ARTICLES) >= 10 ? "✓ PASS (sample)" : "✗ FAIL")
+    println("  Target: 30 articles - ", length(FRENCH_KINGDOM_ARTICLES) >= 30 ? "✓ PASS" : "✗ FAIL")
     
     # SC-003: Performance timing check
     println("\n[SC-003] Performance timing: $(round(elapsed_time, digits=2)) seconds for $(length(FRENCH_KINGDOM_ARTICLES)) articles")
