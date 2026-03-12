@@ -18,6 +18,7 @@ using Logging
 # Activate the main project
 Pkg.develop(path = joinpath(@__DIR__, "..", "..", "GraphMERT"))
 using GraphMERT
+using GraphMERT:Entity
 
 # Configure logging
 global_logger(ConsoleLogger(stderr, Logging.Info))

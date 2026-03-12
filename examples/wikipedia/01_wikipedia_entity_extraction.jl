@@ -19,6 +19,7 @@ using Statistics
 
 Pkg.develop(path = "./GraphMERT")
 using GraphMERT
+using GraphMERT:Entity
 
 # Configure logging
 global_logger(ConsoleLogger(stderr, Logging.Info))

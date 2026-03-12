@@ -1,244 +1,112 @@
 {
-  description = "GraphMERT";
+  description = "Maiko Emulator Development Environment";
 
-  # inputs = {
-  #   # NixOS official package source, here using the nixos-unstable branch
-  #   nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  # };
+  inputs = {
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    llms.url = "github:numtide/llm-agents.nix";
+  };
 
   outputs =
-    { nixpkgs, ... }:
-    let
-      pkgs = import nixpkgs {
-        system = "x86_64-linux";
-        config = {
-          allowUnfree = true;
-        };
-      };
-
-      commandName = "envFHS";
-
-      enableJulia = true;
-      juliaVersion = "1.12.0";
-
-      enablePython = false;
-      pythonVersion = "3.13";
-
-      enableNodeJS = false;
-
-      # Doc libraries
-      enableQuarto = false;
-
-      # Graphical libraries
-      enableGraphical = true;
-      enableNVIDIA = false;
-
-      #
-      # Basic packages used in all environments
-      standardPackages =
-        ps:
-        (with ps; [
-          # Utilities
-          curl
-          ncurses
-          openspecfun
-          openssl
-          unzip
-          util-linux
-          which
-
-          # Building
-          patch
-          autoconf
-          binutils
-          clang
-          cmake
-          expat
-          gcc
-          gfortran
-          gmp
-          gnumake
-          gperf
-          libxml2
-          m4
-          nss
-          stdenv.cc
-
-          # DB
-          # sqlite
-
-          # IDE
-          code-cursor
-          cursor-cli
-          amp-cli
-          bash # Required by Speckit scripts
-          vscode
-        ]);
-
-      # Graphical packages used in all environments
-      graphicalPackages =
-        ps:
-        (with ps; [
-          alsa-lib
-          at-spi2-atk
-          at-spi2-core
-          atk
-          cairo
-          cups
-          dbus
-          expat
-          ffmpeg
-          fontconfig
-          freetype
-          gettext
-          glfw
-          glib
-          glib.out
-          gtk3
-          jupyter-all
-          libGL
-          libcap
-          libdrm
-          libgpg-error
-          libnotify
-          libpng
-          libsecret
-          libuuid
-          libxkbcommon
-          ncurses
-          nspr
-          nss
-          pango
-          pango.out
-          pdf2svg
-          systemd
-          vulkan-loader
-          vulkan-headers
-          vulkan-validation-layers
-          wayland # for Julia
-          zlib
-
-          # X11 packages
-          libice
-          libsm
-          libx11
-          libxscrnsaver
-          libxcomposite
-          libxcursor
-          libxcursor
-          libxdamage
-          libxext
-          libxfixes
-          libxi
-          libxinerama
-          libxrandr
-          libxrender
-          libxt
-          libxtst
-          libxxf86vm
-          libxcb
-          libxkbfile
-          xorgproto
-        ]);
-
-      nvidiaPackages =
-        ps:
-        (with ps; [
-          cudatoolkit_11
-          cudnn_cudatoolkit_11
-          linuxPackages.nvidia_x11
-        ]);
-
-      # quartoPackages = ps: let
-      #   quarto = ps.callPackage ./scientific_nix/quarto.nix {rWrapper = null;};
-      # in [quarto];
-
-      pythonPackages =
-        ps:
-        (ps.callPackage ./flake_List_Python_Packages.nix {
-          pkgs = ps;
-          pythonVersion = pythonVersion;
-        });
-
-      targetPkgs =
-        ps:
-        (standardPackages ps)
-        ++ ps.lib.optionals enableGraphical (graphicalPackages ps)
-        ++ ps.lib.optionals enableJulia [
-          (ps.callPackage ./scientific_nix/julia.nix {
-            juliaVersion = juliaVersion;
-          })
-          # ps.julia
-          ps.openspecfun
-        ]
-        ++ ps.lib.optionals enableQuarto [ ps.quarto ]
-        ++ ps.lib.optionals enableNVIDIA (nvidiaPackages ps)
-        ++ ps.lib.optionals enablePython (pythonPackages ps)
-        ++ ps.lib.optionals enableNodeJS (
-          with ps;
-          [
-            nodejs
-            nodePackages.npm
-            nodePackages.yarn
-          ]
-        );
-
-      std_envvars = ''
-        export EXTRA_CCFLAGS="-I/usr/include"
-        export FONTCONFIG_FILE=/etc/fonts/fonts.conf
-        export LIBARCHIVE=${pkgs.libarchive.lib}/lib/libarchive.so
-      '';
-
-      juliaEnvvars = ''
-        export LD_LIBRARY_PATH=${pkgs.openspecfun}/lib:${pkgs.zlib}/lib::${pkgs.curl}/lib:$LD_LIBRARY_PATH
-      '';
-
-      graphical_envvars = ''
-        export QTCOMPOSE=${pkgs.xorg.libX11}/share/X11/locale
-      '';
-
-      nvidia_envvars = ''
-        export CUDA_PATH=${pkgs.cudatoolkit_11}
-        export LD_LIBRARY_PATH=${pkgs.cudatoolkit_11}/lib:${pkgs.cudnn_cudatoolkit_11}/lib:${pkgs.cudatoolkit_11.lib}/lib:${pkgs.zlib}/lib::${pkgs.curl}/lib:$LD_LIBRARY_PATH
-        export EXTRA_LDFLAGS="-L/lib -L${pkgs.linuxPackages.nvidia_x11}/lib"
-      '';
-
-      envvars =
-        std_envvars
-        + pkgs.lib.optionalString enableGraphical graphical_envvars
-        + pkgs.lib.optionalString enableNVIDIA nvidia_envvars
-        + pkgs.lib.optionalString enableJulia juliaEnvvars;
-
-      # FHS environment package
-      envFHS = pkgs.buildFHSEnv {
-        name = commandName;
-
-        targetPkgs = targetPkgs;
-        # multiPkgs = pkgs: (with pkgs; [ zlib ]);
-
-        runScript = "zsh"; # default is bash
-        profile = envvars;
-
-        # Misc extras
-        extraOutputsToInstall = [
-          "man"
-          "dev"
-        ];
-      };
-    in
     {
-      defaultPackage.x86_64-linux = envFHS;
-      packages.x86_64-linux.envFHS = envFHS;
-      devShells.x86_64-linux.default = envFHS;
+      self,
+      flake-utils,
+      nixpkgs-stable,
+      nixpkgs-unstable,
+      llms,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs-unstable {
+          inherit system;
+          config = {
+            allowUnfree = true;
+          };
+        };
+        pkgs-stable = import nixpkgs-stable {
+          inherit system;
+          config = {
+            allowUnfree = true;
+          };
+        };
+        llmsPkgs = llms.packages.${pkgs.stdenv.hostPlatform.system};
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          # Use stdenv to get proper C compilation environment
+          # This ensures standard C library headers (ctype.h, errno.h, etc.) are available
+          stdenv = pkgs.stdenv;
 
-      nixpkgs.config.allowUnfree = true;
+          # Native build inputs (tools needed during build)
+          nativeBuildInputs = with pkgs-stable; [
+          ];
 
-      # Development shell for nix develop and direnv
-      # devShells.x86_64-linux.default = pkgs.mkShell pythonVersion{
-      #   buildInputs = targetPkgs pkgs;
-      #   shellHook = envvars;
-      # };
-      #
-      nixosModules.default = import ./scientific_nix/module.nix;
-    };
+          # Build inputs (libraries and runtime dependencies)
+          buildInputs =
+            (with pkgs-stable; [ roswell ])
+            ++ (with pkgs; [
+              # Basic utilities
+              ripgrep # Text search utility
+              hexdump # Hexadecimal dump utility
+              jq # JSON processor
+              xxd # Hexadecimal editor
+
+              # C compiler (both for compatibility)
+              # clang # Preferred C compiler
+              # gcc # Alternative C compiler (useful for compatibility testing)
+
+              # C standard library headers (needed for ctype.h, errno.h, etc.)
+              # stdenv provides CC (C compiler) with proper includes
+              # glibc.dev # C standard library development headers
+
+              # Language compilers
+              openssl # OpenSSL library (for MCP)
+              openspecfun
+
+              # IDEs
+              bun # For amp
+              code-cursor
+              vscode
+
+              rlwrap # To get a history when using sbcl/ecl from the CLI
+            ])
+            ++ (with llmsPkgs; [
+              cursor-agent
+              amp
+              kilocode-cli
+              opencode
+              openspec
+              spec-kit
+            ]);
+
+          # Set up environment variables for pkg-config and C compilation
+          shellHook = ''
+            # Ensure C standard library headers are available
+            export NIX_CFLAGS_COMPILE="-isystem ${pkgs.glibc.dev}/include $NIX_CFLAGS_COMPILE"
+
+            # Set up library paths for runtime linking
+            # Nix automatically sets up library paths, but we ensure SDL2/X11 are available
+            export LD_LIBRARY_PATH="${pkgs.openssl.out}/lib:${
+              pkgs.lib.makeLibraryPath (
+                with pkgs-stable;
+                [
+                  openssl
+                ]
+              )
+            }:$LD_LIBRARY_PATH"
+
+            # Set up PKG_CONFIG_PATH
+            export PKG_CONFIG_PATH="${
+              pkgs.lib.makeSearchPath "lib/pkgconfig" (
+                with pkgs;
+                [
+                ]
+              )
+            }:$PKG_CONFIG_PATH"
+          '';
+        };
+      }
+    );
 }

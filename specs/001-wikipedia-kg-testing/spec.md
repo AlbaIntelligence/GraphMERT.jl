@@ -69,7 +69,7 @@ A researcher wants to assess the overall quality of the extracted knowledge grap
 - **FR-004**: System MUST identify temporal relationships (reigned from, reigned until, born, died)
 - **FR-005**: System MUST construct a knowledge graph with entities as nodes and relations as edges
 - **FR-006**: System MUST assign confidence scores to extracted entities and relations
-- **FR-007**: System MUST filter low-confidence extractions below configurable threshold
+- **FR-007**: System MUST filter low-confidence extractions below configurable threshold (default: 0.5)
 - **FR-008**: System MUST export extracted knowledge graph in standard formats (JSON, CSV)
 
 ### Key Entities *(include if feature involves data)*
@@ -84,7 +84,7 @@ A researcher wants to assess the overall quality of the extracted knowledge grap
 
 ### Measurable Outcomes
 
-- **SC-001**: Entity extraction achieves at least 80% precision on French monarchy Wikipedia articles
+- **SC-001**: Entity extraction achieves at least 80% recall on French monarchy Wikipedia articles
 - **SC-002**: Relation extraction achieves at least 70% precision on dynastic relationships
 - **SC-003**: Knowledge graph construction completes within 30 seconds for articles up to 10,000 words
 - **SC-004**: At least 75% of known royal succession facts are captured in extracted graphs

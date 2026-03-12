@@ -13,6 +13,7 @@ Key concepts demonstrated:
 """
 
 using GraphMERT
+using GraphMERT:Entity
 using Statistics: mean
 
 println("=== Basic Entity Extraction Demo (Domain System) ===\n")

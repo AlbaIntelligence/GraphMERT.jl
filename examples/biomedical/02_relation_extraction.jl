@@ -13,6 +13,7 @@ Key concepts demonstrated:
 """
 
 using GraphMERT
+using GraphMERT:Entity
 using Statistics: mean
 
 println("=== Relation Extraction Demo (Domain System) ===\n")
