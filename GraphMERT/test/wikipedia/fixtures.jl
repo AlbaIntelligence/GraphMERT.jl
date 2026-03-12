@@ -9,8 +9,7 @@ using GraphMERT
 # Test configuration
 const TEST_CONF = Dict(
     :confidence_threshold => 0.5,
-    :max_entities => 100,
-    :max_relations => 100,
+    :max_length => 2048,
     :domain => "wikipedia"
 )
 
@@ -21,8 +20,9 @@ function create_test_options(; confidence_threshold=0.5)
     return ProcessingOptions(
         domain="wikipedia",
         confidence_threshold=confidence_threshold,
-        max_entities=100,
-        max_relations=100
+        max_length=2048,
+        batch_size=32,
+        verbose=true
     )
 end
 
@@ -30,15 +30,6 @@ end
 Setup function to run before each test
 """
 function setup_wikipedia_tests()
-    # Load Wikipedia domain
-    try
-        include(joinpath(@__DIR__, "..", "..", "src", "domains", "wikipedia.jl"))
-        @info "Wikipedia domain loaded"
-    catch e
-        @warn "Could not load Wikipedia domain: $e"
-    end
-    
-    # Register domain if not already registered
     if !GraphMERT.has_domain("wikipedia")
         try
             domain = GraphMERT.load_wikipedia_domain()

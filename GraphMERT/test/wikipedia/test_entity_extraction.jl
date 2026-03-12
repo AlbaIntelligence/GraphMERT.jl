@@ -22,7 +22,7 @@ include("fixtures.jl")
         # Try to extract entities
         if GraphMERT.has_domain("wikipedia")
             domain = GraphMERT.get_domain("wikipedia")
-            entities = GraphMERT.extract_entities(domain, text, options)
+            entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
             # Basic validation
             @test length(entities) > 0 "Should extract at least one entity"
@@ -49,7 +49,7 @@ include("fixtures.jl")
         
         if GraphMERT.has_domain("wikipedia")
             domain = GraphMERT.get_domain("wikipedia")
-            entities = GraphMERT.extract_entities(domain, text, options)
+            entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
             @test length(entities) > 0 "Should extract at least one entity"
             
@@ -68,7 +68,7 @@ include("fixtures.jl")
         
         if GraphMERT.has_domain("wikipedia")
             domain = GraphMERT.get_domain("wikipedia")
-            entities = GraphMERT.extract_entities(domain, text, options)
+            entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
             @test length(entities) > 0 "Should extract at least one entity"
             
@@ -88,7 +88,7 @@ include("fixtures.jl")
         
         if GraphMERT.has_domain("wikipedia")
             domain = GraphMERT.get_domain("wikipedia")
-            entities = GraphMERT.extract_entities(domain, text, options)
+            entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
             # Check confidence scores are in valid range
             for ent in entities
@@ -109,7 +109,7 @@ include("fixtures.jl")
         
         if GraphMERT.has_domain("wikipedia")
             domain = GraphMERT.get_domain("wikipedia")
-            entities = GraphMERT.extract_entities(domain, text, options)
+            entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
             # Check for different entity types
             types = unique([e.entity_type for e in entities])
