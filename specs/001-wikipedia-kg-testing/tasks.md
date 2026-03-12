@@ -104,7 +104,7 @@ description: Task list for Wikipedia KG Testing feature
 - [X] T020 [US3] Verify relation precision exceeds 70% threshold (SC-002)
 - [X] T021 [US3] Verify 75% of known facts captured (SC-004)
 - [X] T022 [US3] Verify confidence scoring AUC > 0.7 (SC-005)
-- [X] T023 [US3] Test batch processing of 20 articles (SC-006)
+- [X] T023 [US3] Test batch processing of 30 articles (SC-006)
 
 ### Polish Phase
 
