@@ -10,6 +10,7 @@ Tasks: T018, T019, T020, T021, T022, T023
 push!(LOAD_PATH, joinpath(@__DIR__, "..", ".."))
 using GraphMERT
 using Random
+using Statistics
 
 const TEST_RANDOM_SEED = 42
 
@@ -253,6 +254,21 @@ function run_quality_assessment()
     
     Random.seed!(TEST_RANDOM_SEED)
     
+    println("\n[Setup] Loading Wikipedia domain...")
+    
+    if !GraphMERT.has_domain("wikipedia")
+        try
+            domain = GraphMERT.load_wikipedia_domain()
+            GraphMERT.register_domain!("wikipedia", domain)
+            println("[Setup] Wikipedia domain registered successfully")
+        catch e
+            println("[ERROR] Could not load Wikipedia domain: $e")
+            return false
+        end
+    end
+    
+    domain = GraphMERT.get_domain("wikipedia")
+    
     println("\n[T018] Running full extraction pipeline on $(length(FRENCH_KINGDOM_ARTICLES)) articles...")
     
     all_entities = []
@@ -268,7 +284,7 @@ function run_quality_assessment()
         )
         
         entities = try
-            extract_entities(nothing, text, options)
+            Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
         catch e
             println("  Warning: Entity extraction failed for article $i: $e")
             []
