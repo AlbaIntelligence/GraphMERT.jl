@@ -23,6 +23,7 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 
 ## 1.1 Quick snapshot for agents
 
+- **Project status**: See `reports/PROJECT_STATUS.md` for comprehensive status overview (required reading).
 - Domains: biomedical and Wikipedia modules exist, but domain-level `extract_entities` / `extract_relations` are still partially stubbed; extraction falls back to heuristics when domains are not registered or fail.
 - Tests: core extraction unit tests (`test_extraction.jl`) pass; `test_api.jl` and the full `runtests.jl` suite still have known failures (domain wiring, model persistence). See `reports/CODE_REVIEW.md` for the latest list.
 - Model: RoBERTa + H-GAT + leafy chain are implemented; MNM forward pass, seed injection, and some evaluation and domain helpers are still incomplete.

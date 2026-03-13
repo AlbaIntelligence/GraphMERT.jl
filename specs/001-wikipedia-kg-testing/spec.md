@@ -47,7 +47,7 @@ A researcher wants to assess the overall quality of the extracted knowledge grap
 
 **Acceptance Scenarios**:
 
-1. **Given** extracted knowledge graph from 10 French monarchy articles, **When** quality metrics are computed, **Then** precision exceeds 70%
+1. **Given** extracted knowledge graph from 30 French monarchy articles, **When** quality metrics are computed, **Then** precision exceeds 70%
 2. **Given** extracted knowledge graph, **When** compared against known facts (e.g., "Louis XIV reigned 1643-1715"), **Then** at least 80% of facts are correctly captured
 
 ---
@@ -89,7 +89,15 @@ A researcher wants to assess the overall quality of the extracted knowledge grap
 - **SC-003**: Knowledge graph construction completes within 30 seconds for articles up to 10,000 words
 - **SC-004**: At least 75% of known royal succession facts are captured in extracted graphs
 - **SC-005**: Confidence scoring correctly identifies high-quality extractions (AUC > 0.7)
-- **SC-006**: System handles at least 20 Wikipedia articles in a single batch without errors
+- **SC-006**: System handles at least 30 Wikipedia articles in a single batch without errors
+
+---
+
+## Clarifications
+
+### Session 2026-03-12
+
+- Q: How many Wikipedia articles should be added to make tests more interesting? → A: 30+ articles
 
 ---
 

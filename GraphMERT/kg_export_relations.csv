@@ -1,0 +1,2 @@
+relation_type,confidence,head_text,head_label,head_id,tail_text,tail_label,tail_id
+SPOUSE_OF,0.95,entity_3_16558720041161125157,,,entity_2_6742436781565161232,,
