@@ -19,8 +19,40 @@ All entity and relation extraction uses domain providers for domain-specific log
 
 # using DocStringExtensions  # Temporarily disabled
 
+# Import LLM client types from main module for backend selection
+using ...GraphMERT: HelperLLMClient, HelperLLMConfig, create_helper_llm_client
+using ...GraphMERT: LocalLLMClient, LocalLLMConfig, load_model as load_local_model
+
 # These functions have been moved to domain providers
 # Use domain.extract_entities() and domain.calculate_entity_confidence() instead
+
+
+"""
+    _create_llm_client(options::ProcessingOptions)
+
+Create an LLM client based on processing options.
+
+# Arguments
+- `options::ProcessingOptions`: Processing options containing use_local/local_config or use_ollama/ollama_config
+
+# Returns
+- `Union{LocalLLMClient, OllamaLLMClient, HelperLLMClient, Nothing}`: LLM client instance, or nothing if no client needed
+"""
+function _create_llm_client(options::GraphMERT.ProcessingOptions)
+    if options.use_ollama
+        if options.ollama_config === nothing
+            throw(ArgumentError("ollama_config must be provided when use_ollama is true"))
+        end
+        return GraphMERT.OllamaClient.OllamaLLMClient(options.ollama_config)
+    elseif options.use_local
+        if options.local_config === nothing
+            throw(ArgumentError("local_config must be provided when use_local is true"))
+        end
+        return load_local_model(options.local_config)
+    else
+        return nothing
+    end
+end
 
 
 """
@@ -256,6 +288,13 @@ function extract_knowledge_graph(
 
   @info "Starting knowledge graph extraction from text of length $(length(text)) with domain: $(options.domain)"
 
+  # Create LLM client based on options (local or cloud)
+  llm_client = _create_llm_client(options)
+  if llm_client !== nothing
+    backend_type = isa(llm_client, LocalLLMClient) ? "LocalLLMClient" : "HelperLLMClient"
+    @info "Using $backend_type for LLM operations"
+  end
+
   # Get domain provider from registry (may be missing during lightweight/API tests)
   domain_provider = GraphMERT.get_domain(options.domain)
   if domain_provider === nothing
@@ -268,7 +307,7 @@ function extract_knowledge_graph(
   end
 
   # Stage 1: Head Discovery using domain provider
-  entities = discover_head_entities(text, domain_provider, options)
+  entities = discover_head_entities(text, domain_provider, options, llm_client)
   @info "Discovered $(length(entities)) entities using domain: $(options.domain)"
 
   # Stage 2: Relation Matching using domain provider
@@ -284,7 +323,7 @@ function extract_knowledge_graph(
     for i in eachindex(triples)
       he, rel_type, _tail_text, conf = triples[i]
       tok_tuples = predict_tail_tokens(model, he, rel_type, text, top_k)
-      possible_tails = form_tail_from_tokens(tok_tuples, text, nothing)
+      possible_tails = form_tail_from_tokens(tok_tuples, text, llm_client)
       if !isempty(possible_tails)
         triples[i] = (he, rel_type, possible_tails[1], conf)
       end
@@ -294,6 +333,7 @@ function extract_knowledge_graph(
   end
 
   # Create knowledge graph
+  llm_backend = llm_client === nothing ? "none" : (isa(llm_client, LocalLLMClient) ? "local" : "cloud")
   return GraphMERT.KnowledgeGraph(
     entities,
     relations,
@@ -305,6 +345,7 @@ function extract_knowledge_graph(
       "num_relations" => length(relations),
       "num_triples" => length(relations),
       "source_text" => text,
+      "llm_backend" => llm_backend,
     ),
   )
 end
@@ -359,9 +400,11 @@ end
 
 """
     discover_head_entities(text::String, domain::DomainProvider,
-                           options::ProcessingOptions=default_processing_options())
+                           options::ProcessingOptions=default_processing_options(),
+                           llm_client::Any=nothing)
 
 Stage 1: Head Discovery – extract entities from text using a domain provider.
+If llm_client is provided and options.use_local is true, uses LLM-based extraction.
 
 Returns a `Vector{Entity}` produced by the domain's `extract_entities` implementation.
 """
@@ -369,7 +412,19 @@ function discover_head_entities(
   text::String,
   domain::Any,
   options::GraphMERT.ProcessingOptions = GraphMERT.default_processing_options(),
+  llm_client::Any=nothing,
 )
+  # If llm_client is provided and options.use_local or use_ollama is true, use LLM-based extraction
+  if llm_client !== nothing && (options.use_local || options.use_ollama)
+    try
+      # Pass llm_client to domain for LLM-based entity discovery
+      return Base.invokelatest(GraphMERT.extract_entities, domain, text, options, llm_client)
+    catch e
+      @warn "LLM entity extraction failed: $e, falling back to domain extraction."
+    end
+  end
+  
+  # Default: use domain's extract_entities
   try
     # Use invokelatest so concrete domain methods (e.g. BiomedicalDomain) are selected after load
     return Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
