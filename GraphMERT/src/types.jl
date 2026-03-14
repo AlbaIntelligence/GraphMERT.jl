@@ -7,6 +7,7 @@ the GraphMERT implementation.
 
 using Dates
 using SparseArrays
+
 # using DocStringExtensions  # Temporarily disabled
 
 # ============================================================================
@@ -627,6 +628,10 @@ struct ProcessingOptions
   parallel_processing::Bool
   verbose::Bool
   domain::String
+  use_local::Bool
+  local_config::Any  # Union{LocalLLMConfig, Nothing} - typed as Any to avoid circular dep
+  use_ollama::Bool
+  ollama_config::Any  # Union{OllamaConfig, Nothing} - typed as Any to avoid circular dep
 
   function ProcessingOptions(;
     max_length::Int=1024,
@@ -646,8 +651,18 @@ struct ProcessingOptions
     cache_enabled::Bool=true,
     parallel_processing::Bool=false,
     verbose::Bool=false,
-    domain::String="biomedical",  # Default domain for backward compatibility
+    domain::String="biomedical",
+    use_local::Bool=false,
+    local_config::Any=nothing,  # Any to avoid circular dep with LocalLLMConfig
+    use_ollama::Bool=false,
+    ollama_config::Any=nothing,
   )
+    if use_local && local_config === nothing
+      throw(ArgumentError("local_config must be provided when use_local is true"))
+    end
+    if use_ollama && ollama_config === nothing
+      throw(ArgumentError("ollama_config must be provided when use_ollama is true"))
+    end
     new(
       max_length,
       batch_size,
@@ -667,6 +682,10 @@ struct ProcessingOptions
       parallel_processing,
       verbose,
       domain,
+      use_local,
+      local_config,
+      use_ollama,
+      ollama_config,
     )
   end
 end

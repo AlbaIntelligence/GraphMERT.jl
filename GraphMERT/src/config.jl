@@ -297,10 +297,16 @@ end
         cache_enabled::Bool=true,
         parallel_processing::Bool=false,
         verbose::Bool=false,
-        domain::String="biomedical",  # Default domain for backward compatibility
+        domain::String=\"biomedical\",
+        use_local::Bool=false,
+        local_config::Any=nothing,  # Any to avoid circular dep with LocalLLMConfig
     )::ProcessingOptions
 
 Create default processing options for GraphMERT.
+
+# Arguments
+- `use_local::Bool=false`: Whether to use local LLM instead of cloud
+- `local_config::Any=nothing`: Local model configuration (required if use_local is true)
 
 """
 function default_processing_options(;
@@ -321,7 +327,9 @@ function default_processing_options(;
   cache_enabled::Bool=true,
   parallel_processing::Bool=false,
   verbose::Bool=false,
-  domain::String="biomedical",  # Default domain for backward compatibility
+  domain::String="biomedical",
+  use_local::Bool=false,
+  local_config::Any=nothing,
 )
   return GraphMERT.ProcessingOptions(
     max_length=max_length,
@@ -342,5 +350,7 @@ function default_processing_options(;
     parallel_processing=parallel_processing,
     verbose=verbose,
     domain=domain,
+    use_local=use_local,
+    local_config=local_config,
   )
 end
