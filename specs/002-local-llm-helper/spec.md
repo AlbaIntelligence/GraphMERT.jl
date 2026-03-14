@@ -12,6 +12,12 @@
 - Q: Which open-source LLM model should be used for the local helper LLM? → A: TinyLlama (1.1B params, ~700MB RAM, fastest inference for CPU-only)
 - Q: Which inference engine should be used? → A: LlamaCpp.jl (Julia wrapper around llama.cpp, production-ready, supports GGUF format)
 
+### Session 2026-03-14 (Updated)
+
+- **Model Change**: After testing, lfm2.5-thinking:latest provides best entity extraction quality
+- **Engine Change**: LlamaCpp.jl has version compatibility issues (pinned to incompatible library). Using Ollama HTTP API instead.
+- **Ollama Requirement**: Must be installed outside of nix (CUDA dependency issues in nix environment)
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Enable Offline Knowledge Graph Extraction (Priority: P1)
@@ -79,11 +85,13 @@ A researcher needs the local LLM to produce entity and relation extraction quali
 
 ### Key Entities
 
-- **LocalLLMConfig**: Configuration for the local LLM including model path, context size, and inference parameters
+- **LocalLLMConfig**: Configuration for local GGUF model loading (when LlamaCpp.jl works)
+- **OllamaConfig**: Configuration for Ollama HTTP API client
+- **OllamaLLMClient**: Client for interacting with local Ollama server
 - **ExtractionResult**: Structured output containing extracted entities and relations with confidence scores
 - **ModelRegistry**: Catalog of supported local LLM models with their capabilities and requirements
-- **TinyLlamaModel**: Specific implementation using TinyLlama 1.1B parameters (~700MB RAM footprint)
-- **LlamaCppBackend**: Inference engine using LlamaCpp.jl wrapper around llama.cpp
+- **TinyLlamaModel**: Specific implementation using TinyLlama 1.1B parameters (~700MB RAM footprint) - legacy
+- **lfm2.5-thinking**: Recommended model for entity extraction (best classification accuracy)
 
 ## Success Criteria
 
@@ -98,7 +106,8 @@ A researcher needs the local LLM to produce entity and relation extraction quali
 ## Assumptions
 
 - User has a standard laptop (8GB RAM, 4+ CPU cores, no GPU)
-- The local LLM will use TinyLlama 1.1B model (~700MB RAM footprint)
-- The local LLM will use LlamaCpp.jl (Julia wrapper around llama.cpp) for inference
+- The local LLM will use lfm2.5-thinking:latest model (recommended for entity extraction)
+- The local LLM will use Ollama HTTP API for inference
+- Ollama must be installed outside nix (CUDA dependency issues in nix environment)
 - Model files will be downloaded once and stored locally in GGUF format
 - The implementation will leverage the existing DomainProvider interface for extraction

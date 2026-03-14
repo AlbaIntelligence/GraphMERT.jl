@@ -6,7 +6,11 @@ inputs:
     url: github:numtide/llm-agents.nix
 
 # If you're using non-OSS software, you can set allowUnfree to true.
-# allowUnfree: true
+allowUnfree: true
+
+# Force CPU-only builds so CUDA is not pulled in (avoids broken cuda_compat build on this host).
+nixpkgs:
+  cudaSupport: false
 
 # If you're willing to use a package that's vulnerable
 # permittedInsecurePackages:

@@ -22,8 +22,9 @@
 | 5 | US3 - Quality | 3 tasks |
 | 6 | Polish | 2 tasks |
 | 7 | Integration - Hardcoded vs LLM | 5 tasks |
+| 8 | Performance & Memory | 4 tasks |
 
-**Total**: 28 tasks
+**Total**: 32 tasks
 
 ---
 
@@ -43,7 +44,7 @@ Core types and integration points that all user stories depend on.
 - [X] T003 Define LocalLLMConfig struct in GraphMERT/src/llm/local.jl
 - [X] T004 Define LocalLLMClient struct in GraphMERT/src/llm/local.jl
 - [X] T005 Define ModelMetadata struct in GraphMERT/src/llm/local.jl
-- [X] T006 Add use_local and local_config fields to ProcessingOptions in GraphMERT/src/api/config.jl
+- [X] T006 Add use_local, local_config, use_ollama, and ollama_config fields to ProcessingOptions in GraphMERT/src/types.jl
 - [X] T007 Implement model loading function (load_model) in GraphMERT/src/llm/local.jl
 
 ---
@@ -133,6 +134,19 @@ Core types and integration points that all user stories depend on.
 - [X] T026 [P] [US3] Create Ollama client module for local LLM in GraphMERT/src/llm/ollama.jl
 - [X] T027 [US3] Run comparison on French monarchy articles, document results
 - [X] T028 [US3] Analyze quality findings: recall, new entities discovered, recommendations
+
+---
+
+## Phase 8: Performance & Memory Verification
+
+**Goal**: Verify FR-003 (5-min extraction) and FR-006 (4GB RAM limit)
+
+### Implementation Tasks
+
+- [ ] T029 [P] Add performance benchmark for entity extraction in GraphMERT/test/performance/
+- [ ] T030 Verify extraction completes in under 5 minutes for standard Wikipedia article
+- [ ] T031 Add memory usage verification test for 8GB RAM constraint
+- [ ] T032 Document performance results in quickstart.md
 
 ---
 
