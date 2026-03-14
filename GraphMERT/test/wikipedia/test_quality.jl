@@ -30,10 +30,10 @@ include("fixtures.jl")
             println("  Relations: $(length(relations))")
             
             # Should have both entities and relations
-            @test length(entities) > 0 "Should extract entities"
-            @test length(relations) >= 0 "Should complete relation extraction"
+            @test length(entities) > 0
+            @test length(relations) >= 0
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -67,15 +67,15 @@ include("fixtures.jl")
             print_metrics(metrics)
             
             # SC-003: precision exceeds 70%
-            @test_broken metrics.entity_precision >= 0.70 "Entity precision should be >= 70%"
+            @test_broken metrics.entity_precision >= 0.70
             
             # SC-004: 75% fact capture
-            @test_broken metrics.fact_capture_rate >= 0.75 "Fact capture should be >= 75%"
+            @test_broken metrics.fact_capture_rate >= 0.75
             
             # SC-005: AUC > 0.7
-            @test_broken metrics.confidence_auc >= 0.7 "Confidence AUC should be >= 0.7"
+            @test_broken metrics.confidence_auc >= 0.7
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -108,9 +108,9 @@ include("fixtures.jl")
             println("  Total entities: $total_entities")
             println("  Total relations: $total_relations")
             
-            @test total_entities > 0 "Should extract entities from batch"
+            @test total_entities > 0
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -134,9 +134,9 @@ include("fixtures.jl")
             
             # The test article is much shorter than 10k words
             # Just verify it completes in reasonable time
-            @test elapsed < 10.0 "Should complete in under 10 seconds"
+            @test elapsed < 10.0
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -159,7 +159,7 @@ include("fixtures.jl")
                 end
             end
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -187,7 +187,7 @@ include("fixtures.jl")
             
             # There should be some overlap (like "France", "king", etc.)
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
 end

@@ -30,10 +30,10 @@ include("fixtures.jl")
                 person_count += count(e -> e.entity_type == "PERSON", entities)
             end
             
-            @test person_count > 0 "Should identify at least some person entities"
+            @test person_count > 0
             println("Person entities found: $person_count")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -57,7 +57,7 @@ include("fixtures.jl")
             
             println("Location entities found: $location_count")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -81,7 +81,7 @@ include("fixtures.jl")
             
             println("Title entities found: $title_count")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -107,9 +107,9 @@ include("fixtures.jl")
             
             # At least should have persons
             has_person = any(e -> e.entity_type == "PERSON", entities)
-            @test has_person "Should identify person entities in mixed text"
+            @test has_person
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -133,9 +133,9 @@ include("fixtures.jl")
             println("Entity precision for Louis XIV: $(round(precision * 100, digits=1))%")
             
             # This is the key metric for SC-001
-            @test_broken precision >= 0.80 "Entity precision should be >= 80%"
+            @test_broken precision >= 0.80
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
 end

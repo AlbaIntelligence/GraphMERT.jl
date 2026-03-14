@@ -25,21 +25,21 @@ include("fixtures.jl")
             entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
             # Basic validation
-            @test length(entities) > 0 "Should extract at least one entity"
+            @test length(entities) > 0
             
             # Check for key entities
             entity_texts = [e.text for e in entities]
-            @test "Louis XIV" in entity_texts "Should extract Louis XIV"
+            @test "Louis XIV" in entity_texts
             
             # Check entity types are assigned
             for ent in entities
-                @test !isempty(ent.entity_type) "Entity should have a type"
+                @test !isempty(ent.entity_type)
             end
             
             println("Extracted $(length(entities)) entities from Louis XIV article")
             println("Entity types: $(unique([e.entity_type for e in entities]))")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -51,14 +51,14 @@ include("fixtures.jl")
             domain = GraphMERT.get_domain("wikipedia")
             entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
-            @test length(entities) > 0 "Should extract at least one entity"
+            @test length(entities) > 0
             
             entity_texts = [e.text for e in entities]
-            @test "Henry IV" in entity_texts "Should extract Henry IV"
+            @test "Henry IV" in entity_texts
             
             println("Extracted $(length(entities)) entities from Henry IV article")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -70,15 +70,15 @@ include("fixtures.jl")
             domain = GraphMERT.get_domain("wikipedia")
             entities = Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
             
-            @test length(entities) > 0 "Should extract at least one entity"
+            @test length(entities) > 0
             
             entity_texts = [e.text for e in entities]
-            @test "Marie Antoinette" in entity_texts "Should extract Marie Antoinette"
-            @test "Louis XVI" in entity_texts "Should extract Louis XVI"
+            @test "Marie Antoinette" in entity_texts
             
+            @test "Louis XVI" in entity_texts
             println("Extracted $(length(entities)) entities from Marie Antoinette article")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -92,14 +92,14 @@ include("fixtures.jl")
             
             # Check confidence scores are in valid range
             for ent in entities
-                @test 0.0 <= ent.confidence <= 1.0 "Confidence should be between 0 and 1"
+                @test 0.0 <= ent.confidence <= 1.0
             end
             
             # Check filtering works
             high_conf = filter(e -> e.confidence >= 0.8, entities)
             println("High confidence entities (>= 0.8): $(length(high_conf))")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -116,11 +116,11 @@ include("fixtures.jl")
             
             # Should have person entities
             has_person = any(e -> e.entity_type == "PERSON", entities)
-            @test has_person "Should identify PERSON entities"
+            @test has_person
             
             println("Found entity types: $types")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
 end

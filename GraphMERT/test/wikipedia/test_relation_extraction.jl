@@ -28,13 +28,13 @@ include("fixtures.jl")
             println("Extracted $(length(relations)) relations from spouse text")
             
             # Should find some relations
-            @test length(relations) >= 0 "Relation extraction should complete"
+            @test length(relations) >= 0
             
             # Check for spouse-like relations
             rel_types = [r.relation_type for r in relations]
             println("Relation types found: $rel_types")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -55,7 +55,7 @@ include("fixtures.jl")
             has_parent = any(r -> occursin("parent", lowercase(r.relation_type)), relations)
             println("Has parent relation: $has_parent")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -72,7 +72,7 @@ include("fixtures.jl")
             
             println("Dynastic: extracted $(length(relations)) relations")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -94,7 +94,7 @@ include("fixtures.jl")
             has_temporal = any(r -> r.relation_type in temporal_types, relations)
             println("Has temporal relation: $has_temporal")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -122,12 +122,12 @@ include("fixtures.jl")
                 println("Relation precision: $(round(precision * 100, digits=1))%")
                 
                 # This is the key metric for SC-002
-                @test_broken precision >= 0.70 "Relation precision should be >= 70%"
+                @test_broken precision >= 0.70
             else
                 println("Skipping precision test - no relations extracted")
             end
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
     
@@ -143,12 +143,12 @@ include("fixtures.jl")
             
             # Check confidence scores
             for rel in relations
-                @test 0.0 <= rel.confidence <= 1.0 "Confidence should be between 0 and 1"
+                @test 0.0 <= rel.confidence <= 1.0
             end
             
             println("All $(length(relations)) relations have valid confidence scores")
         else
-            @skip "Wikipedia domain not available"
+            @test_skip true
         end
     end
 end
