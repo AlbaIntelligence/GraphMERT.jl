@@ -2,45 +2,43 @@
 
 **Date**: 2026-03-13  
 **Feature**: Local LLM Helper for GraphMERT
+**Updated**: 2026-03-15 (reflects actual implementation)
 
 ---
 
 ## Decision 1: LLM Model Selection
 
-**Decision**: TinyLlama 1.1B
+**Decision**: lfm2.5-thinking:latest (recommended)
 
 **Rationale**:
-- Smallest viable model (~700MB RAM footprint) suitable for 8GB laptop
-- Fastest inference among quality options for CPU-only
-- GGUF format support for llama.cpp
-- Good enough quality for entity/relation extraction tasks (70% recall target)
+- Best entity extraction quality among tested models
+- Excellent classification accuracy for people, places, organizations
+- Good reasoning capabilities for relation extraction
+- ~4GB model size (within 8GB laptop constraint)
 
-**Alternatives Considered**:
-| Model | Size | RAM | Rejected Because |
-|-------|------|-----|------------------|
-| Llama-2-7B | 7B | ~16GB | Exceeds laptop RAM |
-| Phi-2 | 2.7B | ~3GB | Good but larger than TinyLlama |
-| Qwen2-0.5B | 0.5B | ~600MB | Too small, quality insufficient |
+**Alternatives Tested**:
+| Model | Entities Found | Classification | Status |
+|-------|---------------|----------------|--------|
+| lfm2.5-thinking | 6 | Excellent | ✅ Recommended |
+| ministral-3 | 4 | Good (misclassifies) | ⚠️ Alternative |
+| qwen3:0.6b | 1 | Poor (concatenates) | ❌ Rejected |
 
 ---
 
 ## Decision 2: Inference Engine
 
-**Decision**: LlamaCpp.jl (Julia wrapper around llama.cpp)
+**Decision**: Ollama HTTP API (replaced LlamaCpp.jl)
 
 **Rationale**:
-- Only production-ready Julia inference option
-- Actively maintained (v0.5.0, Feb 2025)
-- Supports GGUF format (required for TinyLlama)
-- No external runtime dependencies (uses llama_cpp_jll.jl binary)
-- Cross-platform: Linux, macOS, x86_64 and ARM
+- LlamaCpp.jl has version compatibility issues (pinned to incompatible llama_cpp_jll v0.0.17)
+- Ollama provides stable HTTP API
+- Easy to install (outside nix due to CUDA dependencies)
+- Supports multiple models including lfm2.5-thinking
 
-**Alternatives Considered**:
-| Option | Status | Rejected Because |
-|--------|--------|------------------|
-| Pure Julia (Llama2.jl) | Experimental | Educational only, not production-ready |
-| llama.cpp via HTTP | Possible | Adds latency, more complex |
-| llama.cpp direct | Possible | Less idiomatic Julia |
+**Rejection of LlamaCpp.jl**:
+- Package pinned to incompatible library version
+- Cannot load GGUF models due to JLL mismatch
+- Ollama provides reliable alternative with HTTP interface
 
 ---
 

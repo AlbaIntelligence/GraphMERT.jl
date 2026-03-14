@@ -143,10 +143,10 @@ Core types and integration points that all user stories depend on.
 
 ### Implementation Tasks
 
-- [ ] T029 [P] Add performance benchmark for entity extraction in GraphMERT/test/performance/
-- [ ] T030 Verify extraction completes in under 5 minutes for standard Wikipedia article
-- [ ] T031 Add memory usage verification test for 8GB RAM constraint
-- [ ] T032 Document performance results in quickstart.md
+- [X] T029 [P] Add performance benchmark for entity extraction in GraphMERT/test/performance/
+- [X] T030 Verify extraction completes in under 5 minutes for standard Wikipedia article
+- [X] T031 Add memory usage verification test for 8GB RAM constraint
+- [X] T032 Document performance results in quickstart.md
 
 ---
 

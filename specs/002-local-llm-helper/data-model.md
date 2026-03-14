@@ -2,14 +2,38 @@
 
 **Feature**: Local LLM Helper for GraphMERT  
 **Date**: 2026-03-13
+**Updated**: 2026-03-15 (Ollama implementation)
 
 ---
 
 ## Entities
 
-### LocalLLMConfig
+### OllamaConfig
 
-Configuration for local LLM inference.
+Configuration for Ollama HTTP API client.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model` | String | Yes | Ollama model name (default: "lfm2.5-thinking:latest") |
+| `base_url` | String | No | Ollama server URL (default: "http://localhost:11434") |
+| `timeout` | Int | No | Request timeout in seconds (default: 120) |
+
+---
+
+### OllamaLLMClient
+
+Client for Ollama HTTP API.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `config` | OllamaConfig | Configuration |
+| `session` | HTTP.Client | HTTP session |
+
+---
+
+### LocalLLMConfig (legacy)
+
+Configuration for local GGUF model (when LlamaCpp.jl is fixed).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -22,79 +46,34 @@ Configuration for local LLM inference.
 
 ---
 
-### LocalLLMClient
-
-Client for local LLM inference.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `config` | LocalLLMConfig | Configuration |
-| `model` | LlamaCpp.jl model handle | Loaded model instance |
-| `cache` | HelperLLMCache | Response cache (optional) |
-
----
-
-### ModelMetadata
-
-Metadata about available local models.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | String | Model display name |
-| `filename` | String | GGUF filename |
-| `params` | Int | Parameter count |
-| `quantization` | String | Quantization level (Q4_0, Q5_1, etc.) |
-| `ram_estimate` | Int | Estimated RAM in MB |
-| `context_length` | Int | Context window |
-
----
-
 ## Relationships
 
 ```
-LocalLLMClient
-    ├── uses ──► LocalLLMConfig
-    ├── loads ──► GGUF Model File
-    └── optionally uses ──► HelperLLMCache (existing)
+OllamaLLMClient
+    ├── uses ──► OllamaConfig
+    └── calls ──► Ollama HTTP API (http://localhost:11434)
 ```
 
 ---
 
 ## State Transitions
 
-### Model Loading
+### Model Loading (Ollama)
 ```
-Unloaded → Loading → Ready → (error) → Failed
-                        ↓
-                     Running
+Unloaded → Connecting → Ready → Running
+                              → Failed (connection error)
 ```
 
 ### Inference
 ```
 Ready → Processing → Ready (success)
-                  → Failed (error)
+                   → Failed (error)
 ```
 
 ---
 
-## Validation Rules
+## Validation Rules (OllamaConfig)
 
-1. `model_path` must point to existing GGUF file
-2. `context_length` must be power of 2 ≤ 8192
-3. `threads` must be ≥ 1 ≤ CPU count
-4. `temperature` must be ≥ 0.0 ≤ 2.0
-5. `max_tokens` must be ≥ 1 ≤ 4096
-
----
-
-## Integration with Existing Types
-
-The `LocalLLMClient` must implement the same interface as `HelperLLMClient`:
-
-| Method | Description |
-|--------|-------------|
-| `discover_entities(client, text, domain)` | Extract entities from text |
-| `match_relations(client, entities, text)` | Find relations between entities |
-| `form_tail_from_tokens(client, tokens, text)` | Form coherent tails |
-
-This allows drop-in replacement via `ProcessingOptions(use_local=true, local_config=...)`.
+1. `model` must be a valid Ollama model name
+2. `base_url` must be a valid HTTP URL
+3. `timeout` must be ≥ 1 second

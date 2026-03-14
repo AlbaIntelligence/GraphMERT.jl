@@ -111,6 +111,43 @@ println("FActScore: $(fact_score)")
 println("ValidityScore: $(validity_score)")
 ```
 
+## Quality Comparison
+
+Compare local LLM extraction quality against external API baseline:
+
+```julia
+using GraphMERT
+
+local_config = LocalLLMConfig(;
+    model_path="/path/to/tinyllama-1.1b.gguf",
+    temperature=0.2,
+    context_length=4096,
+    max_tokens=512
+)
+
+articles = [
+    ("article1", "First article text..."),
+    ("article2", "Second article text..."),
+    # Add more articles as needed
+]
+
+result = run_batch_comparison(articles, local_config)
+
+println("Average recall: $(round(result.average_recall * 100, digits=1))%")
+println("Pass rate: $(round(result.pass_rate * 100, digits=1))%")
+```
+
+**Success Criteria:**
+- SC-003: Entity recall ≥ 70% compared to external API baseline
+- SC-004: Entity overlap ≥ 80% on 50 articles
+
+If quality is below threshold, try tuning:
+- **Temperature**: Lower (0.1-0.3) for more deterministic output
+- **Context length**: Increase to 4096+ for complex articles
+- **Max tokens**: Increase to 512-1024 for longer entity names
+
+See `GraphMERT/test/local/test_quality_comparison.jl` for detailed usage.
+
 ## Next Steps
 
 - [Core Concepts](user_guide/core_concepts.md) - Learn more about core functionality
