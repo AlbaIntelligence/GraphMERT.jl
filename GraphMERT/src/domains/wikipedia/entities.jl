@@ -8,19 +8,27 @@ for general knowledge entities (people, places, organizations, concepts, etc.).
 # Types assumed to be available in global scope when included
 
 """
-    extract_wikipedia_entities(text::String, config::ProcessingOptions, domain::WikipediaDomain)
+    extract_wikipedia_entities(text::String, config::ProcessingOptions, domain::WikipediaDomain, llm_client::Any=nothing)
 
-Extract Wikipedia entities from text using pattern matching.
+Extract Wikipedia entities from text using pattern matching or LocalLLM.
+If llm_client is provided, uses LocalLLM for entity discovery instead of hardcoded list.
 
 # Arguments
 - `text::String`: Input text
 - `config::ProcessingOptions`: Processing options
 - `domain::WikipediaDomain`: Domain provider instance
+- `llm_client::Any`: Optional LocalLLM client for LLM-based extraction
 
 # Returns
 - `Vector{Entity}`: Extracted entities
 """
-function extract_wikipedia_entities(text::String, config::ProcessingOptions, domain::WikipediaDomain)
+function extract_wikipedia_entities(text::String, config::ProcessingOptions, domain::WikipediaDomain, llm_client::Any=nothing)
+    # If llm_client is provided, use LLM for entity discovery (LocalLLM or Ollama)
+    if llm_client !== nothing && (config.use_local || config.use_ollama)
+        return _extract_entities_with_llm(text, config, domain, llm_client)
+    end
+    
+    # Default: use hardcoded entity list
     entities = Vector{Entity}()
     
     # Known entities for French monarchy domain - high confidence
@@ -329,6 +337,112 @@ function validate_wikipedia_entity(entity_text::String, entity_type::String, con
     end
     
     return true
+end
+
+"""
+    _extract_entities_with_llm(text, config, domain, llm_client)
+
+Extract entities using LocalLLM or Ollama client.
+"""
+function _extract_entities_with_llm(text::String, config::ProcessingOptions, domain::WikipediaDomain, llm_client::Any)
+    entities = Vector{Entity}()
+    
+    try
+        # Use the appropriate LLM client to discover entities
+        if isa(llm_client, GraphMERT.LocalLLM.LocalLLMClient)
+            entity_texts = GraphMERT.LocalLLM.discover_entities(llm_client, text, "wikipedia")
+        elseif isa(llm_client, GraphMERT.OllamaClient.OllamaLLMClient)
+            entity_texts = GraphMERT.OllamaClient.discover_entities(llm_client, text, "wikipedia")
+        else
+            throw(ArgumentError("Unknown LLM client type: $(typeof(llm_client))"))
+        end
+        
+        @info "LLM discovered $(length(entity_texts)) entities"
+        
+        # Convert to Entity objects
+        entity_id = 1
+        for entity_text in entity_texts
+            # Try to classify the entity type using patterns
+            entity_type = _classify_entity_type(entity_text)
+            
+            pos = findfirst(entity_text, text)
+            start_pos = pos !== nothing ? first(pos) : 1
+            end_pos = pos !== nothing ? last(pos) : length(entity_text)
+            
+            # Use slightly lower confidence for LLM-extracted entities
+            confidence = 0.7
+            
+            entity = Entity(
+                "entity_llm_$(entity_id)_$(hash(entity_text))",
+                entity_text,
+                entity_text,
+                entity_type,
+                "wikipedia",
+                Dict{String, Any}(
+                    "confidence" => confidence,
+                    "extracted_by" => "llm",
+                ),
+                TextPosition(start_pos, end_pos, 1, 1),
+                confidence,
+                text,
+            )
+            push!(entities, entity)
+            entity_id += 1
+        end
+    catch e
+        @warn "LLM entity extraction failed: $e. Falling back to hardcoded list."
+        # Fall back to hardcoded entities
+        return extract_wikipedia_entities(text, config, domain, nothing)
+    end
+    
+    return entities
+end
+
+"""
+    _classify_entity_type(entity_text::String)
+
+Classify entity type based on patterns.
+"""
+function _classify_entity_type(entity_text::String)
+    # Check for person names (multi-word, capitalized)
+    if occursin(r"^[A-Z][a-z]+(\s+[A-Z][a-z]+)+$", entity_text)
+        # Check for royal names
+        if occursin(r"^(Louis|Henry|Charles|Francis|Philip|Marie|Anne|Catherine|Margaret)\b", entity_text)
+            return "PERSON"
+        end
+        return "PERSON"
+    end
+    
+    # Check for known locations
+    known_cities = ["Paris", "Versailles", "London", "Rome", "Madrid", "Berlin", "Vienna", "Pau", "Blois", "Reims", "Fontainebleau", "Saint-Germain-en-Laye"]
+    if entity_text in known_cities
+        return "CITY"
+    end
+    
+    # Check for countries
+    known_countries = ["France", "Spain", "Austria", "England", "Germany", "Italy"]
+    if entity_text in known_countries
+        return "COUNTRY"
+    end
+    
+    # Check for organizations/dynasties
+    known_orgs = ["Bourbon", "Valois", "Capetian", "Orléans", "House of Bourbon", "House of Valois"]
+    if entity_text in known_orgs || occursin(r"(University|College|Corp|Inc)$", entity_text)
+        return "ORGANIZATION"
+    end
+    
+    # Check for events
+    known_events = ["French Revolution", "War of the Spanish Succession"]
+    if entity_text in known_events
+        return "EVENT"
+    end
+    
+    # Check for titles
+    if occursin(r"\bKing|Queen|Queen|King|Dauphin\b", entity_text)
+        return "TITLE"
+    end
+    
+    return "CONCEPT"
 end
 
 """

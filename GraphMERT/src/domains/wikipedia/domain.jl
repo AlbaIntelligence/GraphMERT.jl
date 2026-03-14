@@ -120,13 +120,14 @@ function register_relation_types(domain::WikipediaDomain)
 end
 
 """
-    extract_entities(domain::WikipediaDomain, text::String, config::ProcessingOptions)
+    extract_entities(domain::WikipediaDomain, text::String, config::ProcessingOptions, llm_client::Any=nothing)
 
 Extract Wikipedia entities from text.
+If llm_client is provided, uses LocalLLM for entity discovery.
 """
-function extract_entities(domain::WikipediaDomain, text::String, config::Any)
-    # Delegate to Wikipedia entities module
-    return extract_wikipedia_entities(text, config, domain)
+function extract_entities(domain::WikipediaDomain, text::String, config::Any, llm_client::Any=nothing)
+    # Delegate to Wikipedia entities module, passing llm_client
+    return extract_wikipedia_entities(text, config, domain, llm_client)
 end
 
 """
