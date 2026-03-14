@@ -24,6 +24,11 @@ in
       amp-cli
       bash # Required by Speckit scripts
       vscode
+
+      # LLM - Ollama for local inference (CPU only; cudaSupport disabled in devenv.yaml)
+      ollama-cpu
+      # vllm
+      # llama-cpp  # Disabled: pulls in CUDA by default; enable only if you set up CUDA or use override
     ])
     ++ (with llmsPkgs; [
       cursor-agent
@@ -39,14 +44,25 @@ in
   languages.julia.enable = true;
 
   # https://devenv.sh/processes/
-  # processes.dev.exec = "${lib.getExe pkgs.watchexec} -n -- ls -la";
-
-  # https://devenv.sh/services/
-  # services.postgres.enable = true;
+  # Run ollama as a process. (services.ollama is a NixOS-only option; devenv has no built-in ollama service.)
+  processes.ollama = {
+    exec = ''
+      export OLLAMA_MODELS="''${HOME:-/tmp}/.ollama/models"
+      export OLLAMA_KEEP_ALIVE="1h"
+      export OLLAMA_LLM_LIBRARY="cpu"
+      export OLLAMA_HOST="127.0.0.1:11434"
+      ${lib.getExe pkgs.ollama-cpu} serve
+    '';
+    ready = {
+      http.get = { port = 11434; path = "/"; };
+      initial_delay = 2;
+    };
+  };
+  # open-webui is not a built-in devenv service; run it manually or add a process if needed.
 
   # https://devenv.sh/scripts/
   scripts.hello.exec = ''
-    echo Welcome to your DEVENV development environment. 
+    echo Welcome to your DEVENV development environment.
     echo
   '';
 
