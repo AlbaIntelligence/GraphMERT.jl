@@ -68,12 +68,20 @@ module GraphMERT
 using Dates
 # using DocStringExtensions  # Temporarily disabled
 
-# Core modules
+# Core modules first (types needed by other modules)
 include("types.jl")
-include("exceptions.jl")
 include("config.jl")
-include("utils.jl")
-include("testing/progressive.jl")
+
+# LLM integration
+include("llm/local.jl")
+include("llm/helper.jl")
+include("llm/ollama.jl")
+
+# Re-export from LocalLLM module
+using .LocalLLM: LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_model
+
+# Re-export from Ollama module
+using .OllamaClient: OllamaConfig, OllamaClient, start_server, stop_server, is_available
 
 # Domain abstraction layer
 include("domains/interface.jl")
@@ -100,9 +108,6 @@ include("models/persistence.jl")
 include("text/tokenizer.jl")
 # Note: Domain-specific text processing (e.g., text/pubmed.jl) should be
 # included by domain modules, not here in the core module
-
-# LLM integration
-include("llm/helper.jl")
 
 # Training
 include("training/mlm.jl")
@@ -165,6 +170,10 @@ export load_wikipedia_domain, load_biomedical_domain
 # Export helper LLM functions
 export create_helper_llm_client, discover_entities, match_relations
 export discover_entities_batch, match_relations_batch
+
+# Export local LLM functions
+export LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_model
+export OllamaConfig, OllamaLLMClient, start_server, stop_server, is_available
 
 # Note: Domain-specific exports (UMLS, PubMed, biomedical graph functions) should be
 # exported by domain modules, not here in the core module
