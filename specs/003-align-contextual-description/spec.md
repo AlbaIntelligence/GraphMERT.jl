@@ -5,6 +5,13 @@
 **Status**: Draft  
 **Input**: User description: "Substantially improve our project to reflect the interesting description in Contextual_information.md. Ask questions."
 
+## Clarifications
+
+### Session 2026-03-15
+
+- Q: Is RoBERTa now used? → A: Yes. RoBERTa is in the extraction path by design: load_model returns a full GraphMERTModel (RoBERTa + H-GAT), and extraction invokes the encoder when model isa GraphMERTModel. Full end-to-end tail-prediction inference may still require implementation fixes (e.g. predict_tail_tokens signature); encoder wiring is verified by design and tests.
+- Q: Where is the RoBERTa model stored? → A: On disk at a user-provided path. Users call `load_model(path)` or `save_model(model, path)`; the checkpoint file is JSON (model config and metadata). There is no fixed repository location. Loading pretrained RoBERTa weights from the checkpoint file is post-MVP.
+
 ## Summary
 
 The project shall be improved so that its capabilities, documentation, and outcomes align with the narrative in Contextual_information.md: a compact encoder that produces **reliable** domain-specific knowledge graphs with **provenance**, **factuality** (FActScore), **validity** (ValidityScore), **ontology-consistent** construction, **KG cleaning**, and support for **human-in-the-loop** auditing and iterative improvement. The improvement scope is **full implementation of the reliability pipeline**: documentation updates plus implementation of provenance storage per triple, ontology validation and ValidityScore, factuality evaluation (FActScore), KG cleaning step, encoder in the extraction path, and iterative seed re-use.
@@ -102,7 +109,7 @@ As a stakeholder or new contributor, I want project documentation to clearly des
 - **FR-002**: The system MUST support validation of extracted triples against a seed ontology (relation types, entity types, domain/range constraints) and MUST produce a validity indicator or score when such validation is run.
 - **FR-003**: The system MUST support a factuality evaluation that produces a score (e.g., proportion of triples deemed correct) when reference or ground-truth data is available.
 - **FR-004**: The system MUST support a KG cleaning step that can remove or rectify triples that are unsupported, low-confidence, or contradicted, according to configurable policy.
-- **FR-005**: The system MUST use the compact encoder in the extraction path when a model that includes the encoder is loaded (no stub or bypass that skips the encoder at inference).
+- **FR-005**: The system MUST use the compact encoder in the extraction path when a model that includes the encoder is loaded (no stub or bypass that skips the encoder at inference). *Implemented: load_model returns GraphMERTModel (RoBERTa + H-GAT); extraction runs encoder path when model isa GraphMERTModel (see Clarifications).*
 - **FR-006**: The system MUST support using a cleaned or curated KG as augmented seed for a subsequent extraction or training run (iterative improvement).
 - **FR-007**: The system MUST provide user- and agent-facing documentation that describes the reliability narrative (provenance, factuality, validity, KG cleaning, ontology, human-in-the-loop) and how it maps to Contextual_information.md and to current capabilities or roadmap.
 - **FR-008**: The system MUST handle missing or incomplete ontology gracefully (e.g., skip or relax validation with clear indication) so that operation is possible in constrained environments.
@@ -131,6 +138,7 @@ As a stakeholder or new contributor, I want project documentation to clearly des
 ## Assumptions
 
 - The project continues to target domain-specific KGs (e.g., biomedical, Wikipedia) with a pluggable domain system.
+- The RoBERTa/GraphMERT model is stored on disk at a user-provided path (no fixed repo location); `load_model(path)` and `save_model(model, path)` use a JSON checkpoint format; loading pretrained weights from checkpoint is post-MVP (see Clarifications).
 - "Compact encoder" is implemented as a RoBERTa-class architecture; alignment means using it in the extraction path and optionally supporting pretrained weights, not replacing it with a different encoder from the notebook or Python clone.
 - FActScore and ValidityScore are used as the canonical names for factuality and validity metrics; exact formulas may match the paper or be documented approximations.
 - Reference/ground-truth data for factuality evaluation may be optional (e.g., only in evaluation harness or specific domains); the system can operate without it but cannot produce a factuality score in that case.
