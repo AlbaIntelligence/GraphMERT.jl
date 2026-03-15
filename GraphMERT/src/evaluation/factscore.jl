@@ -151,6 +151,38 @@ function evaluate_factscore(
 end
 
 """
+    evaluate_factscore(kg::KnowledgeGraph, reference::KnowledgeGraph;
+                      reference_id::Union{String,Nothing}=nothing) -> FactualityScore
+
+Compute factuality score by comparing kg triples to reference (gold) triples. Returns
+FactualityScore when reference is provided (FR-003). When reference is empty, returns
+FactualityScore with score=0.0 and correct_count=0.
+
+# Example
+```julia
+ref_kg = load_reference_kg("gold.json")  # or build KnowledgeGraph from gold triples
+score = evaluate_factscore(kg, ref_kg; reference_id = "gold_v1")
+println("FActScore: ", score.score)
+```
+"""
+function evaluate_factscore(
+    kg::GraphMERT.KnowledgeGraph,
+    reference::GraphMERT.KnowledgeGraph;
+    reference_id::Union{String,Nothing}=nothing,
+)::GraphMERT.FactualityScore
+    ref_set = Set((r.head, r.relation_type, r.tail) for r in reference.relations)
+    n = length(kg.relations)
+    correct = count(r -> (r.head, r.relation_type, r.tail) in ref_set, kg.relations)
+    score = n > 0 ? correct / n : 0.0
+    return GraphMERT.FactualityScore(
+        score,
+        n,
+        correct;
+        reference_id = reference_id,
+    )
+end
+
+"""
     filter_triples_by_confidence(kg::KnowledgeGraph, threshold::Float64)
 
 Filter triples by minimum confidence threshold.

@@ -150,6 +150,48 @@ function evaluate_validity(
 end
 
 """
+    evaluate_validity(kg::KnowledgeGraph, domain::String;
+                     confidence_threshold::Float64=0.5,
+                     llm_client::Union{HelperLLMClient,Nothing}=nothing,
+                     umls_client::Union{Any,Nothing}=nothing)
+                     -> ValidityReport
+
+Validate KG against a domain (ontology). Returns a ValidityReport with score in [0,1].
+When the domain is not registered or ontology is missing, returns a report with
+ontology_id=nothing and score=0 (graceful degradation per FR-008).
+"""
+function evaluate_validity(
+    kg::GraphMERT.KnowledgeGraph,
+    domain::String;
+    confidence_threshold::Float64 = 0.5,
+    llm_client::Union{HelperLLMClient,Nothing} = nothing,
+    umls_client::Union{Any,Nothing} = nothing,
+)::GraphMERT.ValidityReport
+    n = length(kg.relations)
+    domain_provider = GraphMERT.get_domain(domain)
+    if domain_provider === nothing
+        @warn "Domain '$domain' not registered; skipping ontology validation (graceful degradation)."
+        return GraphMERT.ValidityReport(0.0, n, 0; ontology_id = nothing)
+    end
+    res = evaluate_validity(
+        kg;
+        llm_client = llm_client,
+        umls_client = umls_client,
+        confidence_threshold = confidence_threshold,
+        domain_name = domain,
+        include_domain_metrics = false,
+    )
+    per_triple = [v == :yes for v in res.triple_validity]
+    return GraphMERT.ValidityReport(
+        res.validity_score,
+        res.total_triples,
+        res.valid_triples;
+        per_triple = per_triple,
+        ontology_id = domain,
+    )
+end
+
+"""
     evaluate_triple_validity(head_entity::Entity, relation::Relation,
     tail_entity::Entity,
                             llm_client::Union{HelperLLMClient, Nothing},
@@ -614,7 +656,7 @@ Evaluate validity with statistical significance testing.
 function evaluate_validity_with_statistics(
     kg::KnowledgeGraph;
     llm_client::Union{HelperLLMClient,Nothing} = nothing,
-    umls_client::Union{UMLSClient,Nothing} = nothing,
+    umls_client::Union{Any,Nothing} = nothing,
     confidence_threshold::Float64 = 0.5,
     alpha::Float64 = 0.05,
 )
