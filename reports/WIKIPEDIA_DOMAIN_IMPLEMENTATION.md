@@ -51,9 +51,11 @@ and coordinates all Wikipedia-specific functionality.
 **Key Functions**:
 
 - `register_wikipedia_relation_types()` - Register CREATED_BY, WORKED_AT, etc.
-- `extract_wikipedia_relations(entities, text, config)` - Extract relations
+- `extract_wikipedia_relations(entities, text, config; llm_client=nothing)` - Extract relations (pattern-based, optional LLM, optional Wikidata enrichment)
 - `validate_wikipedia_relation(head, relation, tail)` - Validate relation
 - `calculate_wikipedia_relation_confidence(head, relation, tail, context)` - Calculate confidence
+
+**Relation extraction (improved)** — See `reports/RELATION_EXTRACTION_IMPROVEMENT_PROPOSAL.md`. Extraction uses: (1) entity-agnostic regex patterns (SPOUSE_OF, PARENT_OF, BORN_IN, DIED_IN, SUCCESSOR_OF, etc.) with capture resolution against the entity list; (2) optional LLM pass when `llm_client` and `use_local` are set (domain prompt, "Entity1 | Relation | Entity2" parsing); (3) optional Wikidata enrichment when `domain.wikidata_client !== nothing` and entities have `attributes["wikidata_qid"]`.
 
 **Relation Patterns**:
 
