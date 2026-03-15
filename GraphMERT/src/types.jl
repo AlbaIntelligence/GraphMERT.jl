@@ -34,6 +34,116 @@ struct TextPosition
 end
 
 # ============================================================================
+# Provenance (reliability pipeline — specs/003-align-contextual-description)
+# ============================================================================
+
+"""
+    ProvenanceRecord
+
+Structured provenance for a triple: document and segment/sentence (or span) so users can
+trace the triple to source text. See data-model.md and contracts/01-reliability-api.md.
+
+# Fields
+- `document_id::String`: Identifier of the source document (corpus id, path, or hash).
+- `segment_id::Union{String,Int}`: Sentence or segment identifier within the document.
+- `span_start::Union{Int,Nothing}`: Character start offset in document (optional).
+- `span_end::Union{Int,Nothing}`: Character end offset in document (optional).
+- `context::Union{String,Nothing}`: Short snippet or context (optional).
+"""
+struct ProvenanceRecord
+  document_id::String
+  segment_id::Union{String,Int}
+  span_start::Union{Int,Nothing}
+  span_end::Union{Int,Nothing}
+  context::Union{String,Nothing}
+  function ProvenanceRecord(
+    document_id::String,
+    segment_id::Union{String,Int};
+    span_start::Union{Int,Nothing}=nothing,
+    span_end::Union{Int,Nothing}=nothing,
+    context::Union{String,Nothing}=nothing,
+  )
+    new(document_id, segment_id, span_start, span_end, context)
+  end
+end
+
+# ============================================================================
+# ValidityReport (reliability pipeline — contracts/01-reliability-api.md §2)
+# ============================================================================
+
+"""
+    ValidityReport
+
+Result of validating a knowledge graph against a seed ontology. See data-model.md and
+contracts/01-reliability-api.md §2. Score in [0,1]; when ontology is missing, score may be 0
+and ontology_id will be nothing (graceful degradation).
+"""
+struct ValidityReport
+  score::Float64
+  total_triples::Int
+  valid_count::Int
+  per_triple::Union{Vector{Union{Bool,Symbol}},Nothing}
+  ontology_id::Union{String,Nothing}
+  function ValidityReport(
+    score::Float64,
+    total_triples::Int,
+    valid_count::Int;
+    per_triple::Union{Vector{Union{Bool,Symbol}},Nothing}=nothing,
+    ontology_id::Union{String,Nothing}=nothing,
+  )
+    new(score, total_triples, valid_count, per_triple, ontology_id)
+  end
+end
+
+# ============================================================================
+# FactualityScore (reliability pipeline — contracts/01-reliability-api.md §3)
+# ============================================================================
+
+"""
+    FactualityScore
+
+Result of comparing triples to reference/ground-truth. Produced only when reference data
+is available (FR-003). See data-model.md and contracts/01-reliability-api.md §3.
+"""
+struct FactualityScore
+  score::Float64
+  total_triples::Int
+  correct_count::Int
+  reference_id::Union{String,Nothing}
+  function FactualityScore(
+    score::Float64,
+    total_triples::Int,
+    correct_count::Int;
+    reference_id::Union{String,Nothing}=nothing,
+  )
+    new(score, total_triples, correct_count, reference_id)
+  end
+end
+
+# ============================================================================
+# CleaningPolicy (reliability pipeline — contracts/01-reliability-api.md §4)
+# ============================================================================
+
+"""
+    CleaningPolicy
+
+Configurable rules for KG cleaning: min_confidence, require_provenance,
+contradiction_handling. See data-model.md and contracts/01-reliability-api.md §4.
+"""
+struct CleaningPolicy
+  min_confidence::Float64
+  require_provenance::Bool
+  contradiction_handling::Symbol  # :remove, :flag, :keep
+  function CleaningPolicy(;
+    min_confidence::Float64=0.5,
+    require_provenance::Bool=false,
+    contradiction_handling::Symbol=:remove,
+  )
+    new(min_confidence, require_provenance, contradiction_handling)
+  end
+end
+
+# ============================================================================
 # Knowledge Entities
 # ============================================================================
 
