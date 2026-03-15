@@ -124,8 +124,8 @@ end
 
 Extract biomedical relations between entities.
 """
-function extract_relations(domain::BiomedicalDomain, entities::Vector{Any}, text::String, config::Any)
-    # Delegate to biomedical relations module
+function extract_relations(domain::BiomedicalDomain, entities::Vector{Any}, text::String, config::Any; llm_client = nothing)
+    # Delegate to biomedical relations module (llm_client reserved for future use)
     return extract_biomedical_relations(entities, text, config, domain)
 end
 

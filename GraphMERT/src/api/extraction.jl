@@ -51,15 +51,10 @@ end
 
 
 """
-    match_relations_for_entities(entities::Vector{Entity}, text::String, domain::Any, options::ProcessingOptions)
+    match_relations_for_entities(entities::Vector{Entity}, text::String, domain::Any, options::ProcessingOptions; llm_client=nothing)
 
 Stage 2: Relation Matching - Match entities to relations using domain provider.
-
-# Arguments
-- `entities::Vector{Entity}`: Extracted entities
-- `text::String`: Input text
-- `domain::DomainProvider`: Domain provider instance
-- `options::ProcessingOptions`: Processing options
+When the domain supports it, `llm_client` is passed for LLM-based relation extraction.
 
 # Returns
 - `Vector{Relation}`: Extracted relations
@@ -68,52 +63,73 @@ function match_relations_for_entities(
   entities::Vector{GraphMERT.Entity},
   text::String,
   domain::Any,
-  options::GraphMERT.ProcessingOptions = GraphMERT.default_processing_options(),
+  options::GraphMERT.ProcessingOptions = GraphMERT.default_processing_options();
+  llm_client = nothing,
 )
-  # Use domain provider for relation extraction
+  if domain === nothing
+    return _fallback_cooccurrence_relations(entities, text, options)
+  end
   try
-    relations = Base.invokelatest(GraphMERT.extract_relations, domain, entities, text, options)
+    relations = Base.invokelatest(
+      GraphMERT.extract_relations,
+      domain,
+      entities,
+      text,
+      options;
+      llm_client = llm_client,
+    )
     return relations
   catch e
-    @warn "Domain relation extraction failed: $e, falling back to simple co-occurrence relations."
-    # Fallback: use entity pairs and simple heuristics to build synthetic relations
-    triples = Tuple{GraphMERT.Entity,GraphMERT.Entity,String,Float64}[]
-    for i in 1:length(entities)
-      for j in (i+1):length(entities)
-        head = entities[i]
-        tail = entities[j]
-        # Very simple heuristic based on text
+    @warn "Domain relation extraction failed: $e, falling back to sentence-level co-occurrence relations."
+    return _fallback_cooccurrence_relations(entities, text, options)
+  end
+end
+
+function _fallback_cooccurrence_relations(
+  entities::Vector{GraphMERT.Entity},
+  text::String,
+  options::GraphMERT.ProcessingOptions,
+)::Vector{GraphMERT.Relation}
+  rels = GraphMERT.Relation[]
+  length(entities) < 2 && return rels
+  seen = Set{Tuple{String,String,String}}()
+  sentences = split(text, r"[.!?]\s*")
+  for sentence in sentences
+    sentence = strip(sentence)
+    isempty(sentence) && continue
+    sentence_lower = lowercase(sentence)
+    in_sentence = [e for e in entities if occursin(lowercase(e.text), sentence_lower)]
+    for i in 1:length(in_sentence)
+      for j in (i + 1):length(in_sentence)
+        head = in_sentence[i]
+        tail = in_sentence[j]
+        key = (head.id, "ASSOCIATED_WITH", tail.id)
+        key in seen && continue
+        push!(seen, key)
         relation = "ASSOCIATED_WITH"
-        text_lower = lowercase(text)
-        if occursin("treat", text_lower) || occursin("treated with", text_lower)
+        if occursin(r"treat|treated with", sentence_lower)
           relation = "TREATS"
-        elseif occursin("cause", text_lower) || occursin("causes", text_lower)
+        elseif occursin(r"cause|causes", sentence_lower)
           relation = "CAUSES"
         end
-        push!(triples, (head, tail, relation, 0.5))
+        push!(
+          rels,
+          GraphMERT.Relation(
+            head.id,
+            tail.id,
+            relation,
+            0.5,
+            options.domain,
+            String(sentence),
+            "",
+            Dict{String,Any}(),
+            "",
+          ),
+        )
       end
     end
-    # Convert synthetic triples into Relation objects
-    rels = Vector{GraphMERT.Relation}()
-    for (head, tail, relation, confidence) in triples
-      rid = "$(head.id)_$(relation)_$(tail.id)"
-      push!(
-        rels,
-        GraphMERT.Relation(
-          head.id,
-          tail.id,
-          relation,
-          confidence,
-          options.domain,
-          text,
-          "",
-          Dict{String,Any}(),
-          rid,
-        ),
-      )
-    end
-    return rels
   end
+  return rels
 end
 
 # These functions have been moved to domain providers
@@ -305,8 +321,8 @@ function extract_knowledge_graph(
   entities = discover_head_entities(text, domain_provider, options, llm_client)
   @info "Discovered $(length(entities)) entities using domain: $(options.domain)"
 
-  # Stage 2: Relation Matching using domain provider
-  relations = match_relations_for_entities(entities, text, domain_provider, options)
+  # Stage 2: Relation Matching using domain provider (pass llm_client when domain supports it)
+  relations = match_relations_for_entities(entities, text, domain_provider, options; llm_client = llm_client)
   @info "Extracted $(length(relations)) relations using domain: $(options.domain)"
 
   # Stages 3–5 (optional): When a full GraphMERT model is provided, run tail prediction, tail formation, and filtering

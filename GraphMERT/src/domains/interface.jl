@@ -78,7 +78,7 @@ function extract_entities(domain::DomainProvider, text::String, config::Any)
     return entities
 end
 
-function extract_relations(domain::DomainProvider, entities::Vector{Entity}, text::String, config::Any)
+function extract_relations(domain::DomainProvider, entities::Vector{Entity}, text::String, config::Any; llm_client = nothing)
     relations = Relation[]
     relation_id = 1
     
