@@ -20,9 +20,14 @@ using GraphMERT
 ### 2. Load a Pre-trained Model
 
 ```julia
-# Load a pre-trained GraphMERT model
-model = load_model("path/to/graphmert_model.onnx")
+# Option A: Use the default encoder (roberta-base from ~/.cache/llama-cpp/models/encoders/roberta-base)
+model = load_model()
+
+# Option B: Load from a specific path (file or directory containing checkpoint.json or config.json)
+model = load_model("path/to/checkpoint.json")
 ```
+
+If no path is given, `load_model()` looks for the default encoder at `~/.cache/llama-cpp/models/encoders/roberta-base`. Override the root with the `GRAPHMERT_ENCODER_ROOT` environment variable. See [Default encoder](getting_started/gguf_models.md#two-kinds-of-models) and [Encoder alternatives](getting_started/encoder_alternatives.md).
 
 ### 3. Extract Knowledge Graph
 

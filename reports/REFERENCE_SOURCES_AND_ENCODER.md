@@ -93,7 +93,7 @@ This document summarizes the contextual information and reference implementation
 | Iterative seed (cleaned KG as seed) | Documented path: clean → export → seed config; seed_injection accepts triples | ⚠️ Documented; full orchestration partial |
 | Human-in-the-loop | Provenance and validity reports support audit and correction workflows | ✅ Supported by API |
 
-**Model storage:** The RoBERTa/GraphMERT model is stored on disk at a **user-provided path** (no fixed repo location). Use `load_model(path)` and `save_model(model, path)`; the checkpoint file is JSON (config and metadata). Loading pretrained weights from the checkpoint file is post-MVP (see `specs/003-align-contextual-description/spec.md` Clarifications).
+**Model storage:** The RoBERTa/GraphMERT model is stored on disk. **Default path:** `load_model()` with no arguments loads from `~/.cache/llama-cpp/models/encoders/roberta-base` (directory with `checkpoint.json` or Hugging Face `config.json`). Override the root with `GRAPHMERT_ENCODER_ROOT`. For a custom path use `load_model(path)` and `save_model(model, path)`; the checkpoint file is JSON (config and metadata). Loading pretrained weights from the checkpoint file is post-MVP (see `specs/003-align-contextual-description/spec.md` Clarifications).
 
 **Gaps:** Full checkpoint weight loading (pretrained RoBERTa) is not yet wired; iterative seed at scale is partial. See `specs/003-align-contextual-description/` and `reports/PROJECT_STATUS.md` for roadmap.
 

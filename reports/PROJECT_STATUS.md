@@ -6,6 +6,8 @@
 
 ## 1. Architecture Overview
 
+**Model roles (do not confuse):** The **RoBERTa encoder** (paper methodology) is the compact transformer + H-GAT loaded via `load_model(path)` or **`load_model()`** (no args). The **default encoder path** is `~/.cache/llama-cpp/models/encoders/roberta-base` (override with `GRAPHMERT_ENCODER_ROOT`). Models in `~/.cache/llama-cpp/models` (e.g. GGUF files) are **helper LLMs** for entity/relation extraction only; they are **not** RoBERTa. See `GraphMERT/docs/src/getting_started/gguf_models.md` and `reports/REFERENCE_SOURCES_AND_ENCODER.md`. For **encoder alternatives**, see `GraphMERT/docs/src/getting_started/encoder_alternatives.md`.
+
 GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs from unstructured text:
 
 | Component | Status | Location |

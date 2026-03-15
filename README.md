@@ -45,8 +45,9 @@ Pkg.add("GraphMERT")
 ```julia
 using GraphMERT
 
-# Load a model (checkpoint at a path you provide; JSON format)
-model = load_model("path/to/checkpoint.json")
+# Load the default encoder (roberta-base from ~/.cache/llama-cpp/models/encoders/roberta-base)
+# or provide your own path
+model = load_model()  # uses default; or load_model("path/to/checkpoint.json")
 
 # Extract knowledge graph from biomedical text
 text = "Diabetes mellitus is a chronic metabolic disorder characterized by hyperglycemia. Insulin therapy is the primary treatment for type 1 diabetes."

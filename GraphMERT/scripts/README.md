@@ -4,6 +4,34 @@ This directory contains utility scripts for GraphMERT.jl.
 
 ## Available Scripts
 
+### download_gguf_models.sh
+
+Downloads **helper LLM** GGUF models for use with llama-cpp (entity/relation extraction). These are **not** RoBERTa models and do not implement the paper’s encoder; the paper-matching model is RoBERTa + H-GAT, loaded via `load_model(path)`. Use this script instead of models in `~/.ollama/models`, which are not in GGUF format.
+
+**Usage:**
+```bash
+./scripts/download_gguf_models.sh [TARGET_DIR] [PRESET]
+```
+
+- **TARGET_DIR**: Directory for `.gguf` files (default: `~/.cache/llama-cpp/models`, or `$GRAPHMERT_GGUF_DIR` if set).
+- **PRESET**: `tinyllama` | `smollm2-360m` | `list` (default: `tinyllama`).
+
+**Examples:**
+```bash
+# Download TinyLlama to default directory
+./scripts/download_gguf_models.sh
+
+# Download to a custom directory
+./scripts/download_gguf_models.sh /data/models tinyllama
+
+# List presets
+./scripts/download_gguf_models.sh "" list
+```
+
+Requires `huggingface-cli` (pip install huggingface_hub) or `curl`. See [GGUF models doc](../docs/src/getting_started/gguf_models.md) for manual options and Ollama→GGUF mapping.
+
+---
+
 ### import_model_weights.jl
 
 Downloads and imports pre-trained model weights from various sources and converts them to Flux.jl format.

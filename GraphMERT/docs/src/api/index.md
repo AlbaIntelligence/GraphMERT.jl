@@ -37,24 +37,33 @@ options = ProcessingOptions(domain="biomedical")
 graph = extract_knowledge_graph(text, model; options=options)
 ```
 
-### `load_model(model_path, config)`
+### `load_model()` / `load_model(model_path)`
 
-Load a GraphMERT model from file.
+Load a GraphMERT model. With no arguments, loads the **default encoder** from `~/.cache/llama-cpp/models/encoders/roberta-base` (directory with `config.json` or `checkpoint.json`). Returns `nothing` if the path is missing or invalid.
 
 **Parameters:**
 
-- `model_path::String` - Path to model file
-- `config::GraphMERTConfig` - Model configuration (optional)
+- `model_path::String` (optional) - Path to checkpoint file or encoder directory. If a directory, looks for `checkpoint.json` or (if absent) `config.json` (Hugging Face style) and builds a default model.
 
 **Returns:**
 
-- `GraphMERTModel` - Loaded model instance
+- `GraphMERTModel` or `Nothing` - Loaded model, or `nothing` on failure.
 
-**Example:**
+**Environment:**
+
+- `GRAPHMERT_ENCODER_ROOT` - Overrides the root directory for the default encoder (default: `~/.cache/llama-cpp/models/encoders`).
+
+**Examples:**
 
 ```julia
-model = load_model("path/to/model.onnx")
+model = load_model()  # default: roberta-base under GRAPHMERT_ENCODER_ROOT
+model = load_model("path/to/checkpoint.json")
+model = load_model("/path/to/encoders/roberta-base")  # directory
 ```
+
+### `default_encoder_path()`
+
+Return the default encoder path (e.g. `.../encoders/roberta-base`). Respects `GRAPHMERT_ENCODER_ROOT`.
 
 ### `preprocess_text(text, options)`
 
