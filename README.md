@@ -4,7 +4,13 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.48550%2FarXiv.2510.09580-blue.svg)](https://doi.org/10.48550/arXiv.2510.09580)
 
-A high-performance Julia implementation of the GraphMERT algorithm for constructing reliable biomedical knowledge graphs from unstructured text data. This package provides efficient and scalable distillation of knowledge graphs using RoBERTa-based architecture with Hierarchical Graph Attention Networks (H-GAT).
+A Julia implementation of the GraphMERT algorithm for constructing reliable knowledge graphs from unstructured text data, using a RoBERTa encoder with Hierarchical Graph Attention Networks (H-GAT).
+
+> **Implementation status (March 2026)**: Architecture, leafy chain graphs, MLM training, and
+> domain abstraction are structurally complete. The training pipeline currently uses a mock model
+> with random losses — **no real trained weights exist yet**. Tail prediction and model persistence
+> are also stubbed. See [`reports/PARITY_PLAN.md`](reports/PARITY_PLAN.md) for the defect list
+> and [`reports/TASK_LIST.md`](reports/TASK_LIST.md) for the implementation roadmap.
 
 ## Overview
 
@@ -22,8 +28,8 @@ GraphMERT.jl implements the state-of-the-art GraphMERT algorithm from the paper 
 - **Wikidata Integration**: Support for Wikidata entity linking (Wikipedia domain)
 - **Helper LLM Support**: External language model integration for enhanced entity discovery
 - **Dual Training Objectives**: MLM (Masked Language Modeling) + MNM (Masked Node Modeling)
-- **High Performance**: Processes 5,000+ tokens per second on standard hardware
-- **Memory Efficient**: Handles datasets up to 124.7M tokens with <4GB memory usage
+- **High Performance**: Processes 5,000+ tokens per second on standard hardware (target; not yet verified from real trained model)
+- **Memory Efficient**: Handles datasets up to 124.7M tokens with <4GB memory usage (target)
 
 ## Installation
 
@@ -155,14 +161,19 @@ The GraphMERT implementation follows a sophisticated multi-stage architecture:
 
 ## Performance Benchmarks
 
-| Metric             | Target               | Achieved          |
+> ⚠️ **Implementation notice**: The numbers below are paper targets. The current Julia implementation
+> uses a mock training pipeline with random losses and has not yet produced real trained weights.
+> Benchmarks will be updated once Stream A (correctness fixes) and Stream D (real training) are
+> complete. See `reports/PARITY_PLAN.md` for the roadmap and `reports/TASK_LIST.md` for tasks.
+
+| Metric             | Paper target         | Status            |
 | ------------------ | -------------------- | ----------------- |
-| Processing Speed   | 5,000 tokens/sec     | 5,200+ tokens/sec |
-| Memory Usage       | <4GB (124.7M tokens) | 3.2GB             |
-| FActScore          | 69.8%                | 70.1%             |
-| ValidityScore      | 68.8%                | 69.2%             |
-| Entity Recall      | >85%                 | 87.3%             |
-| Relation Precision | >80%                 | 82.1%             |
+| Processing Speed   | 5,000 tokens/sec     | ⏳ Not yet measured |
+| Memory Usage       | <4GB (124.7M tokens) | ⏳ Not yet measured |
+| FActScore          | 69.8%                | ⏳ Pending real training |
+| ValidityScore      | 68.8%                | ⏳ Pending real training |
+| Entity Recall      | >85%                 | ⏳ Pending real training |
+| Relation Precision | >80%                 | ⏳ Pending real training |
 
 ## Configuration
 

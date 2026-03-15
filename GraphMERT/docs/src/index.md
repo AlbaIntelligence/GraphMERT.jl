@@ -5,20 +5,24 @@
 [![Documentation](https://img.shields.io/badge/docs-stable-blue.svg)](https://alba-intelligence.github.io/GraphMERT.jl/stable)
 [![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://alba-intelligence.github.io/GraphMERT.jl/dev)
 
-**Efficient and Scalable Knowledge Graph Construction from Biomedical Text**
+**Efficient and Scalable Knowledge Graph Construction from Unstructured Text**
 
-GraphMERT.jl is a Julia implementation of the GraphMERT algorithm for constructing biomedical knowledge graphs using RoBERTa-based architecture with Hierarchical Graph Attention (H-GAT).
+> **Implementation status (March 2026)**: Architecture and MLM training are structurally complete.
+> Real training, tail prediction, and model persistence are not yet implemented.
+> See [`reports/PARITY_PLAN.md`](../../reports/PARITY_PLAN.md) for details.
+
+GraphMERT.jl is a Julia implementation of the GraphMERT algorithm for constructing knowledge
+graphs using RoBERTa-based architecture with Hierarchical Graph Attention (H-GAT).
 
 ## Features
 
-- 🔗 **Reliability pipeline**: Provenance (`get_provenance`), ontology validation (`validate_kg` → ValidityReport), factuality (`evaluate_factscore(kg, reference)` → FactualityScore), and KG cleaning (`clean_kg(kg; policy)`). See `specs/003-align-contextual-description/quickstart.md`.
-- 🧬 **Biomedical Focus**: Specialized for biomedical text processing with UMLS integration
-- 🚀 **High Performance**: Process 5,000+ tokens per second on laptop hardware
+- 🔗 **Reliability pipeline**: Provenance (`get_provenance`), ontology validation (`validate_kg` → ValidityReport), factuality (`evaluate_factscore(kg, reference)` → FactualityScore), and KG cleaning (`clean_kg(kg; policy)`).
+- 🧬 **Domain-Agnostic Architecture**: Pluggable domain system (biomedical + Wikipedia included)
+- 🚀 **Performance target**: 5,000+ tokens/second (pending real training)
 - 🧠 **Advanced Architecture**: RoBERTa encoder with Hierarchical Graph Attention
-- 📊 **Comprehensive Evaluation**: FActScore, ValidityScore, and GraphRAG metrics
-- 🔄 **Batch Processing**: Efficient processing of large document corpora
-- 🎯 **Seed KG Injection**: Prior knowledge integration for improved accuracy
-- 📈 **Performance Monitoring**: Real-time metrics and optimization
+- 📊 **Evaluation Metrics**: FActScore*, ValidityScore, and GraphRAG
+- 🎯 **Seed KG Injection**: Prior knowledge integration algorithm (UMLS-backed)
+- 🤖 **Helper LLM Support**: External LLM for entity discovery, relation matching, and tail formation
 
 ## Quick Start
 
@@ -56,12 +60,15 @@ The GraphMERT implementation follows the original paper's architecture:
 
 ## Scientific Validation
 
-GraphMERT.jl has been validated against the original paper benchmarks:
+> ⚠️ **Not yet validated**: The paper targets below have not been reproduced from a real trained
+> model. The training pipeline currently uses mock losses. Validation is pending completion of
+> [`reports/TASK_LIST.md`](../../reports/TASK_LIST.md) streams A–D.
 
-- ✅ **Diabetes Dataset**: Full replication of paper results
-- ✅ **Performance Metrics**: FActScore, ValidityScore, GraphRAG
-- ✅ **Statistical Significance**: p < 0.05 validation
-- ✅ **Reproducibility**: Complete reproducibility guide included
+Paper targets (arXiv:2510.09580):
+
+- FActScore target: **69.8%** (diabetes domain)
+- ValidityScore target: **68.8%**
+- Training: 90 GPU-hours on PubMed diabetes abstracts
 
 ## Installation
 
