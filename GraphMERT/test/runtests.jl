@@ -20,6 +20,8 @@ include("test_utils.jl")
   include("unit/test_batch.jl")
   include("unit/test_evaluation.jl")
   include("unit/test_extraction.jl")
+  include("unit/test_provenance.jl")
+  include("unit/test_cleaning.jl")
   include("unit/test_leafy_chain.jl")
   include("unit/test_llm.jl")
   include("unit/test_mnm.jl")
@@ -31,6 +33,10 @@ end
 # Integration tests
 @testset "Integration Tests" begin
   include("integration/test_extraction_pipeline.jl")
+  include("integration/test_extraction_provenance.jl")
+  include("integration/test_validity.jl")
+  include("integration/test_factscore_cleaning.jl")
+  include("integration/test_encoder_in_path.jl")
   include("integration/test_llm_integration.jl")
   include("integration/test_training_pipeline.jl")
 end

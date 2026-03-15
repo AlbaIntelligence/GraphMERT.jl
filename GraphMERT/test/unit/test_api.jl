@@ -37,8 +37,11 @@ end
     @test !isempty(kg.source_text)
     @test kg.source_text == text
 
-    # Test with empty text (should fail)
-    @test_throws ArgumentError GraphMERT.extract_knowledge_graph("", test_model)
+    # Test with empty text (returns empty KG per spec edge case, no phantom provenance)
+    empty_kg = GraphMERT.extract_knowledge_graph("", test_model)
+    @test empty_kg isa GraphMERT.KnowledgeGraph
+    @test length(empty_kg.entities) == 0
+    @test length(empty_kg.relations) == 0
 
     # Test with very long text (would need proper max_length handling)
     # long_text = repeat("word ", 1000)
@@ -145,8 +148,10 @@ end
     mock_model = MockAPIModel(30522)
     err_model = GraphMERTModel(GraphMERTConfig())
 
-    # Test with invalid inputs
-    @test_throws ArgumentError extract_knowledge_graph("", mock_model)
+    # Test with invalid inputs (empty text returns empty KG per spec; only too-long throws)
+    empty_kg = extract_knowledge_graph("", mock_model)
+    @test empty_kg isa GraphMERT.KnowledgeGraph
+    @test length(empty_kg.entities) == 0 && length(empty_kg.relations) == 0
     @test_throws ArgumentError extract_knowledge_graph("a"^10000, mock_model)  # Too long
 
     # Test save_model error handling
