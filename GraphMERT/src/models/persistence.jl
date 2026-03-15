@@ -77,13 +77,23 @@ function load_model(
     strict::Bool = true,
 )::Union{GraphMERTModel,Nothing}
     try
-        if !isfile(load_path)
-            @error "Model file not found: $load_path"
+        # If path is a directory (e.g. encoders/roberta-base), look for checkpoint.json inside
+        checkpoint_file = load_path
+        if isdir(load_path)
+            checkpoint_file = joinpath(load_path, "checkpoint.json")
+            # If no GraphMERT checkpoint but Hugging Face config.json exists, build default model (weights TBD)
+            if !isfile(checkpoint_file) && isfile(joinpath(load_path, "config.json"))
+                @info "Using encoder directory (no checkpoint.json); building default model for: $load_path"
+                return GraphMERTModel(GraphMERTConfig())
+            end
+        end
+        if !isfile(checkpoint_file)
+            @error "Model file not found: $checkpoint_file"
             return nothing
         end
 
         # Load checkpoint metadata
-        checkpoint_data = JSON.parsefile(load_path)
+        checkpoint_data = JSON.parsefile(checkpoint_file)
 
         if !haskey(checkpoint_data, "model_type") ||
            checkpoint_data["model_type"] != "GraphMERT"

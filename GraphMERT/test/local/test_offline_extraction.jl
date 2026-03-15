@@ -133,7 +133,7 @@ function test_offline_extraction_usage_pattern()
         println("max_tokens: ", config.max_tokens)
 
         println("\nTo run actual extraction:")
-        println("1. Download TinyLlama model to ~/.ollama/models/")
+        println("1. Download a GGUF model (e.g. to ~/.cache/llama-cpp/models/)")
         println("2. client = load_local_model(config)")
         println("3. entities = discover_entities(client, text, domain)")
         println("=" ^ 60)
@@ -170,7 +170,7 @@ function test_model_metadata()
     @testset "LocalModelMetadata" begin
         metadata = LocalModelMetadata(
             name = "TinyLlama",
-            filename = "~/.ollama/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+            filename = "path/to/model.gguf",
             params = 1_100_000_000,
             quantization = "Q4_0",
             ram_estimate = 700,

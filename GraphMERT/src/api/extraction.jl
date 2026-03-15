@@ -33,18 +33,13 @@ using ...GraphMERT: LocalLLMClient, LocalLLMConfig, load_model as load_local_mod
 Create an LLM client based on processing options.
 
 # Arguments
-- `options::ProcessingOptions`: Processing options containing use_local/local_config or use_ollama/ollama_config
+- `options::ProcessingOptions`: Processing options containing use_local/local_config
 
 # Returns
-- `Union{LocalLLMClient, OllamaLLMClient, HelperLLMClient, Nothing}`: LLM client instance, or nothing if no client needed
+- `Union{LocalLLMClient, HelperLLMClient, Nothing}`: LLM client instance, or nothing if no client needed
 """
 function _create_llm_client(options::GraphMERT.ProcessingOptions)
-    if options.use_ollama
-        if options.ollama_config === nothing
-            throw(ArgumentError("ollama_config must be provided when use_ollama is true"))
-        end
-        return GraphMERT.OllamaClient.OllamaLLMClient(options.ollama_config)
-    elseif options.use_local
+    if options.use_local
         if options.local_config === nothing
             throw(ArgumentError("local_config must be provided when use_local is true"))
         end
@@ -421,8 +416,8 @@ function discover_head_entities(
   options::GraphMERT.ProcessingOptions = GraphMERT.default_processing_options(),
   llm_client::Any=nothing,
 )
-  # If llm_client is provided and options.use_local or use_ollama is true, use LLM-based extraction
-  if llm_client !== nothing && (options.use_local || options.use_ollama)
+  # If llm_client is provided and options.use_local is true, use LLM-based extraction
+  if llm_client !== nothing && options.use_local
     try
       # Pass llm_client to domain for LLM-based entity discovery
       return Base.invokelatest(GraphMERT.extract_entities, domain, text, options, llm_client)

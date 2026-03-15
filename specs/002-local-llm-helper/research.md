@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-13  
 **Feature**: Local LLM Helper for GraphMERT
-**Updated**: 2026-03-15 (reflects actual implementation)
+**Updated**: 2026-03-15 (llama-cpp / GGUF; Ollama removed)
 
 ---
 
@@ -27,18 +27,14 @@
 
 ## Decision 2: Inference Engine
 
-**Decision**: Ollama HTTP API (replaced LlamaCpp.jl)
+**Decision**: LlamaCpp.jl (llama-cpp) with GGUF models
 
 **Rationale**:
-- LlamaCpp.jl has version compatibility issues (pinned to incompatible llama_cpp_jll v0.0.17)
-- Ollama provides stable HTTP API
-- Easy to install (outside nix due to CUDA dependencies)
-- Supports multiple models including lfm2.5-thinking
+- Single in-process stack; no separate server (Ollama) required
+- GGUF is the standard format for local models
+- Better suited to embedding in a Julia pipeline; llama-cpp is the supported local path
 
-**Rejection of LlamaCpp.jl**:
-- Package pinned to incompatible library version
-- Cannot load GGUF models due to JLL mismatch
-- Ollama provides reliable alternative with HTTP interface
+**Ollama**: Removed from the project in favour of llama-cpp.
 
 ---
 
@@ -52,8 +48,8 @@
 - Preserves existing `HelperLLMClient` interface
 
 **Implementation**:
-- Create `LocalLLMClient` with same method signatures as `HelperLLMClient`
-- Add `use_local::Bool` flag to `ProcessingOptions`
+- `LocalLLMClient` with same method signatures as `HelperLLMClient`
+- `use_local::Bool` and `local_config::LocalLLMConfig` in `ProcessingOptions`
 - Domain providers remain unchanged
 
 ---

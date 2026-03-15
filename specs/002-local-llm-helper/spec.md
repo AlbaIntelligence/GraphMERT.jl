@@ -14,9 +14,8 @@
 
 ### Session 2026-03-14 (Updated)
 
-- **Model Change**: After testing, lfm2.5-thinking:latest provides best entity extraction quality
-- **Engine Change**: LlamaCpp.jl has version compatibility issues (pinned to incompatible library). Using Ollama HTTP API instead.
-- **Ollama Requirement**: Must be installed outside of nix (CUDA dependency issues in nix environment)
+- **Model**: GGUF models (e.g. TinyLlama 1.1B or larger) for entity extraction.
+- **Engine**: LlamaCpp.jl (llama-cpp) with GGUF; in-process inference. Ollama was removed in favour of llama-cpp.
 
 ## User Scenarios & Testing
 
@@ -85,13 +84,11 @@ A researcher needs the local LLM to produce entity and relation extraction quali
 
 ### Key Entities
 
-- **LocalLLMConfig**: Configuration for local GGUF model loading (when LlamaCpp.jl works)
-- **OllamaConfig**: Configuration for Ollama HTTP API client
-- **OllamaLLMClient**: Client for interacting with local Ollama server
+- **LocalLLMConfig**: Configuration for local GGUF model (path, context_length, threads, temperature, etc.)
+- **LocalLLMClient**: Client for in-process inference via LlamaCpp.jl (llama-cpp)
 - **ExtractionResult**: Structured output containing extracted entities and relations with confidence scores
-- **ModelRegistry**: Catalog of supported local LLM models with their capabilities and requirements
-- **TinyLlamaModel**: Specific implementation using TinyLlama 1.1B parameters (~700MB RAM footprint) - legacy
-- **lfm2.5-thinking**: Recommended model for entity extraction (best classification accuracy)
+- **ModelRegistry**: Catalog of supported local LLM models with their capabilities and requirements (optional)
+- **TinyLlama 1.1B**: Example small GGUF model (~700MB); larger GGUF models recommended for better quality
 
 ## Success Criteria
 
@@ -106,8 +103,6 @@ A researcher needs the local LLM to produce entity and relation extraction quali
 ## Assumptions
 
 - User has a standard laptop (8GB RAM, 4+ CPU cores, no GPU)
-- The local LLM will use lfm2.5-thinking:latest model (recommended for entity extraction)
-- The local LLM will use Ollama HTTP API for inference
-- Ollama must be installed outside nix (CUDA dependency issues in nix environment)
-- Model files will be downloaded once and stored locally in GGUF format
-- The implementation will leverage the existing DomainProvider interface for extraction
+- Local LLM uses GGUF models via LlamaCpp.jl (llama-cpp); no Ollama
+- Model files (GGUF) are stored locally; user provides `model_path` in LocalLLMConfig
+- The implementation leverages the existing DomainProvider interface and ProcessingOptions (use_local, local_config)

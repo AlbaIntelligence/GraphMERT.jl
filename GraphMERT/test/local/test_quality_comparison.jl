@@ -187,7 +187,7 @@ If quality metrics are below threshold (recall < 70% or overlap < 80%), consider
 Example tuning:
 ```julia
 local_config = LocalLLMConfig(;
-    model_path="~/.ollama/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+    model_path="path/to/model.gguf",
     temperature=0.2,
     context_length=4096,
     max_tokens=1024,
@@ -289,7 +289,7 @@ function run_tests()
     using GraphMERT
 
     local_config = LocalLLMConfig(;
-        model_path="~/.ollama/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+        model_path="path/to/model.gguf",
         temperature=0.2,
         context_length=4096,
         max_tokens=512

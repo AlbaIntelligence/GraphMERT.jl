@@ -23,8 +23,8 @@ If llm_client is provided, uses LocalLLM for entity discovery instead of hardcod
 - `Vector{Entity}`: Extracted entities
 """
 function extract_wikipedia_entities(text::String, config::ProcessingOptions, domain::WikipediaDomain, llm_client::Any=nothing)
-    # If llm_client is provided, use LLM for entity discovery (LocalLLM or Ollama)
-    if llm_client !== nothing && (config.use_local || config.use_ollama)
+    # If llm_client is provided, use LLM for entity discovery (LocalLLM / llama-cpp)
+    if llm_client !== nothing && config.use_local
         return _extract_entities_with_llm(text, config, domain, llm_client)
     end
     
@@ -342,17 +342,14 @@ end
 """
     _extract_entities_with_llm(text, config, domain, llm_client)
 
-Extract entities using LocalLLM or Ollama client.
+Extract entities using LocalLLM (llama-cpp / GGUF) client.
 """
 function _extract_entities_with_llm(text::String, config::ProcessingOptions, domain::WikipediaDomain, llm_client::Any)
     entities = Vector{Entity}()
     
     try
-        # Use the appropriate LLM client to discover entities
         if isa(llm_client, GraphMERT.LocalLLM.LocalLLMClient)
             entity_texts = GraphMERT.LocalLLM.discover_entities(llm_client, text, "wikipedia")
-        elseif isa(llm_client, GraphMERT.OllamaClient.OllamaLLMClient)
-            entity_texts = GraphMERT.OllamaClient.discover_entities(llm_client, text, "wikipedia")
         else
             throw(ArgumentError("Unknown LLM client type: $(typeof(llm_client))"))
         end

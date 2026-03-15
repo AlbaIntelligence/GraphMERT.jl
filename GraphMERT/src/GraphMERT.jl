@@ -76,13 +76,10 @@ include("utils.jl")
 # LLM integration
 include("llm/local.jl")
 include("llm/helper.jl")
-include("llm/ollama.jl")
+# Local LLM (GGUF/llama-cpp) and helper LLM only; no Ollama
 
 # Re-export from LocalLLM module
 using .LocalLLM: LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_model
-
-# Re-export from Ollama module
-using .OllamaClient: OllamaConfig, OllamaClient, start_server, stop_server, is_available
 
 # Domain abstraction layer
 include("domains/interface.jl")
@@ -177,7 +174,6 @@ export discover_entities_batch, match_relations_batch
 
 # Export local LLM functions
 export LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_model
-export OllamaConfig, OllamaLLMClient, start_server, stop_server, is_available
 
 # Note: Domain-specific exports (UMLS, PubMed, biomedical graph functions) should be
 # exported by domain modules, not here in the core module
@@ -223,12 +219,11 @@ function extract_knowledge_graph(
   text::String;
   options::ProcessingOptions=default_processing_options(),
 )
-  # Delegate to the domain-specific extraction API
-  # This function is kept here for backward compatibility but delegates to api/extraction.jl
-  # Create a dummy model for now (in real usage, this would be provided)
-  model = create_graphmert_model(GraphMERTConfig())
-
-  # Use the domain-aware extraction function from api/extraction.jl
+  # Use default encoder (roberta-base) when available, else fall back to in-memory default
+  model = load_model()
+  if model === nothing
+    model = create_graphmert_model(GraphMERTConfig())
+  end
   return extract_knowledge_graph(text, model; options=options)
 end
 
@@ -252,6 +247,17 @@ function load_model(model_path::String)
   # Delegate to the persistence-layer loader, which handles missing files
   # and returns `nothing` when loading fails.
   return load_model(model_path; device=:cpu, strict=true)
+end
+
+"""
+    load_model()::Union{GraphMERTModel, Nothing}
+
+Load the default encoder (roberta-base) from ~/.cache/llama-cpp/models/encoders/roberta-base.
+If that path is missing or invalid, returns `nothing`. Override the root with
+`GRAPHMERT_ENCODER_ROOT` (directory containing encoder subdirs).
+"""
+function load_model()::Union{GraphMERTModel,Nothing}
+  return load_model(default_encoder_path())
 end
 
 """
@@ -526,7 +532,7 @@ export evaluate_factscore,
   calculate_validity_confidence_interval
 
 # Export from Config module
-export default_processing_options
+export default_processing_options, default_encoder_path
 
 # Export from Training.MNM module
 export select_leaves_to_mask,

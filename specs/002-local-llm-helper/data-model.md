@@ -1,39 +1,16 @@
 # Data Model: Local LLM Helper
 
 **Feature**: Local LLM Helper for GraphMERT  
-**Date**: 2026-03-13
-**Updated**: 2026-03-15 (Ollama implementation)
+**Date**: 2026-03-13  
+**Updated**: 2026-03-15 (llama-cpp / GGUF only; Ollama removed)
 
 ---
 
 ## Entities
 
-### OllamaConfig
+### LocalLLMConfig
 
-Configuration for Ollama HTTP API client.
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `model` | String | Yes | Ollama model name (default: "lfm2.5-thinking:latest") |
-| `base_url` | String | No | Ollama server URL (default: "http://localhost:11434") |
-| `timeout` | Int | No | Request timeout in seconds (default: 120) |
-
----
-
-### OllamaLLMClient
-
-Client for Ollama HTTP API.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `config` | OllamaConfig | Configuration |
-| `session` | HTTP.Client | HTTP session |
-
----
-
-### LocalLLMConfig (legacy)
-
-Configuration for local GGUF model (when LlamaCpp.jl is fixed).
+Configuration for local GGUF model loading (LlamaCpp.jl / llama-cpp).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -46,25 +23,37 @@ Configuration for local GGUF model (when LlamaCpp.jl is fixed).
 
 ---
 
+### LocalLLMClient
+
+Client for in-process local inference via LlamaCpp.jl.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `config` | LocalLLMConfig | Configuration |
+
+---
+
 ## Relationships
 
 ```
-OllamaLLMClient
-    ├── uses ──► OllamaConfig
-    └── calls ──► Ollama HTTP API (http://localhost:11434)
+LocalLLMClient
+    ├── uses ──► LocalLLMConfig
+    └── uses ──► LlamaCpp.jl (GGUF model at model_path)
 ```
 
 ---
 
 ## State Transitions
 
-### Model Loading (Ollama)
+### Model Loading
+
 ```
-Unloaded → Connecting → Ready → Running
-                              → Failed (connection error)
+Unloaded → Loading (GGUF) → Ready → Running
+                              → Failed (file missing / load error)
 ```
 
 ### Inference
+
 ```
 Ready → Processing → Ready (success)
                    → Failed (error)
@@ -72,8 +61,11 @@ Ready → Processing → Ready (success)
 
 ---
 
-## Validation Rules (OllamaConfig)
+## Validation Rules (LocalLLMConfig)
 
-1. `model` must be a valid Ollama model name
-2. `base_url` must be a valid HTTP URL
-3. `timeout` must be ≥ 1 second
+1. `model_path` must point to an existing file
+2. `context_length` must be between 1 and 8192
+3. `threads` must be ≥ 1
+4. `temperature` must be between 0.0 and 2.0
+5. `max_tokens` must be between 1 and 4096
+6. `n_gpu_layers` must be non-negative

@@ -15,6 +15,19 @@ using Logging
 # ============================================================================
 
 """
+    default_encoder_path()::String
+
+Return the default path for the RoBERTa-base encoder. The code uses this when
+`load_model()` is called with no arguments. Expected layout:
+- Directory: `~/.cache/llama-cpp/models/encoders/roberta-base/`
+- Optional checkpoint file inside: `checkpoint.json` (GraphMERT format)
+"""
+function default_encoder_path()::String
+  root = get(ENV, "GRAPHMERT_ENCODER_ROOT", joinpath(homedir(), ".cache", "llama-cpp", "models", "encoders"))
+  return joinpath(root, "roberta-base")
+end
+
+"""
     get_default_config()
 
 Get the default configuration for GraphMERT.

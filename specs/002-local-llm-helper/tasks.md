@@ -44,7 +44,7 @@ Core types and integration points that all user stories depend on.
 - [X] T003 Define LocalLLMConfig struct in GraphMERT/src/llm/local.jl
 - [X] T004 Define LocalLLMClient struct in GraphMERT/src/llm/local.jl
 - [X] T005 Define ModelMetadata struct in GraphMERT/src/llm/local.jl
-- [X] T006 Add use_local, local_config, use_ollama, and ollama_config fields to ProcessingOptions in GraphMERT/src/types.jl
+- [X] T006 Add use_local and local_config fields to ProcessingOptions in GraphMERT/src/types.jl (Ollama options removed)
 - [X] T007 Implement model loading function (load_model) in GraphMERT/src/llm/local.jl
 
 ---
@@ -131,7 +131,7 @@ Core types and integration points that all user stories depend on.
 
 - [X] T024 [P] [US1] Pass llm_client to discover_head_entities in GraphMERT/src/api/extraction.jl
 - [X] T025 [US1] Modify Wikipedia domain to use LocalLLM when use_local=true in GraphMERT/src/domains/wikipedia/entities.jl
-- [X] T026 [P] [US3] Create Ollama client module for local LLM in GraphMERT/src/llm/ollama.jl
+- [X] T026 [P] [US3] Local LLM via LocalLLM (llama-cpp/GGUF); Ollama module removed
 - [X] T027 [US3] Run comparison on French monarchy articles, document results
 - [X] T028 [US3] Analyze quality findings: recall, new entities discovered, recommendations
 

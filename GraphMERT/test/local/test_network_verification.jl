@@ -136,7 +136,7 @@ function run_tests()
     println("=" ^ 60)
     println("All network verification tests passed!")
     println("\nTo run actual offline extraction:")
-    println("1. Download TinyLlama model to ~/.ollama/models/")
+    println("1. Download a GGUF model (e.g. to ~/.cache/llama-cpp/models/)")
     println("2. Configure LocalLLMConfig with actual model path")
     println("3. Use ProcessingOptions(use_local=true, local_config=config)")
 end

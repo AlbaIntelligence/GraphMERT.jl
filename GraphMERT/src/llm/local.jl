@@ -33,9 +33,9 @@ Configuration struct for local LLM inference using GGUF models.
 
 # Examples
 ```julia
-config = LocalLLMConfig(model_path="~/.ollama/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf")
+config = LocalLLMConfig(model_path="path/to/model.gguf")
 config = LocalLLMConfig(
-    model_path="~/.ollama/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+    model_path="path/to/model.gguf",
     context_length=4096,
     threads=8,
     temperature=0.5

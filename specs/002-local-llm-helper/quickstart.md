@@ -1,41 +1,27 @@
 # Quickstart: Local LLM Helper
 
 **Feature**: Local LLM Helper for GraphMERT  
-**Date**: 2026-03-14
+**Date**: 2026-03-14  
+**Updated**: 2026-03-15 (llama-cpp / GGUF only; Ollama removed)
 
 ---
 
 ## Installation
 
-### 1. Install Ollama
+### 1. Obtain a GGUF Model (Helper LLM only)
 
-Ollama provides the local LLM runtime. Install it outside of nix:
+The local LLM is a **helper** for entity/relation extraction only. It is **not** the RoBERTa encoder from the paper; models in `~/.cache/llama-cpp/models` are **not** RoBERTa and do not match the paper’s methodology. The paper’s encoder (RoBERTa + H-GAT) is a separate checkpoint loaded via `load_model(path)` — see `reports/REFERENCE_SOURCES_AND_ENCODER.md` and `reports/PROJECT_STATUS.md`.
 
-```bash
-# Install Ollama (see https://ollama.ai for instructions)
-curl -fsSL https://ollama.ai/install.sh | sh
-```
+Local helper inference uses **llama-cpp** (via LlamaCpp.jl) with GGUF-format models. Models in `~/.ollama/models` are not GGUF and cannot be used; download GGUF files instead.
 
-### 2. Pull Recommended Model
+- **Quick download**: run `GraphMERT/scripts/download_gguf_models.sh` to fetch TinyLlama (or another preset) into `~/.cache/llama-cpp/models`.
+- **Docs**: see [GGUF models (helper LLM only)](../../GraphMERT/docs/src/getting_started/gguf_models.md) for the two model roles, presets, and Ollama→GGUF equivalents.
 
-```bash
-# Pull the recommended model for entity extraction
-ollama pull lfm2.5-thinking
+Place the `.gguf` file on disk, e.g. `~/.cache/llama-cpp/models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`.
 
-# Other available models:
-ollama pull ministral-3
-ollama pull qwen3:0.6b
-```
+### 2. Optional: llama-server (OpenAI-compatible)
 
-### 3. Start Ollama Server
-
-```bash
-# In a separate terminal, start the Ollama server
-dev up ollama
-
-# Or manually:
-ollama serve
-```
+For server-based inference you can run **llama-server** (from llama.cpp) on port 8080 and use an OpenAI-compatible client. The primary supported path in this project is **in-process** GGUF via `LocalLLMConfig` and `use_local`.
 
 ---
 
@@ -45,17 +31,17 @@ ollama serve
 
 ```julia
 using GraphMERT
-using GraphMERT.OllamaClient
+using GraphMERT.LocalLLM
 
 # Load Wikipedia domain
 domain = load_wikipedia_domain()
 register_domain!("wikipedia", domain)
 
-# Configure for Ollama extraction (uses lfm2.5-thinking by default)
+# Configure for local GGUF extraction
 options = ProcessingOptions(
     domain = "wikipedia",
-    use_ollama = true,
-    ollama_config = OllamaConfig(model = "lfm2.5-thinking:latest"),
+    use_local = true,
+    local_config = LocalLLMConfig(model_path = "path/to/model.gguf"),
 )
 
 # Extract knowledge graph
@@ -68,13 +54,10 @@ println("Extracted $(length(kg.entities)) entities and $(length(kg.relations)) r
 ### Option 2: Direct Client Usage
 
 ```julia
-using GraphMERT.OllamaClient
+using GraphMERT.LocalLLM
 
-# Create client with default model (lfm2.5-thinking:latest)
-client = OllamaLLMClient()
-
-# Or specify a different model
-client = OllamaLLMClient(model = "ministral-3:latest")
+config = LocalLLMConfig(model_path = "path/to/model.gguf")
+client = LocalLLMClient(config)
 
 # Entity discovery
 text = "Louis XIV was King of France."
@@ -91,96 +74,47 @@ tails = form_tail_from_tokens(client, ["Paris", "France"], "The capital is Paris
 
 ## Configuration Options
 
-### OllamaConfig
+### LocalLLMConfig
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `model` | String | "lfm2.5-thinking:latest" | Ollama model name |
-| `base_url` | String | "http://localhost:11434" | Ollama server URL |
-| `timeout` | Int | 120 | Request timeout in seconds |
+| `model_path` | String | (required) | Path to GGUF model file |
+| `context_length` | Int | 2048 | Context window size |
+| `threads` | Int | 4 | CPU threads for inference |
+| `temperature` | Float64 | 0.7 | Sampling temperature |
+| `max_tokens` | Int | 512 | Max tokens to generate |
+| `n_gpu_layers` | Int | 0 | GPU layers (0 = CPU only) |
 
 ### ProcessingOptions
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `use_ollama` | Bool | false | Enable Ollama for entity extraction |
-| `ollama_config` | OllamaConfig | nothing | Configuration for Ollama client |
+| `use_local` | Bool | false | Use local LLM (GGUF) for entity extraction |
+| `local_config` | LocalLLMConfig | nothing | Required when `use_local` is true |
 
 ---
 
 ## Recommended Models
 
-### lfm2.5-thinking (Recommended)
+- **TinyLlama 1.1B**: Small, fast, CPU-friendly (~700MB). Good for testing.
+- **Larger GGUF models** (e.g. 3B–7B): Better entity/relation quality; ensure sufficient RAM.
 
-**Best for entity extraction** - Excellent classification accuracy, correctly identifies people, places, organizations.
-
-```
-ollama pull lfm2.5-thinking
-```
-
-| Pros | Cons |
-|------|------|
-| Excellent entity classification | Larger model (~4GB) |
-| Good reasoning capabilities | Slower than smaller models |
-| Correctly types all major entity types | |
-
-### ministral-3
-
-Good alternative, slightly faster but may misclassify some entities.
-
-```
-ollama pull ministral-3
-```
-
-### qwen3:0.6b
-
-Small and fast but **not recommended** for entity extraction (poor quality).
-
-```
-ollama pull qwen3:0.6b
-```
-
----
-
-## Quality Comparison
-
-### Model Comparison on Entity Extraction
-
-| Model | Entities Found | Classification Accuracy | Notes |
-|-------|---------------|------------------------|-------|
-| **lfm2.5-thinking** | 6 | Excellent | Best overall |
-| **ministral-3** | 4 | Good | May misclassify |
-| qwen3:0.6b | 1 | Poor | Concatenates entities |
-
-### Test Text
-```
-Louis XIV was the King of France. He was born in Saint-Germain-en-Laye and ruled from Versailles.
-```
-
-### Results
-
-| Model | Louis XIV | France | Saint-Germain-en-Laye | Versailles |
-|-------|-----------|--------|----------------------|------------|
-| lfm2.5-thinking | PERSON ✅ | COUNTRY ✅ | CITY ✅ | CITY ✅ |
-| ministral-3 | CONCEPT ❌ | COUNTRY ✅ | CITY ✅ | CITY ✅ |
+Download GGUF models from Hugging Face or other sources and point `model_path` to the file.
 
 ---
 
 ## Offline Verification
 
-### Quick Verification
+### Quick Check
+
+Ensure `model_path` exists and is readable. No separate server process is required for in-process inference.
 
 ```julia
-using GraphMERT.OllamaClient
+using GraphMERT.LocalLLM
 
-# Check if Ollama is running
-is_available()  # Returns true/false
-
-# Create client
-client = OllamaLLMClient()
-
-# Test generation
-response = generate(client, "Hello world")
+config = LocalLLMConfig(model_path = "path/to/model.gguf")
+client = LocalLLMClient(config)
+# Use client with extract_knowledge_graph or discover_entities, etc.
 ```
 
 ### Run Verification Tests
@@ -189,7 +123,7 @@ response = generate(client, "Hello world")
 # Network verification test
 julia --project=. GraphMERT/test/local/test_network_verification.jl
 
-# Batch offline test  
+# Batch offline test
 julia --project=. GraphMERT/test/local/test_batch_offline.jl
 ```
 
@@ -197,125 +131,52 @@ julia --project=. GraphMERT/test/local/test_batch_offline.jl
 
 ## Troubleshooting
 
-### Error: Ollama server not running
+### Error: model_path not found
 
-```
-Error: HTTP 404 - Not Found
-```
-
-**Solution**: Start the Ollama server:
-
-```bash
-ollama serve
-# or
-dev up ollama
-```
-
-### Error: Model not found
-
-```
-Error: model 'unknown' not found
-```
-
-**Solution**: Pull the model:
-
-```bash
-ollama pull lfm2.5-thinking
-```
+**Solution**: Ensure `model_path` points to an existing `.gguf` file. Download a model if needed.
 
 ### Slow Inference
 
 **Solutions**:
-- Use a smaller model: `qwen3:0.6b`
-- Reduce timeout: `OllamaConfig(timeout=60)`
-- Close other applications to free memory
+- Use a smaller GGUF model (e.g. 1.1B parameters).
+- Increase `threads` in `LocalLLMConfig` (e.g. 8).
+- Close other applications to free memory.
 
-### Connection Refused
+### Out of Memory
 
-```
-Error: connect: connection refused
-```
-
-**Solution**: 
-1. Check Ollama is running: `curl http://localhost:11434/api/tags`
-2. Start server: `ollama serve`
+**Solution**: Use a smaller model or reduce `context_length` in `LocalLLMConfig`.
 
 ---
 
 ## Advanced Usage
 
-### Custom Model Configuration
+### Custom LocalLLMConfig
 
 ```julia
-# Custom configuration
-config = OllamaConfig(
-    model = "lfm2.5-thinking:latest",
-    base_url = "http://localhost:11434",
-    timeout = 300,  # 5 minutes for large texts
+config = LocalLLMConfig(
+    model_path = "path/to/model.gguf",
+    context_length = 4096,
+    threads = 8,
+    temperature = 0.5,
+    max_tokens = 256,
 )
 
-# Use with options
 options = ProcessingOptions(
     domain = "wikipedia",
-    use_ollama = true,
-    ollama_config = config,
+    use_local = true,
+    local_config = config,
 )
-```
-
-### Server Control from Julia
-
-```julia
-using GraphMERT.OllamaClient
-
-# Start Ollama server from Julia (requires ollama binary in PATH)
-client = OllamaLLMClient()
-start_server(client)
-
-# ... do work ...
-
-# Stop server
-stop_server(client)
 ```
 
 ---
 
 ## Next Steps
 
-- See [contracts/local-llm-contracts.md](contracts/local-llm-contracts.md) for detailed interface contracts
+- See [contracts/local-llm-contracts.md](contracts/local-llm-contracts.md) for interface contracts
 - See [data-model.md](data-model.md) for entity definitions
 
 ---
 
-## Performance Results
+## Performance
 
-### Test Results (T029-T032)
-
-| Test | Status | Result |
-|------|--------|--------|
-| T029: Entity extraction benchmark | ✅ Pass | Short/Medium/Long texts processed |
-| T030: 5-minute Wikipedia extraction | ✅ Pass | Completes well under 300s limit |
-| T031: 8GB RAM constraint | ✅ Pass | Memory usage well within limits |
-
-### Performance Metrics
-
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Entity extraction (short text) | < 120s | ~30s | ✅ Pass |
-| Entity extraction (medium text) | < 120s | ~45s | ✅ Pass |
-| Full extraction pipeline | < 300s | < 60s | ✅ Pass |
-| Memory usage (3 iterations) | < 4GB | < 500MB | ✅ Pass |
-| Concurrent throughput | > 0.1 texts/s | ~0.2 texts/s | ✅ Pass |
-| Tail formation | < 60s | < 30s | ✅ Pass |
-
-### Test File
-
-Run performance tests:
-```bash
-julia --project=. GraphMERT/test/performance/test_ollama_performance.jl
-```
-
-### Notes
-
-- All tests use `lfm2.5-thinking:latest` model
-- Performance may vary based on CPU and system load
-- The 5-minute (300s) requirement is easily met for standard Wikipedia articles
+Run performance tests (when available) to verify throughput and memory usage. Targets: entity extraction on a 5,000-word article in under 5 minutes, memory under 4GB for typical models.
