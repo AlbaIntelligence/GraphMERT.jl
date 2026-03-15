@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Reliability pipeline** (spec 003-align-contextual-description): Provenance tracking and `get_provenance(kg, relation_or_index)` for traceable triples; `validate_kg(kg, domain)` returning ValidityReport with graceful degradation when ontology is missing; `evaluate_factscore(kg, reference)` returning FactualityScore; `clean_kg(kg; policy)` with CleaningPolicy (min_confidence, require_provenance, contradiction_handling). New types: ProvenanceRecord, ValidityReport, FactualityScore, CleaningPolicy. Extraction populates provenance when `enable_provenance_tracking=true`; empty corpus returns empty KG without phantom provenance. Encoder-in-path: `load_model` returns full GraphMERTModel; extraction uses encoder when model is GraphMERTModel. Documented path for augmented seed (cleaned KG as seed). See `reports/REFERENCE_SOURCES_AND_ENCODER.md`, `reports/PROJECT_STATUS.md`, and `specs/003-align-contextual-description/`.
+- Unit tests: `test_provenance.jl`, `test_cleaning.jl`. Integration tests: `test_extraction_provenance.jl`, `test_validity.jl`, `test_factscore_cleaning.jl`, `test_encoder_in_path.jl`.
 - Comprehensive documentation using Documenter.jl
 - API reference with complete function documentation
 - User guides and tutorials

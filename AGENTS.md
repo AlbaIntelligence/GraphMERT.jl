@@ -27,6 +27,7 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 - Domains: biomedical and Wikipedia modules exist, but domain-level `extract_entities` / `extract_relations` are still partially stubbed; extraction falls back to heuristics when domains are not registered or fail.
 - Tests: core extraction unit tests (`test_extraction.jl`) pass; `test_api.jl` and the full `runtests.jl` suite still have known failures (domain wiring, model persistence). See `reports/CODE_REVIEW.md` for the latest list.
 - Model: RoBERTa + H-GAT + leafy chain are implemented; MNM forward pass, seed injection, and some evaluation and domain helpers are still incomplete.
+- Reliability pipeline: provenance (`get_provenance`), validation (`validate_kg` → ValidityReport), factuality (`evaluate_factscore(kg, reference)` → FactualityScore), cleaning (`clean_kg(kg; policy)`). See `specs/003-align-contextual-description/quickstart.md` and `contracts/01-reliability-api.md`.
 - Specs: treat `original_paper/expanded_rewrite/` and `reports/` as canonical; this file only routes you to them and encodes safe agent behavior.
 
 ---
@@ -39,6 +40,7 @@ When you start a new task, skim these in order and only dive deeper if needed:
    - `original_paper/expanded_rewrite/00-IMPLEMENTATION-ROADMAP-SUMMARY.md`
    - `original_paper/expanded_rewrite/STATUS-SUMMARY.md`
    - `reports/CODE_REVIEW.md` and `reports/GENERALIZATION_PLAN.md`
+   - **Reference sources and encoder:** `Contextual_information.md` (root), `original_paper/graphMERT.ipynb`, `original_paper/GraphMert/` (Python clone); see `reports/REFERENCE_SOURCES_AND_ENCODER.md` for how they relate and for RoBERTa vs notebook/clone encoders.
 2. **Core architecture and types**
    - `original_paper/expanded_rewrite/01-architecture-overview.md`
    - `original_paper/expanded_rewrite/11-data-structures.md`

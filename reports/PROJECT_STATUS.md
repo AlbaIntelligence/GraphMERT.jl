@@ -18,8 +18,9 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 | **Seed KG injection** | ⚠️ Partial | `src/training/seed_injection.jl`, `src/seed_injection.jl` |
 | **Entity extraction** | ⚠️ LLM-based extraction not wired | Domain providers have prompts but extraction falls back to regex |
 | **Relation extraction** | ⚠️ LLM-based extraction not wired | Same as entity extraction |
-| **Model persistence** | ⚠️ Stub | `models/persistence.jl` needs wiring |
-| **Evaluation (FActScore, Validity, GraphRAG)** | ⚠️ Partial | Modules exist but wiring incomplete |
+| **Model persistence** | ⚠️ Partial | `load_model` returns full GraphMERTModel (RoBERTa + H-GAT); weight loading from checkpoint TBD |
+| **Evaluation (FActScore, Validity, GraphRAG)** | ✅ / ⚠️ | ValidityReport/validate_kg, FactualityScore/evaluate_factscore(kg, ref), clean_kg implemented; GraphRAG partial |
+| **Reliability pipeline** | ✅ Implemented | Provenance, validate_kg, clean_kg, evaluate_factscore(kg, reference); see contracts/01-reliability-api.md |
 
 ---
 
@@ -111,7 +112,10 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 | `AGENTS.md` | This file |
 | `reports/PROJECT_STATUS.md` | **This document** |
 | `reports/CODE_REVIEW.md` | Detailed code review |
+| `reports/REFERENCE_SOURCES_AND_ENCODER.md` | Contextual info, notebook, Python clone; RoBERTa vs other encoders |
 | `original_paper/expanded_rewrite/` | Spec documents (canonical) |
+
+**Reference sources:** `Contextual_information.md` (root), `original_paper/graphMERT.ipynb`, and `original_paper/GraphMert/` (cloned Python repo) are summarized in `reports/REFERENCE_SOURCES_AND_ENCODER.md`. The spec requires a **RoBERTa** encoder; extraction should use it once model persistence is wired.
 
 ---
 
@@ -126,13 +130,25 @@ For new tasks:
 
 ---
 
-## 8. Recent Changes (March 2026)
+## 8. Reliability pipeline (encoder-in-path and status)
+
+- **Provenance:** Extraction populates `ProvenanceRecord` per triple when `enable_provenance_tracking=true`; `get_provenance(kg, relation_or_index)` returns source document/segment.
+- **Validation:** `validate_kg(kg, domain)` returns `ValidityReport` (score, valid_count, total_triples); graceful degradation when domain/ontology missing.
+- **Factuality:** `evaluate_factscore(kg, reference::KnowledgeGraph)` returns `FactualityScore` when reference is provided.
+- **Cleaning:** `clean_kg(kg; policy)` returns new KnowledgeGraph; policy: min_confidence, require_provenance, contradiction_handling.
+- **Encoder-in-path:** Extraction uses the model encoder (RoBERTa + H-GAT) when `model isa GraphMERTModel`; `load_model(path)` returns full model (config-based; full weight load from checkpoint is post-MVP).
+- **Iterative seed:** Path documented: clean KG → export → use as seed path for training/extraction; see quickstart and `specs/003-align-contextual-description/quickstart.md`.
+
+---
+
+## 9. Recent Changes (March 2026)
 
 - Created comprehensive project review: `reports/PROJECT_REVIEW_2026-03-10.md`
 - Created Wikipedia KG testing infrastructure: `GraphMERT/test/wikipedia/`
 - Identified regex fallback issue in entity extraction
 - Identified MNM forward pass stub
+- Implemented reliability pipeline (provenance, validate_kg, clean_kg, evaluate_factscore with reference); updated REFERENCE_SOURCES_AND_ENCODER.md with narrative mapping
 
 ---
 
-*Last updated: 2026-03-10*
+*Last updated: 2026-03-15*

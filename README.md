@@ -99,6 +99,31 @@ graph = extract_knowledge_graph(text, model; options=options)
 
 See the [Domain Usage Guide](DOMAIN_USAGE_GUIDE.md) for more details on using domains.
 
+### Reliability pipeline (provenance, validation, factuality, cleaning)
+
+When building reliable KGs, you can enable provenance tracking, validate triples against an ontology, score factuality against reference data, and clean the KG by policy:
+
+```julia
+using GraphMERT
+
+# Extract with provenance so every triple is traceable to source
+opts = ProcessingOptions(domain = "biomedical", enable_provenance_tracking = true)
+kg = extract_knowledge_graph(text, model; options = opts)
+prov = get_provenance(kg, 1)  # document_id, segment_id for relation 1
+
+# Validate against domain ontology (ValidityScore)
+report = validate_kg(kg, "biomedical")
+println("Validity: ", report.score, " (", report.valid_count, "/", report.total_triples, " valid)")
+
+# Factuality vs reference KG (FActScore) when reference is available
+score = evaluate_factscore(kg, reference_kg; reference_id = "gold_v1")
+
+# Clean by policy (min_confidence, require_provenance)
+cleaned = clean_kg(kg; min_confidence = 0.6, require_provenance = true)
+```
+
+See `specs/003-align-contextual-description/quickstart.md` and `reports/REFERENCE_SOURCES_AND_ENCODER.md` for the full narrative and mapping to Contextual_information.md.
+
 ## Architecture
 
 The GraphMERT implementation follows a sophisticated multi-stage architecture:

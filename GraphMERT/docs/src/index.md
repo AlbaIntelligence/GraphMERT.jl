@@ -11,6 +11,7 @@ GraphMERT.jl is a Julia implementation of the GraphMERT algorithm for constructi
 
 ## Features
 
+- 🔗 **Reliability pipeline**: Provenance (`get_provenance`), ontology validation (`validate_kg` → ValidityReport), factuality (`evaluate_factscore(kg, reference)` → FactualityScore), and KG cleaning (`clean_kg(kg; policy)`). See `specs/003-align-contextual-description/quickstart.md`.
 - 🧬 **Biomedical Focus**: Specialized for biomedical text processing with UMLS integration
 - 🚀 **High Performance**: Process 5,000+ tokens per second on laptop hardware
 - 🧠 **Advanced Architecture**: RoBERTa encoder with Hierarchical Graph Attention
