@@ -355,6 +355,19 @@ function _generate(client::LocalLLMClient, prompt::String)
     return full_response
 end
 
+"""
+    generate(client::LocalLLMClient, prompt::String)::String
+
+Run the local LLM on a prompt and return the full response. Used by domain modules
+for relation matching, tail formation, or other custom prompts.
+"""
+function generate(client::LocalLLMClient, prompt::String)::String
+    if !client.is_loaded || client.model === nothing
+        throw(ErrorException("Model not loaded"))
+    end
+    return _generate(client, prompt)
+end
+
 function _parse_relation_response(response::String)
     relations = Dict{String,Dict{String,String}}()
 
@@ -468,6 +481,6 @@ end
 # Exports
 # =============================================================================
 
-export LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_model, match_relations, discover_entities, form_tail_from_tokens
+export LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_model, match_relations, discover_entities, form_tail_from_tokens, generate
 
 end  # module LocalLLM

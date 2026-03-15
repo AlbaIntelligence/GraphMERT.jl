@@ -91,11 +91,11 @@ mutable struct WikipediaDomain <: DomainProvider
     end
 end
 
-# Import Wikipedia submodules
+# Import Wikipedia submodules (wikidata before relations so relations can use get_wikidata_relations)
 include("entities.jl")
-include("relations.jl")
 include("prompts.jl")
-include("wikidata.jl")  # Wikidata integration
+include("wikidata.jl")
+include("relations.jl")
 
 # ============================================================================
 # Required DomainProvider Methods
@@ -131,13 +131,12 @@ function extract_entities(domain::WikipediaDomain, text::String, config::Any, ll
 end
 
 """
-    extract_relations(domain::WikipediaDomain, entities::Vector{Entity}, text::String, config::ProcessingOptions)
+    extract_relations(domain::WikipediaDomain, entities::Vector{Entity}, text::String, config::Any; llm_client=nothing)
 
-Extract Wikipedia relations between entities.
+Extract Wikipedia relations between entities (pattern-based and optional LLM).
 """
-function extract_relations(domain::WikipediaDomain, entities::Vector{Entity}, text::String, config::Any)
-    # Delegate to Wikipedia relations module
-    return extract_wikipedia_relations(entities, text, config, domain)
+function extract_relations(domain::WikipediaDomain, entities::Vector{Entity}, text::String, config::Any; llm_client = nothing)
+    return extract_wikipedia_relations(entities, text, config, domain; llm_client = llm_client)
 end
 
 """
