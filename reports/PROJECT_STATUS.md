@@ -62,10 +62,10 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 - **Impact**: Paper specifies LLM-based extraction; current regex fallback is incorrect
 - **Required fix**: Wire `discover_entities(client, text, domain)` in domain providers
 
-### 3.3 Model Persistence (Stub)
+### 3.3 Model Persistence (Partial)
 - **Location**: `models/persistence.jl`, `scripts/import_model_weights.jl`
-- **Status**: Structure exists but not wired to `load_model`
-- **Impact**: Cannot load/save pretrained models
+- **Status**: `load_model(path)` is wired and returns full GraphMERTModel (RoBERTa + H-GAT) from a JSON checkpoint (config + metadata). Loading pretrained weights from the checkpoint file is post-MVP. Model storage is at user-provided path (see REFERENCE_SOURCES_AND_ENCODER.md).
+- **Impact**: Extraction uses encoder when model is GraphMERTModel; full weight load from checkpoint TBD
 
 ### 3.4 Training Pipeline (Partial)
 - **Location**: `src/training/pipeline.jl`

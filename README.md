@@ -45,8 +45,8 @@ Pkg.add("GraphMERT")
 ```julia
 using GraphMERT
 
-# Load a pre-trained model
-model = load_model("path/to/graphmert_model.onnx")
+# Load a model (checkpoint at a path you provide; JSON format)
+model = load_model("path/to/checkpoint.json")
 
 # Extract knowledge graph from biomedical text
 text = "Diabetes mellitus is a chronic metabolic disorder characterized by hyperglycemia. Insulin therapy is the primary treatment for type 1 diabetes."
@@ -187,7 +187,7 @@ graph = extract_knowledge_graph(text, model; options=options)
 ```julia
 # Comprehensive configuration
 config = GraphMERTConfig(
-    model_path = "path/to/model.onnx",
+    model_path = "path/to/checkpoint.json",
     processing_options = ProcessingOptions(
         confidence_threshold = 0.85,
         performance_mode = :accurate,
