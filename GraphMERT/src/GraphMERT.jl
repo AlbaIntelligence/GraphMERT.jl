@@ -71,6 +71,7 @@ using Dates
 # Core modules first (types needed by other modules)
 include("types.jl")
 include("config.jl")
+include("utils.jl")
 
 # LLM integration
 include("llm/local.jl")
@@ -122,7 +123,7 @@ include("data/preparation.jl")
 # Note: Evaluation modules contain domain-specific code (e.g., UMLSClient for biomedical)
 # These will be refactored when creating domain modules
 include("evaluation/factscore.jl")
-# include("evaluation/validity.jl")  # Temporarily disabled - requires UMLSClient which is domain-specific
+include("evaluation/validity.jl")
 include("evaluation/graphrag.jl")
 # include("evaluation/diabetes.jl")  # Temporarily disabled - domain-specific
 
@@ -132,6 +133,7 @@ include("monitoring/performance.jl")
 
 # API
 include("api/extraction.jl")
+include("api/reliability.jl")
 include("api/batch.jl")
 include("api/config.jl")
 include("api/helpers.jl")
@@ -146,7 +148,9 @@ include("optimization/speed.jl")
 
 # Export main API functions
 export extract_knowledge_graph, load_model, preprocess_text
-export KnowledgeGraph, KnowledgeEntity, KnowledgeRelation, TextPosition
+export KnowledgeGraph, KnowledgeEntity, KnowledgeRelation, TextPosition, ProvenanceRecord
+export ValidityReport, FactualityScore, CleaningPolicy
+export get_provenance, validate_kg, clean_kg
 export GraphMERTModel, ProcessingOptions, GraphMERTConfig
 export FActScore, ValidityScore, GraphRAG
 export filter_knowledge_graph
