@@ -12,6 +12,12 @@ Algorithm Overview:
 4. Validation: Ensure semantic consistency with source text
 
 This module is domain-agnostic and delegates domain-specific operations to DomainProvider instances.
+
+**Augmented seed (cleaned/curated KG):** To use a cleaned or curated KG as seed for training or
+extraction: (1) produce cleaned KG via `clean_kg(kg; policy)`; (2) export it (e.g.
+`export_to_json(cleaned_kg, path)` or domain-specific export); (3) configure that path as seed
+data for training, or load triples and pass into `create_seed_triples` / injection pipeline.
+See `specs/003-align-contextual-description/quickstart.md` §5 and contract FR-006, SC-006.
 """
 
 # Types will be available from main module after types.jl is included

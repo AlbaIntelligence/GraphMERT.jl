@@ -48,13 +48,14 @@ coverage/
 # Documentation build
 docs/build/
 docs/site/
+original_paper/[Gg]raph*
 
 # Test artifacts
 test/artifacts/
 test/results/
 
-# Model files and data
-models/
+# Model files and data (root-level; do not ignore GraphMERT source)
+/models/
 data/
 *.onnx
 *.bin
