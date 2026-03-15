@@ -273,19 +273,19 @@ function extract_knowledge_graph(
   model;
   options::GraphMERT.ProcessingOptions=GraphMERT.default_processing_options(),
 )::GraphMERT.KnowledgeGraph
-  # Basic validation on input text
+  # Empty text: return empty KG with no phantom provenance (edge case per spec)
   if isempty(text)
-    throw(ArgumentError("Input text must not be empty"))
+    return GraphMERT.KnowledgeGraph(
+      GraphMERT.KnowledgeEntity[],
+      GraphMERT.KnowledgeRelation[],
+      Dict("extraction_time" => string(now()), "domain" => options.domain, "num_entities" => 0, "num_relations" => 0, "empty_corpus" => true),
+    )
   end
   if length(text) > options.max_length
     throw(ArgumentError("Input text length $(length(text)) exceeds max_length=$(options.max_length)"))
   end
 
-  # Require a compatible model type for now
-  if !(model isa GraphMERT.GraphMERTModel)
-    throw(ArgumentError("Unsupported model type $(typeof(model)); expected GraphMERTModel"))
-  end
-
+  # Full encoder path (tail prediction) runs only for GraphMERTModel; other model types use fallback entity/relation path only
   @info "Starting knowledge graph extraction from text of length $(length(text)) with domain: $(options.domain)"
 
   # Create LLM client based on options (local or cloud)
@@ -314,8 +314,8 @@ function extract_knowledge_graph(
   relations = match_relations_for_entities(entities, text, domain_provider, options)
   @info "Extracted $(length(relations)) relations using domain: $(options.domain)"
 
-  # Stages 3–5 (optional): When model is provided, run tail prediction, tail formation, and filtering
-  if model !== nothing && !isempty(relations)
+  # Stages 3–5 (optional): When a full GraphMERT model is provided, run tail prediction, tail formation, and filtering
+  if model !== nothing && !isempty(relations) && model isa GraphMERTModel
     triples = _build_triples_from_relations(entities, relations)
     top_k = options.top_k_predictions
     β = options.similarity_threshold
@@ -329,7 +329,8 @@ function extract_knowledge_graph(
       end
     end
     filtered = filter_and_deduplicate_triples(triples, text, β)
-    entities, relations = _triples_to_entities_relations(entities, filtered, options.domain)
+    doc_id = "doc_$(hash(text) % UInt)"
+    entities, relations = _triples_to_entities_relations(entities, filtered, options.domain, options.enable_provenance_tracking, doc_id)
   end
 
   # Create knowledge graph
@@ -371,14 +372,15 @@ function _triples_to_entities_relations(
   entities::Vector,
   filtered_triples::Vector{<:Tuple},
   domain::String,
+  enable_provenance_tracking::Bool=false,
+  document_id::String="doc_1",
 )
   out_entities = copy(entities)
   entity_by_text = Dict(e.text => e for e in out_entities)
   out_relations = GraphMERT.Relation[]
-  for (head_entity, rel_type, tail_text, conf) in filtered_triples
+  for (seg_idx, (head_entity, rel_type, tail_text, conf)) in enumerate(filtered_triples)
     tail_entity = get(entity_by_text, tail_text, nothing)
     if tail_entity === nothing
-      # New entity for tail
       tail_id = "tail_$(hash(tail_text))"
       tail_entity = GraphMERT.Entity(
         tail_id, tail_text, tail_text, "UNKNOWN", domain,
@@ -387,8 +389,13 @@ function _triples_to_entities_relations(
       push!(out_entities, tail_entity)
       entity_by_text[tail_text] = tail_entity
     end
+    attrs = Dict{String,Any}()
+    if enable_provenance_tracking
+      attrs["provenance_record"] = GraphMERT.ProvenanceRecord(document_id, seg_idx; context=nothing)
+    end
+    prov_str = enable_provenance_tracking ? "$(document_id)#$(seg_idx)" : ""
     push!(out_relations, GraphMERT.Relation(
-      head_entity.id, tail_entity.id, rel_type, conf, domain, "", "", Dict{String,Any}(),
+      head_entity.id, tail_entity.id, rel_type, conf, domain, prov_str, "", attrs,
     ))
   end
   return out_entities, out_relations
