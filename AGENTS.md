@@ -23,12 +23,21 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 
 ## 1.1 Quick snapshot for agents
 
-- **Project status**: See `reports/PROJECT_STATUS.md` for comprehensive status overview (required reading).
-- Domains: biomedical and Wikipedia modules exist, but domain-level `extract_entities` / `extract_relations` are still partially stubbed; extraction falls back to heuristics when domains are not registered or fail.
-- Tests: core extraction unit tests (`test_extraction.jl`) pass; `test_api.jl` and the full `runtests.jl` suite still have known failures (domain wiring, model persistence). See `reports/CODE_REVIEW.md` for the latest list.
-- Model: RoBERTa + H-GAT + leafy chain are implemented; MNM forward pass, seed injection, and some evaluation and domain helpers are still incomplete.
-- Reliability pipeline: provenance (`get_provenance`), validation (`validate_kg` → ValidityReport), factuality (`evaluate_factscore(kg, reference)` → FactualityScore), cleaning (`clean_kg(kg; policy)`). See `specs/003-align-contextual-description/quickstart.md` and `contracts/01-reliability-api.md`.
-- Specs: treat `original_paper/expanded_rewrite/` and `reports/` as canonical; this file only routes you to them and encodes safe agent behavior.
+- **Project status**: See `reports/PROJECT_STATUS.md` for overview; `reports/PARITY_PLAN.md` for current defect list and work streams.
+- **Confirmed P0 bugs** (nothing works end-to-end until these are fixed):
+  - `train_graphmert` returns `MockGraphMERTModel` with `rand()` losses — no real training.
+  - `predict_tail_tokens` (Stage 3) uses `rand(Float32, vocab_size)` — no real inference.
+  - `form_tail_from_tokens` (Stage 4) returns `"entity_N"` strings — no real extraction.
+  - All weight I/O in `persistence.jl` is stubbed — `save_model`/`load_model` do nothing.
+  - `filter_triples_by_confidence` is an O(N²×M) cartesian product — FActScore is wrong.
+  - `max_position_embeddings=512` but sequence length is 1024 — embedding table too small.
+- **Spec**: `reports/RETROSPECTIVE_SPEC.md` defines all type, algorithm, and API contracts.
+- **Roadmap**: `reports/PARITY_PLAN.md` lists 12 confirmed defects and 7 work streams.
+- **Tasks**: `reports/TASK_LIST.md` has 155 atomic subtasks ordered by dependency.
+- Domains: biomedical and Wikipedia modules exist; `BiomedicalDomain.extract_entities` has a 3-arg signature but the extraction path tries 4 args — always falls back to heuristics.
+- Tests: known failures in `test_api.jl` (arity mismatch line 103) and contradicting empty-text contracts between unit and integration tests. See `reports/CODE_REVIEW.md`.
+- Reliability pipeline: `validate_kg`, `get_provenance`, `evaluate_factscore`, `clean_kg` are partially implemented; `evaluate_factscore` has the cartesian-product bug above.
+- **Do not trust README performance numbers** — they are from mock training with random losses.
 
 ---
 
@@ -36,16 +45,20 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 
 When you start a new task, skim these in order and only dive deeper if needed:
 
-1. **Roadmap and current status (specs)**
+1. **Contracts, defects, and tasks (read first)**
+   - `reports/RETROSPECTIVE_SPEC.md` — canonical type, algorithm, and API contracts
+   - `reports/PARITY_PLAN.md` — confirmed defect table (D1–D12) and 7 work streams
+   - `reports/TASK_LIST.md` — 155 atomic subtasks; find your stream and start there
+2. **Roadmap and current status**
    - `original_paper/expanded_rewrite/00-IMPLEMENTATION-ROADMAP-SUMMARY.md`
    - `original_paper/expanded_rewrite/STATUS-SUMMARY.md`
    - `reports/CODE_REVIEW.md` and `reports/GENERALIZATION_PLAN.md`
-   - **Reference sources and encoder:** `Contextual_information.md` (root), `original_paper/graphMERT.ipynb`, `original_paper/GraphMert/` (Python clone); see `reports/REFERENCE_SOURCES_AND_ENCODER.md` for how they relate and for RoBERTa vs notebook/clone encoders.
-2. **Core architecture and types**
+   - **Reference sources and encoder:** `Contextual_information.md` (root), `original_paper/graphMERT.ipynb`, `original_paper/GraphMert/` (Python clone); see `reports/REFERENCE_SOURCES_AND_ENCODER.md`.
+3. **Core architecture and types**
    - `original_paper/expanded_rewrite/01-architecture-overview.md`
    - `original_paper/expanded_rewrite/11-data-structures.md`
    - `GraphMERT/src/GraphMERT.jl` and `GraphMERT/src/types.jl`
-3. **Critical algorithms**
+4. **Critical algorithms**
    - Leafy chain graphs: `original_paper/expanded_rewrite/02-leafy-chain-graphs.md`, `GraphMERT/src/graphs/leafy_chain.jl`
    - MNM training: `original_paper/expanded_rewrite/07-training-mnm.md`, `GraphMERT/src/training/mnm.jl`
    - Seed KG injection: `original_paper/expanded_rewrite/08-seed-kg-injection.md`, `GraphMERT/src/training/seed_injection.jl`, `GraphMERT/src/seed_injection.jl`
@@ -150,39 +163,41 @@ Whenever you change behavior, prioritize tests:
 
 ## 5. High-impact areas for agents
 
-Agents looking for high-impact tasks should focus here:
+> For a prioritized, atomic task list see **`reports/TASK_LIST.md`**. The streams below map to that document.
 
-1. **Training pipeline completeness**
-   - Implement proper MNM batching and integration in `GraphMERT/src/training/pipeline.jl`.
-   - Replace any `mnm_batch = nothing` or `TODO` stubs with spec-compliant logic.
+### Stream A — Fix P0 correctness bugs (highest priority)
 
-2. **Tail prediction and formation**
-   - `predict_tail_tokens` and `form_tail_from_tokens` currently rely on placeholder behavior.
-   - Use `original_paper/expanded_rewrite/09-triple-extraction.md` to:
-     - Pull real scores from `GraphMERTModel`.
-     - Implement meaningful tail candidates.
-     - Optionally integrate the helper LLM for tail formation in a controlled, testable way.
+Work items: `TASK_LIST.md` §A1–A5
 
-3. **Model persistence**
-   - Wire `load_model` and persistence utilities to real on-disk formats, backed by `models/persistence.jl` and `scripts/import_model_weights.jl`.
-   - Add tests that:
-     - Save a small model.
-     - Reload and verify equivalence for key operations.
+1. **A1 — Real training pipeline**: Replace `MockGraphMERTModel` + `rand()` losses + missing `Flux.update!` in `GraphMERT/src/training/pipeline.jl`.
+2. **A2/A3 — Real tail prediction/formation**: Replace `rand(Float32, vocab_size)` and `"entity_N"` strings in `GraphMERT/src/api/extraction.jl` stages 3–4.
+3. **A4 — Model persistence**: Implement JLD2 weight save/load in `GraphMERT/src/models/persistence.jl`.
+4. **A5 — FActScore bug**: Fix O(N²×M) cartesian product in `GraphMERT/src/evaluation/factscore.jl:197`.
 
-4. **Domain tests**
-   - Add `test/domains/test_biomedical_domain.jl`, `test/domains/test_wikipedia_domain.jl`, and `test/domains/test_domain_registry.jl`.
-   - Verify extraction, validation, confidence scoring, and evaluation metrics through the domain interface.
+### Stream B — Architecture alignment (Python reference parity)
 
-5. **Placeholder cleanup and benchmarks**
-   - Replace placeholder implementations in:
-     - `GraphMERT/src/benchmarking/benchmarks.jl`
-     - `GraphMERT/src/optimization/*.jl`
-     - Any remaining placeholder functions in domain graph utilities.
-   - Ensure benchmarks reflect actual performance claims in the README.
+Work items: `TASK_LIST.md` §B1–B6
 
-6. **Visualization**
-   - Stabilize and document the visualization layer in `GraphMERT/src/visualization/*.jl`.
-   - Add a dedicated docs page and ensure `examples/visualization_example.jl` and `examples/wikipedia/02_wikipedia_visualization.jl` stay in sync.
+5. **B1** — Fix `max_position_embeddings = 512` → 1024 in `RoBERTaConfig`.
+6. **B2** — Integrate attention decay mask (`exp(-α×d)`) into every transformer layer.
+7. **B3/B4** — Wire H-GAT relation embeddings into embedding layer; implement real `GraphMERTModel.forward`.
+8. **B5** — Fix MNM loss: `crossentropy` → `logitbinarycrossentropy`.
+9. **B6** — Fix `BiomedicalDomain.extract_entities` arity (3-arg → 4-arg with default).
+
+### Stream C–D — External integrations and full training
+
+Work items: `TASK_LIST.md` §C1–C4, §D1–D5
+
+10. LLM client, UMLS client, SapBERT entity linking, seed KG injection pipeline.
+11. Real gradient-flowing MNM training step; checkpoint system; validation loop.
+
+### Stream E–G — Evaluation, tests, extensions
+
+Work items: `TASK_LIST.md` §E–G
+
+12. FActScore* with LLM verification, ValidityScore, GraphRAG.
+13. Fix known test failures; add integration + persistence round-trip tests.
+14. Distillation hooks, multi-domain seed injection, KG completion mode.
 
 ---
 
