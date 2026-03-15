@@ -26,6 +26,7 @@ include("test_utils.jl")
   include("unit/test_llm.jl")
   include("unit/test_mnm.jl")
   include("unit/test_persistence.jl")
+  include("unit/test_default_encoder.jl")
   include("unit/test_seed_injection.jl")
   include("unit/test_umls.jl")
 end
