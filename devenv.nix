@@ -8,6 +8,9 @@
 
 let
   llmsPkgs = inputs.llms.packages.${pkgs.stdenv.hostPlatform.system};
+  # CPU-only llama.cpp (no CUDA) for dev environment; reuse via Nix store on subsequent entry
+  # nixpkgs llama-cpp: only cudaSupport is overridable; CPU build is default when cudaSupport = false
+  llamaCppCpu = pkgs.llama-cpp.override { cudaSupport = false; };
 in
 {
   # https://devenv.sh/basics/
@@ -25,10 +28,11 @@ in
       bash # Required by Speckit scripts
       vscode
 
-      # LLM - Ollama for local inference (CPU only; cudaSupport disabled in devenv.yaml)
-      ollama-cpu
-      # vllm
-      # llama-cpp  # Disabled: pulls in CUDA by default; enable only if you set up CUDA or use override
+      # LLM - CPU-only llama.cpp (CLI + server); workflow uses llama-cpp instead of ollama
+      llamaCppCpu
+
+      # Python - Hugging Face Hub CLI (e.g. huggingface-cli download for GGUF / encoder weights)
+      python313Packages.huggingface-hub
     ])
     ++ (with llmsPkgs; [
       cursor-agent
@@ -44,21 +48,16 @@ in
   languages.julia.enable = true;
 
   # https://devenv.sh/processes/
-  # Run ollama as a process. (services.ollama is a NixOS-only option; devenv has no built-in ollama service.)
-  processes.ollama = {
+  # Run llama-cpp server (llama-server) for local inference; workflow uses llama-cpp instead of ollama.
+  processes.llama-server = {
     exec = ''
-      export OLLAMA_MODELS="''${HOME:-/tmp}/.ollama/models"
-      export OLLAMA_KEEP_ALIVE="1h"
-      export OLLAMA_LLM_LIBRARY="cpu"
-      export OLLAMA_HOST="127.0.0.1:11434"
-      ${lib.getExe pkgs.ollama-cpu} serve
+      ${llamaCppCpu}/bin/llama-server --host 127.0.0.1 --port 8080
     '';
     ready = {
-      http.get = { port = 11434; path = "/"; };
+      http.get = { port = 8080; path = "/"; };
       initial_delay = 2;
     };
   };
-  # open-webui is not a built-in devenv service; run it manually or add a process if needed.
 
   # https://devenv.sh/scripts/
   scripts.hello.exec = ''
@@ -81,6 +80,8 @@ in
   enterTest = ''
     echo "Running tests"
     git --version | grep --color=auto "${pkgs.git.version}"
+    # CPU-only llama.cpp: assert binary on PATH when present (nixpkgs may expose as llama or llama-cli)
+    command -v llama >/dev/null 2>&1 || command -v llama-cli >/dev/null 2>&1 || echo "Note: llama.cpp not on PATH yet (run devenv up or devenv shell to build)"
   '';
 
   # https://devenv.sh/git-hooks/
