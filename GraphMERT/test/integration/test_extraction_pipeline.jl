@@ -45,11 +45,11 @@ end
     @test length(kg.relations) > 0
     @test length(kg.triples) > 0
 
-    # Verify entity structure
+    # Verify entity structure (TextPosition has start, stop, line, column — not start_char)
     for entity in kg.entities
       @test !isempty(entity.text)
       @test 0 ≤ entity.confidence ≤ 1
-      @test entity.position.start_char ≥ 0
+      @test entity.position.start ≥ 0
     end
 
     # Verify relation structure

@@ -23,10 +23,10 @@ in
       git
 
       # IDE
-      code-cursor
-      amp-cli
       bash # Required by Speckit scripts
       vscode
+      copilot-cli
+      copilot-language-server
 
       # LLM - CPU-only llama.cpp (CLI + server); workflow uses llama-cpp instead of ollama
       llamaCppCpu
@@ -54,7 +54,10 @@ in
       ${llamaCppCpu}/bin/llama-server --host 127.0.0.1 --port 8080
     '';
     ready = {
-      http.get = { port = 8080; path = "/"; };
+      http.get = {
+        port = 8080;
+        path = "/";
+      };
       initial_delay = 2;
     };
   };
