@@ -18,7 +18,7 @@ const ProcessingOptions = GraphMERT.ProcessingOptions
 const has_domain = GraphMERT.has_domain
 const get_domain = GraphMERT.get_domain
 
-# Create mock model for testing
+# Create mock models for testing
 struct MockExtractionModel
   vocab_size::Int
 end
@@ -26,6 +26,34 @@ end
 function (model::MockExtractionModel)(input_ids, attention_mask)
   batch_size, seq_len = size(input_ids)
   return randn(Float32, batch_size, seq_len, model.vocab_size)
+end
+
+"""
+A deterministic logits model used to verify that tail prediction reads logits from the
+masked tail leaf positions (rather than, e.g., averaging unrelated sequence positions).
+"""
+struct FixedTailLogitsModel
+  vocab_size::Int
+  mask_token_id::Int
+  preferred_token_id::Int  # 0-based
+end
+
+function (model::FixedTailLogitsModel)(input_ids, attention_mask)
+  batch_size, seq_len = size(input_ids)
+  logits = fill(-10.0f0, batch_size, seq_len, model.vocab_size)
+
+  pref_idx = model.preferred_token_id + 1
+  for b in 1:batch_size
+    for s in 1:seq_len
+      if input_ids[b, s] == model.mask_token_id
+        logits[b, s, pref_idx] = 10.0f0
+      else
+        logits[b, s, 1] = 5.0f0
+      end
+    end
+  end
+
+  return logits
 end
 
 @testset "Knowledge Graph Extraction Tests" begin
@@ -72,16 +100,17 @@ end
   end
 
   @testset "Tail Token Prediction" begin
-    # Create mock model
-    mock_model = MockExtractionModel(30522)
+    # Deterministic mock model
+    fixed_model = FixedTailLogitsModel(50, 4, 7)
 
     # Create test entity (any struct with `text` field is fine here)
     head_entity = Entity("e1", "Diabetes", "Diabetes", "DISEASE", "biomedical", Dict{String,Any}(), TextPosition(1, 8, 1, 1), 0.9, "test")
 
     text = "Diabetes is treated with"
-    tail_tokens = predict_tail_tokens(mock_model, head_entity, "TREATS", text, 5)
+    tail_tokens = predict_tail_tokens(fixed_model, head_entity, "TREATS", text, 5)
 
     @test length(tail_tokens) == 5
+    @test tail_tokens[1][1] == 7  # preferred_token_id
     @test all(token[2] > 0 for token in tail_tokens)  # All probabilities positive
 
     # Check ordering (should be sorted by probability)

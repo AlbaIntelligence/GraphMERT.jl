@@ -160,17 +160,60 @@ function predict_tail_tokens(
   text::String,
   top_k::Int=20,
 )
-  # Create a simple graph for prediction (would be more sophisticated)
   graph = GraphMERT.create_leafy_chain_from_text(text)
+
+  # Heuristic: map head span start → approximate root index based on whitespace tokenization.
+  root_index = 0
+  try
+    if hasproperty(head_entity, :position)
+      pos = getproperty(head_entity, :position)
+      if hasproperty(pos, :start)
+        start = Int(getproperty(pos, :start))
+        if !isempty(text)
+          start = clamp(start, firstindex(text), lastindex(text))
+          if start > firstindex(text)
+            prefix_end = prevind(text, start)
+            prefix = text[firstindex(text):prefix_end]
+            root_index = clamp(length(tokenize_text(prefix)), 0, graph.config.num_roots - 1)
+          end
+        end
+      end
+    end
+  catch
+    root_index = 0
+  end
+
+  mask_token_id = try
+    BioMedTokenizerConfig().mask_token_id
+  catch
+    4
+  end
+
+  head_text = try
+    hasproperty(head_entity, :text) ? String(getproperty(head_entity, :text)) : ""
+  catch
+    ""
+  end
+
+  # Build (head, relation) context by marking the tail leaf group as masked tokens.
+  GraphMERT.inject_triple!(
+    graph,
+    root_index,
+    0,
+    fill(mask_token_id, graph.config.num_leaves_per_root),
+    "<mask>",
+    Symbol(relation),
+    head_text,
+  )
+
   input_ids_vec = GraphMERT.graph_to_sequence(graph)
   seq_len = length(input_ids_vec)
 
   logits = if model isa GraphMERT.GraphMERTModel
-    safe_input_ids = [x == 0 ? 1 : x for x in input_ids_vec]
-    input_ids = reshape(safe_input_ids, seq_len, 1)
-    attention_mask = GraphMERT.create_attention_mask(input_ids)
-    position_ids = reshape(collect(1:seq_len), seq_len, 1)
-    token_type_ids = ones(Int, seq_len, 1)
+    input_ids = reshape(input_ids_vec, seq_len, 1)               # 0-based ids
+    attention_mask = GraphMERT.create_attention_mask(input_ids)  # additive mask
+    position_ids = GraphMERT.create_position_ids(seq_len, 1)     # 0-based
+    token_type_ids = GraphMERT.create_token_type_ids(seq_len, 1)
 
     encoder_output, _ = model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
     batch_size, _, hidden_dim = size(encoder_output)
@@ -185,19 +228,27 @@ function predict_tail_tokens(
     model(reshape(input_ids_vec, 1, :), reshape(attention_mask, 1, :))
   end
 
-  # Use the model's logits directly instead of placeholder randomness.
   seq_len = size(logits, 2)
   vocab_size = size(logits, 3)
-  leaf_start = min(graph.config.num_roots + 1, seq_len)
-  candidate_positions = collect(leaf_start:seq_len)
-  isempty(candidate_positions) && push!(candidate_positions, seq_len)
+
+  # Prefer the masked tail leaf group for this head (7 leaves for the selected root).
+  leaf_base = graph.config.num_roots + root_index * graph.config.num_leaves_per_root
+  candidate_positions = collect((leaf_base + 1):(leaf_base + graph.config.num_leaves_per_root))
+  candidate_positions = [p for p in candidate_positions if 1 <= p <= seq_len]
+
+  # Safety fallback: if we somehow didn't get valid tail positions, use all leaf positions.
+  if isempty(candidate_positions)
+    leaf_start = min(graph.config.num_roots + 1, seq_len)
+    candidate_positions = collect(leaf_start:seq_len)
+    isempty(candidate_positions) && push!(candidate_positions, seq_len)
+  end
 
   tail_logits = dropdims(mean(logits[1, candidate_positions, :]; dims=1), dims=1)
   tail_probs = Flux.softmax(tail_logits)
 
-  # Get top-k tokens
+  # Return 0-based token IDs (the rest of the codebase uses 0-based ids).
   top_indices = sortperm(tail_probs, rev=true)[1:min(top_k, vocab_size)]
-  top_tokens = [(idx, Float64(tail_probs[idx])) for idx in top_indices]
+  top_tokens = [(idx - 1, Float64(tail_probs[idx])) for idx in top_indices]
 
   return top_tokens
 end
