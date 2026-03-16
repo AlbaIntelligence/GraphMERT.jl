@@ -198,69 +198,90 @@ Flux.@functor HGATModel (layers, input_projection, output_projection)
 # ============================================================================
 
 """
-    (attention::HGATAttention)(node_features::Matrix{Float32}, adjacency_matrix::SparseMatrixCSC{Float32})
+    (attention::HGATAttention)(node_features::AbstractArray{Float32, 3}, adjacency_matrix::SparseMatrixCSC{Float32})
 
 Forward pass for H-GAT attention mechanism.
-
+Handles input shape: (batch_size, num_nodes, hidden_dim)
 """
 function (attention::HGATAttention)(
-  node_features::Matrix{Float32},
+  node_features::AbstractArray{Float32, 3},
   adjacency_matrix::SparseMatrixCSC{Float32},
 )
-  batch_size, num_nodes, _ = size(node_features)
+  batch_size, num_nodes, hidden_dim = size(node_features)
+
+  # Permute to (hidden, nodes, batch) for Flux layers
+  feat_perm = permutedims(node_features, (3, 2, 1))
+  feat_flat = reshape(feat_perm, hidden_dim, num_nodes * batch_size)
 
   # Project to query, key, value
-  query = attention.query_projection(node_features)
-  key = attention.key_projection(node_features)
-  value = attention.value_projection(node_features)
+  query_flat = attention.query_projection(feat_flat)
+  key_flat = attention.key_projection(feat_flat)
+  value_flat = attention.value_projection(feat_flat)
 
-  # Reshape for multi-head attention
-  query = reshape(query, batch_size, num_nodes, attention.num_heads, attention.head_dim)
-  key = reshape(key, batch_size, num_nodes, attention.num_heads, attention.head_dim)
-  value = reshape(value, batch_size, num_nodes, attention.num_heads, attention.head_dim)
+  # Reshape and split heads
+  # (num_heads, head_dim, num_nodes, batch_size)
+  query = reshape(query_flat, attention.num_heads, attention.head_dim, num_nodes, batch_size)
+  key = reshape(key_flat, attention.num_heads, attention.head_dim, num_nodes, batch_size)
+  value = reshape(value_flat, attention.num_heads, attention.head_dim, num_nodes, batch_size)
 
-  # Transpose for attention computation
-  query = permutedims(query, [1, 3, 2, 4])  # [batch, heads, nodes, head_dim]
-  key = permutedims(key, [1, 3, 2, 4])
-  value = permutedims(value, [1, 3, 2, 4])
+  # Prepare for batched_mul: (nodes, head_dim, batch*heads)
+  # Query: (head, dim, node, batch) -> (node, dim, batch, head) -> (node, dim, batch*head)
+  query_merged = reshape(permutedims(query, (3, 2, 4, 1)), num_nodes, attention.head_dim, batch_size * attention.num_heads)
+  
+  # Key: (head, dim, node, batch) -> (dim, node, batch, head) -> (dim, node, batch*head)
+  key_merged = reshape(permutedims(key, (2, 3, 4, 1)), attention.head_dim, num_nodes, batch_size * attention.num_heads)
 
-  # Compute attention scores
-  attention_scores = query * transpose(key, 3, 4)  # [batch, heads, nodes, nodes]
-  attention_scores = attention_scores / sqrt(attention.head_dim)
+  # Value: (head, dim, node, batch) -> (node, dim, batch, head) -> (node, dim, batch*head)
+  value_merged = reshape(permutedims(value, (3, 2, 4, 1)), num_nodes, attention.head_dim, batch_size * attention.num_heads)
+
+  # Compute attention scores: (nodes, nodes, batch*heads)
+  # (Target, Dim) * (Dim, Source) -> (Target, Source)
+  attention_scores = batched_mul(query_merged, key_merged)
+  attention_scores = attention_scores ./ sqrt(Float32(attention.head_dim))
 
   # Apply adjacency mask
   adjacency_mask = convert(Matrix{Float32}, adjacency_matrix)
+  # Broadcast over batch*heads (dims 1 and 2 match, dim 3 is broadcast)
   attention_scores = attention_scores .+ (1.0f0 .- adjacency_mask) .* -1e9
 
-  # Softmax
-  attention_probs = softmax(attention_scores, dims=4)
+  # Softmax over source nodes (dim 2)
+  attention_probs = Flux.softmax(attention_scores, dims=2)
   attention_probs = attention.dropout(attention_probs)
 
   # Apply attention to values
-  context = attention_probs * value  # [batch, heads, nodes, head_dim]
+  # (Target, Source) * (Source, Dim) -> (Target, Dim)
+  context = batched_mul(attention_probs, value_merged) # (nodes, head_dim, batch*heads)
 
-  # Reshape back
-  context = permutedims(context, [1, 3, 2, 4])  # [batch, nodes, heads, head_dim]
-  context =
-    reshape(context, batch_size, num_nodes, attention.num_heads * attention.head_dim)
+  # Reshape back to (batch, nodes, heads, head_dim) -> flattened to (hidden, nodes, batch)
+  # context: (num_nodes, head_dim, batch_size * num_heads)
+  # reshape to (num_nodes, head_dim, batch_size, num_heads)
+  context_reshaped = reshape(context, num_nodes, attention.head_dim, batch_size, attention.num_heads)
+
+  # Permute to (head_dim, heads, nodes, batch) -> (hidden, nodes, batch)
+  context_perm = permutedims(context_reshaped, (2, 4, 1, 3))
+  context_flat = reshape(context_perm, hidden_dim, num_nodes * batch_size)
 
   # Output projection
-  output = attention.output_projection(context)
+  output_flat = attention.output_projection(context_flat)
+
+  # Reshape back to (batch, nodes, hidden)
+  output_reshaped = reshape(output_flat, hidden_dim, num_nodes, batch_size)
+  output = permutedims(output_reshaped, (3, 2, 1))
 
   return output
 end
 
 """
-    (layer::HGATLayer)(node_features::Matrix{Float32}, adjacency_matrix::SparseMatrixCSC{Float32})
+    (layer::HGATLayer)(node_features::AbstractArray{Float32, 3}, adjacency_matrix::SparseMatrixCSC{Float32})
 
 Forward pass for a single H-GAT layer.
-
+Handles input shape: (batch_size, num_nodes, hidden_dim)
 """
 function (layer::HGATLayer)(
-  node_features::Matrix{Float32},
+  node_features::AbstractArray{Float32, 3},
   adjacency_matrix::SparseMatrixCSC{Float32},
 )
-  # Self-attention
+  # Self-attention (returns batch, nodes, hidden)
   attention_output = layer.attention(node_features, adjacency_matrix)
   attention_output = layer.dropout(attention_output)
 
@@ -270,15 +291,28 @@ function (layer::HGATLayer)(
   end
 
   if layer.use_layer_norm
-    attention_output = layer.layer_norm1(attention_output)
+    # LayerNorm expects (hidden, ...) or (hidden, batch)
+    # Permute to (hidden, nodes, batch)
+    att_perm = permutedims(attention_output, (3, 2, 1))
+    att_norm = layer.layer_norm1(att_perm)
+    attention_output = permutedims(att_norm, (3, 2, 1))
   end
 
   # Feed-forward network
-  ff_output = layer.feed_forward.input_projection(attention_output)
-  ff_output = layer.feed_forward.activation(ff_output)
-  ff_output = layer.feed_forward.dropout(ff_output)
-  ff_output = layer.feed_forward.output_projection(ff_output)
-  ff_output = layer.dropout(ff_output)
+  # Permute to (hidden, nodes * batch) for Dense layers
+  batch_size, num_nodes, hidden_dim = size(attention_output)
+  att_perm = permutedims(attention_output, (3, 2, 1))
+  att_flat = reshape(att_perm, hidden_dim, num_nodes * batch_size)
+
+  ff_flat = layer.feed_forward.input_projection(att_flat)
+  ff_flat = layer.feed_forward.activation(ff_flat)
+  ff_flat = layer.feed_forward.dropout(ff_flat)
+  ff_flat = layer.feed_forward.output_projection(ff_flat)
+  ff_flat = layer.dropout(ff_flat)
+  
+  # Reshape back to (batch, nodes, hidden)
+  ff_reshaped = reshape(ff_flat, hidden_dim, num_nodes, batch_size)
+  ff_output = permutedims(ff_reshaped, (3, 2, 1))
 
   # Residual connection and layer norm
   if layer.use_residual
@@ -286,24 +320,37 @@ function (layer::HGATLayer)(
   end
 
   if layer.use_layer_norm
-    ff_output = layer.layer_norm2(ff_output)
+    ff_perm = permutedims(ff_output, (3, 2, 1))
+    ff_norm = layer.layer_norm2(ff_perm)
+    ff_output = permutedims(ff_norm, (3, 2, 1))
   end
 
   return ff_output
 end
 
 """
-    (model::HGATModel)(node_features::Matrix{Float32}, adjacency_matrix::SparseMatrixCSC{Float32})
+    (model::HGATModel)(node_features::AbstractArray{Float32, 3}, adjacency_matrix::SparseMatrixCSC{Float32})
 
 Forward pass for complete H-GAT model.
-
+Handles input shape: (batch_size, num_nodes, input_dim)
+Returns shape: (batch_size, num_nodes, input_dim)
 """
 function (model::HGATModel)(
-  node_features::Matrix{Float32},
+  node_features::AbstractArray{Float32, 3},
   adjacency_matrix::SparseMatrixCSC{Float32},
 )
+  # Permute to (input_dim, nodes, batch) for Flux layers
+  batch_size, num_nodes, input_dim = size(node_features)
+  
+  features_permuted = permutedims(node_features, (3, 2, 1))
+  features_flat = reshape(features_permuted, input_dim, num_nodes * batch_size)
+
   # Input projection
-  hidden_states = model.input_projection(node_features)
+  hidden_flat = model.input_projection(features_flat)
+  
+  # Reshape back to (batch, nodes, hidden) for layers
+  hidden_reshaped = reshape(hidden_flat, model.config.hidden_dim, num_nodes, batch_size)
+  hidden_states = permutedims(hidden_reshaped, (3, 2, 1))
 
   # Pass through layers
   for layer in model.layers
@@ -311,7 +358,16 @@ function (model::HGATModel)(
   end
 
   # Output projection
-  output = model.output_projection(hidden_states)
+  # Permute back to (hidden, nodes, batch)
+  batch_size, num_nodes, hidden_dim = size(hidden_states)
+  hidden_permuted = permutedims(hidden_states, (3, 2, 1))
+  hidden_flat = reshape(hidden_permuted, hidden_dim, num_nodes * batch_size)
+  
+  output_flat = model.output_projection(hidden_flat)
+  
+  # Reshape back to (batch, nodes, input_dim)
+  output_reshaped = reshape(output_flat, model.config.input_dim, num_nodes, batch_size)
+  output = permutedims(output_reshaped, (3, 2, 1))
 
   return output
 end
@@ -436,7 +492,7 @@ function get_attention_weights(
     attention_scores = attention_scores .+ (1.0f0 .- adjacency_mask) .* -1e9
 
     # Softmax
-    attention_probs = softmax(attention_scores, dims=4)
+    attention_probs = Flux.softmax(attention_scores, dims=4)
 
     # Average over heads
     attention_probs = mean(attention_probs, dims=2)

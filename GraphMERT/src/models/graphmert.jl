@@ -75,6 +75,7 @@ Complete GraphMERT model combining RoBERTa and H-GAT.
 struct GraphMERTModel
     roberta::RoBERTaModel
     hgat::HGATModel
+    relation_embeddings::Embedding
     entity_classifier::Dense
     relation_classifier::Dense
     lm_head::Dense
@@ -83,12 +84,13 @@ struct GraphMERTModel
     function GraphMERTModel(
         roberta::RoBERTaModel,
         hgat::HGATModel,
+        relation_embeddings::Embedding,
         entity_classifier::Dense,
         relation_classifier::Dense,
         lm_head::Dense,
         config::GraphMERTConfig,
     )
-        new(roberta, hgat, entity_classifier, relation_classifier, lm_head, config)
+        new(roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head, config)
     end
 
     function GraphMERTModel(config::GraphMERTConfig)
@@ -97,6 +99,10 @@ struct GraphMERTModel
 
         # Create H-GAT model
         hgat = HGATModel(config.hgat_config)
+
+        # Create relation embeddings
+        # +1 for padding/unknown relation
+        relation_embeddings = Embedding(length(config.relation_types) + 1, config.hidden_dim)
 
         # Create entity classifier
         entity_classifier = Dense(config.hidden_dim, length(config.entity_types))
@@ -107,11 +113,11 @@ struct GraphMERTModel
         # Create language modeling head for MLM/MNM (hidden_dim → vocab_size)
         lm_head = Dense(config.hidden_dim, config.roberta_config.vocab_size)
 
-        return new(roberta, hgat, entity_classifier, relation_classifier, lm_head, config)
+        return new(roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head, config)
     end
 end
 
-Flux.@functor GraphMERTModel (roberta, hgat, entity_classifier, relation_classifier, lm_head)
+Flux.@functor GraphMERTModel (roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head)
 
 """
     create_graphmert_model(config::GraphMERTConfig)
@@ -168,33 +174,141 @@ Forward pass for the complete GraphMERT model.
 """
 function (model::GraphMERTModel)(
     input_ids::Matrix{Int},
-    attention_mask::Matrix{Float32},
+    attention_mask::AbstractArray{Float32},
     position_ids::Matrix{Int},
     token_type_ids::Matrix{Int},
     leafy_chain_graph::LeafyChainGraph,
 )
 
-    # Create attention decay mask for the leafy chain graph
+    # 1. Get initial embeddings from RoBERTa
+    embedding_output = model.roberta.embeddings(input_ids, position_ids, token_type_ids)
+
+    # 2. Inject relation type embeddings into the sequence
+    inject_relation_types!(embedding_output, model.relation_embeddings, leafy_chain_graph, model.config.relation_types)
+
+    # 3. Run H-GAT to refine embeddings based on graph structure
+    # H-GAT takes (batch, nodes, hidden) which matches embedding_output
+    hgat_output = model.hgat(embedding_output, leafy_chain_graph.adjacency_matrix)
+
+    # 4. Prepare attention masks
+    
+    # Handle attention mask expansion if 2D (batch, seq) -> (batch, seq, seq)
+    if ndims(attention_mask) == 2
+        batch_size, seq_len = size(attention_mask) # Assume (batch, seq) or (seq, batch)?
+        # input_ids is (seq, batch). attention_mask usually matches input_ids logic.
+        # But RoBERTa uses (batch, seq, seq).
+        # Let's assume attention_mask is (seq, batch) like input_ids.
+        # We need to mask keys (columns) where padding is present.
+        
+        # Transpose to (batch, seq)
+        mask_bs = permutedims(attention_mask, (2, 1))
+        
+        # Convert 1/0 to 0/-10000
+        mask_vals = (1.0f0 .- mask_bs) .* -10000.0f0
+        
+        # Reshape to (batch, 1, seq)
+        mask_3d = reshape(mask_vals, batch_size, 1, seq_len)
+        
+        # Broadcast/Repeat to (batch, seq, seq)
+        attention_mask_3d = repeat(mask_3d, 1, seq_len, 1)
+    else
+        attention_mask_3d = attention_mask
+    end
+
+    # Create attention decay mask for spatial bias
     attention_decay_mask = create_graph_attention_mask(
         leafy_chain_graph.adjacency_matrix,
         model.config.attention_config,
     )
 
-    # RoBERTa encoding
-    roberta_output, pooled_output =
-        model.roberta(input_ids, attention_mask, position_ids, token_type_ids, attention_decay_mask)
+    # 5. Run RoBERTa encoder
+    # We use hgat_output as the input to the encoder
+    encoder_output = model.roberta.encoder(hgat_output, attention_mask_3d, attention_decay_mask)
 
-    # H-GAT processing
-    hgat_output = model.hgat(roberta_output, leafy_chain_graph.adjacency_matrix)
+    # 6. Entity classification
+    # encoder_output is (batch, seq, hidden)
+    # Dense layer expects (hidden, ...)
+    
+    # Permute to (hidden, seq, batch)
+    encoder_permuted = permutedims(encoder_output, (3, 2, 1))
+    
+    # Apply classifier (Dense broadcasts over other dimensions)
+    # Result: (num_entities, seq, batch)
+    entity_logits_permuted = model.entity_classifier(encoder_permuted)
+    
+    # Permute back to (batch, seq, num_entities)
+    entity_logits = permutedims(entity_logits_permuted, (3, 2, 1))
 
-    # Entity classification
-    entity_logits = model.entity_classifier(hgat_output)
+    # 7. Relation classification
+    # Use encoder output for final classification
+    relation_logits = compute_relation_logits(encoder_output, leafy_chain_graph, model.relation_classifier)
 
-    # Relation classification
-    relation_logits =
-        compute_relation_logits(hgat_output, leafy_chain_graph, model.relation_classifier)
+    # 8. LM Head (Masked Language Modeling / Masked Neighbor Modeling)
+    # encoder_output is (batch, seq, hidden)
+    # lm_head is Dense(hidden, vocab) -> expects (hidden, N)
+    
+    batch_size, seq_len, hidden_dim = size(encoder_output)
+    
+    # Permute to (hidden, seq, batch)
+    encoder_permuted = permutedims(encoder_output, (3, 2, 1))
+    
+    # Reshape to (hidden, seq * batch)
+    encoder_reshaped = reshape(encoder_permuted, hidden_dim, seq_len * batch_size)
+    
+    # Apply LM head
+    lm_output_flat = model.lm_head(encoder_reshaped) # (vocab, seq * batch)
+    
+    # Reshape back to (vocab, seq, batch)
+    lm_logits_permuted = reshape(lm_output_flat, size(lm_output_flat, 1), seq_len, batch_size)
+    
+    # Permute to (batch, seq, vocab) to match expected output format
+    lm_logits = permutedims(lm_logits_permuted, (3, 2, 1))
 
-    return entity_logits, relation_logits, hgat_output
+    return entity_logits, relation_logits, lm_logits, encoder_output
+end
+
+"""
+    inject_relation_types!(embeddings, relation_embeddings, graph, relation_types)
+
+Inject relation type embeddings into the sequence at injected leaf positions.
+"""
+function inject_relation_types!(
+    embeddings::AbstractArray{Float32, 3},
+    relation_embeddings::Embedding,
+    graph::LeafyChainGraph,
+    relation_types::Vector{String},
+)
+    batch_size = size(embeddings, 1)
+    num_roots = graph.config.num_roots
+    num_leaves = graph.config.num_leaves_per_root
+
+    for r in 1:num_roots
+        # Check if this root has a relation (all injected leaves share it)
+        rel_sym = graph.leaf_relations[r, 1]
+        
+        if rel_sym !== nothing
+            rel_str = string(rel_sym)
+            rel_id = findfirst(==(rel_str), relation_types)
+            
+            if rel_id !== nothing
+                # Get embedding vector (hidden_dim,)
+                rel_vec = relation_embeddings(rel_id)
+                
+                # Apply to all injected leaves of this root
+                for l in 1:num_leaves
+                    if graph.injected_mask[r, l]
+                        # Calculate position
+                        pos = num_roots + (r-1)*num_leaves + l
+                        
+                        # Add relation embedding to existing token embedding
+                        for b in 1:batch_size
+                            embeddings[b, pos, :] .+= rel_vec
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 """
@@ -204,29 +318,18 @@ end
 Compute relation logits for all possible entity pairs.
 """
 function compute_relation_logits(
-    hgat_output::Matrix{Float32},
+    hgat_output::AbstractArray{Float32, 3},
     leafy_chain_graph::LeafyChainGraph,
     relation_classifier::Dense,
 )
+    # Placeholder implementation to avoid crashes.
+    # The original implementation iterated over `edges` which is not present in LeafyChainGraph.
+    # Real implementation should likely iterate over relevant node pairs (e.g. root-leaf).
+    
     batch_size, seq_length, hidden_dim = size(hgat_output)
-    num_relations = length(leafy_chain_graph.leaf_nodes)
-
-    relation_logits =
-        zeros(Float32, batch_size, num_relations, size(relation_classifier.weight, 1))
-
-    for (rel_idx, (source, target)) in enumerate(leafy_chain_graph.edges)
-        if source <= seq_length && target <= seq_length
-            # Concatenate source and target embeddings
-            source_embedding = hgat_output[:, source, :]
-            target_embedding = hgat_output[:, target, :]
-            pair_embedding = cat(source_embedding, target_embedding, dims = 2)
-
-            # Classify relation
-            relation_logits[:, rel_idx, :] = relation_classifier(pair_embedding)
-        end
-    end
-
-    return relation_logits
+    # Output shape: (batch, 1, num_relations) - just a dummy return for now
+    
+    return zeros(Float32, batch_size, 1, size(relation_classifier.weight, 1))
 end
 
 # ============================================================================

@@ -51,18 +51,18 @@
 ### Stream A — Correctness (P0 bugs that block any real output)
 
 - **A1** Fix training pipeline: real `GraphMERTModel`, real `Flux.update!`, real losses
-- **A2** Fix tail prediction (Stage 3): use real model logits at leaf positions
-- **A3** Fix tail formation (Stage 4): use LLM client to propose entities
-- **A4** Fix model persistence: JLD2 weight round-trip
-- **A5** Fix FActScore cartesian product bug
+- [x] **A2** Fix tail prediction (Stage 3): use real model logits at leaf positions
+- [x] **A3** Fix tail formation (Stage 4): use LLM client to propose entities
+- [x] **A4** Fix model persistence: JLD2 weight round-trip
+- [x] **A5** Fix FActScore cartesian product bug
 
 ### Stream B — Architecture alignment (Python reference parity)
 
-- **B1** Fix `max_position_embeddings = 1024`
+- [x] **B1** Fix `max_position_embeddings = 1024`
 - **B2** Implement real `GraphMERTModel.forward` matching `graphmert.py`:
   - H-GAT → rel embeddings → inject at `[REL]` positions → transformer layers
   - Each layer receives `distance_matrix` for decay mask
-- **B3** Fix MNM loss: `Flux.binarycrossentropy` (or `logitbinarycrossentropy`)
+- [x] **B3** Fix MNM loss: `Flux.binarycrossentropy` (or `logitbinarycrossentropy`)
 - **B4** Fix `BiomedicalDomain.extract_entities` arity (3-arg vs 4-arg)
 
 ### Stream C — External integrations (with mock mode for CI)

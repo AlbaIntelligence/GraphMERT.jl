@@ -210,19 +210,49 @@ function predict_tail_tokens(
   seq_len = length(input_ids_vec)
 
   logits = if model isa GraphMERT.GraphMERTModel
-    input_ids = reshape(input_ids_vec, seq_len, 1)               # 0-based ids
-    attention_mask = GraphMERT.create_attention_mask(input_ids)  # additive mask
-    position_ids = GraphMERT.create_position_ids(seq_len, 1)     # 0-based
-    token_type_ids = GraphMERT.create_token_type_ids(seq_len, 1)
-
-    encoder_output, _ = model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
-    batch_size, _, hidden_dim = size(encoder_output)
-    encoder_reshaped = reshape(encoder_output, batch_size * seq_len, hidden_dim)
-    encoder_reshaped = permutedims(encoder_reshaped, (2, 1))
-    lm_2d = model.lm_head(encoder_reshaped)
-    vocab_size = size(lm_2d, 1)
-    lm_3d = reshape(lm_2d, vocab_size, batch_size, seq_len)
-    permutedims(lm_3d, (2, 3, 1))
+    input_ids = reshape(input_ids_vec, seq_len, 1)               # (seq, 1)
+    # The tokenizer uses 0-based IDs, model expects them.
+    # GraphMERT model takes (input_ids, attention_mask, position_ids, token_type_ids, graph)
+    
+    # 1. Attention mask (batch, seq) -> (1, seq)
+    # Note: create_attention_mask returns vector (seq_len,).
+    # We need matrix (1, seq_len) for model? No, input_ids is (seq, 1).
+    # Model's RoBERTaEmbeddings expects input_ids as (seq, batch).
+    # So attention_mask should be (batch, seq)?
+    # Let's check RoBERTa forward:
+    # function (model::RoBERTaModel)(input_ids::Matrix{Int}, attention_mask::Array{Float32, 3}, ...)
+    # input_ids: (seq_len, batch_size)
+    # attention_mask: (batch_size, seq_len, seq_len) OR 2D (batch, seq) which gets expanded in GraphMERTModel.
+    
+    # We need (seq, batch) for inputs
+    # Let's reshape everything to (seq, batch)
+    input_ids_batch = reshape(input_ids_vec, seq_len, 1)
+    
+    # Attention mask vector (seq_len,) -> (1, seq_len)
+    attention_mask_vec = GraphMERT.create_attention_mask(graph)
+    attention_mask_batch = reshape(Float32.(attention_mask_vec), 1, seq_len) # (batch, seq)
+    
+    position_ids = GraphMERT.create_position_ids(graph) # (seq_len,)
+    position_ids_batch = reshape(position_ids, seq_len, 1)
+    
+    token_type_ids_batch = zeros(Int, seq_len, 1)
+    
+    # Call the model
+    # Returns (entity_logits, relation_logits, lm_logits, encoder_output)
+    _, _, lm_logits, _ = model(
+        input_ids_batch, 
+        attention_mask_batch, 
+        position_ids_batch, 
+        token_type_ids_batch, 
+        graph
+    )
+    
+    # lm_logits is (batch, seq, vocab) = (1, seq, vocab)
+    # Tests expect (batch, seq, vocab)?
+    # predict_tail_tokens comment says: "returns a 3D logits tensor of shape [batch, seq_len, vocab_size]"
+    # My updated model returns (batch, seq, vocab).
+    
+    lm_logits
   else
     attention_mask = GraphMERT.create_attention_mask(graph)
     model(reshape(input_ids_vec, 1, :), reshape(attention_mask, 1, :))
@@ -264,6 +294,7 @@ function form_tail_from_tokens(
   tokens::Vector{Tuple{Int,Float64}},
   text::String,
   llm_client::Union{Any,Nothing}=nothing,
+  tokenizer::Union{Any,Nothing}=nothing,
 )
   max_candidates = min(5, length(tokens))
   max_candidates == 0 && return String[]
@@ -274,6 +305,29 @@ function form_tail_from_tokens(
     llm_tails = unique([String(strip(t)) for t in llm_tails if !isempty(strip(t))])
     if !isempty(llm_tails)
       return sort(llm_tails, by=t -> calculate_tail_similarity(t, text), rev=true)
+    end
+  end
+
+  # If tokenizer is provided, decode tokens directly
+  if tokenizer !== nothing
+    decoded_tails = String[]
+    for (token_id, _score) in tokens[1:max_candidates]
+      # Handle BioMedTokenizer or similar interface
+      decoded = if applicable(GraphMERT.decode, tokenizer, [token_id])
+        GraphMERT.decode(tokenizer, [token_id]; skip_special_tokens=true)
+      elseif applicable(GraphMERT.id_to_token, tokenizer, token_id)
+        GraphMERT.id_to_token(tokenizer, token_id)
+      else
+        ""
+      end
+      
+      if !isempty(strip(decoded))
+        push!(decoded_tails, strip(decoded))
+      end
+    end
+    
+    if !isempty(decoded_tails)
+       return unique(decoded_tails)
     end
   end
 

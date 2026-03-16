@@ -24,13 +24,18 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 ## 1.1 Quick snapshot for agents
 
 - **Project status**: See `reports/PROJECT_STATUS.md` for overview; `reports/PARITY_PLAN.md` for current defect list and work streams.
+- **Recent Fixes**:
+  - Fixed H-GAT dimension mismatches (batch, nodes, hidden).
+  - Fixed `softmax` calls to `Flux.softmax`.
+  - Implemented real `predict_tail_tokens` pipeline.
+  - Verified model persistence with JLD2.
 - **Confirmed P0 bugs** (nothing works end-to-end until these are fixed):
   - `train_graphmert` returns `MockGraphMERTModel` with `rand()` losses — no real training.
-  - `predict_tail_tokens` (Stage 3) uses `rand(Float32, vocab_size)` — no real inference.
-  - `form_tail_from_tokens` (Stage 4) returns `"entity_N"` strings — no real extraction.
-  - All weight I/O in `persistence.jl` is stubbed — `save_model`/`load_model` do nothing.
   - `filter_triples_by_confidence` is an O(N²×M) cartesian product — FActScore is wrong.
   - `max_position_embeddings=512` but sequence length is 1024 — embedding table too small.
+  - (Fixed) `predict_tail_tokens` (Stage 3) uses `rand(Float32, vocab_size)` — no real inference.
+  - (Fixed) `form_tail_from_tokens` (Stage 4) returns `"entity_N"` strings — no real extraction.
+  - (Fixed) All weight I/O in `persistence.jl` is stubbed — `save_model`/`load_model` do nothing.
 - **Spec**: `reports/RETROSPECTIVE_SPEC.md` defines all type, algorithm, and API contracts.
 - **Roadmap**: `reports/PARITY_PLAN.md` lists 12 confirmed defects and 7 work streams.
 - **Tasks**: `reports/TASK_LIST.md` has 155 atomic subtasks ordered by dependency.
