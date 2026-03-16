@@ -62,6 +62,7 @@ Helper LLM client with rate limiting and caching.
 mutable struct HelperLLMClient
     config::HelperLLMConfig
     cache::HelperLLMCache
+    request_fn::Function
     last_request_time::Float64
     request_count::Int
     token_count::Int
@@ -102,7 +103,10 @@ function create_helper_llm_client(
     temperature::Float64 = 0.7,
     max_tokens::Int = 1000,
     rate_limit::Int = 10000,
+    request_fn::Function = HTTP.post,
 )
+    isempty(api_key) && throw(ArgumentError("api_key must be non-empty"))
+
     config = HelperLLMConfig(
         api_key,
         base_url,
@@ -114,7 +118,7 @@ function create_helper_llm_client(
         rate_limit,
     )
     cache = HelperLLMCache(1000, 3600)
-    return HelperLLMClient(config, cache, 0.0, 0, 0, time())
+    return HelperLLMClient(config, cache, request_fn, 0.0, 0, 0, time())
 end
 
 """
@@ -169,7 +173,7 @@ function _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String
     # Make request with retry logic
     for attempt = 1:client.config.max_retries
         try
-            response = HTTP.post(
+            response = client.request_fn(
                 url,
                 headers,
                 JSON3.write(request_body);
@@ -219,6 +223,22 @@ Make a request to the helper LLM with a simple text prompt.
 # Returns
 - `HelperLLMResponse`: LLM response with content and metadata
 """
+function _normalize_usage(usage)
+    usage === nothing && return Dict{String,Any}()
+
+    if usage isa Dict{String,Any}
+        return usage
+    elseif usage isa AbstractDict
+        out = Dict{String,Any}()
+        for (k, v) in usage
+            out[string(k)] = v
+        end
+        return out
+    else
+        return Dict{String,Any}()
+    end
+end
+
 function make_llm_request(client::HelperLLMClient, prompt::String)
     messages = [Dict("role" => "user", "content" => prompt)]
 
@@ -226,12 +246,46 @@ function make_llm_request(client::HelperLLMClient, prompt::String)
 
     if data !== nothing && haskey(data, "choices") && !isempty(data["choices"])
         content = data["choices"][1]["message"]["content"]
-        usage = get(data, "usage", Dict{String,Any}())
+        usage = _normalize_usage(get(data, "usage", nothing))
 
         return HelperLLMResponse(true, content, nothing, usage, status)
     else
         return HelperLLMResponse(false, "", error_msg, Dict{String,Any}(), status)
     end
+end
+
+"""
+    discover_entities(client::HelperLLMClient, text::String; use_cache::Bool=true)
+
+Discover entities in text using the helper LLM (fallback prompt).
+
+This overload is intended for simple usage and offline testing where a domain provider
+is not available.
+"""
+function discover_entities(client::HelperLLMClient, text::String; use_cache::Bool = true)
+  isempty(strip(text)) && return String[]
+
+  cache_key = "entities:$(hash(text))"
+  if use_cache && haskey(client.cache.responses, cache_key)
+    cached_response, cache_time = client.cache.responses[cache_key]
+    if (now() - cache_time).value / 1000 < client.cache.ttl_seconds
+      return parse_entity_response(cached_response.content)
+    end
+  end
+
+  prompt = create_entity_discovery_prompt(text)
+  response = make_llm_request(client, prompt)
+
+  if response.success
+    entities = parse_entity_response(response.content)
+    if use_cache
+      client.cache.responses[cache_key] = (response, now())
+    end
+    return entities
+  else
+    @warn "Entity discovery failed: $(response.error)"
+    return String[]
+  end
 end
 
 """
@@ -254,6 +308,8 @@ function discover_entities(
   domain::Any;
   use_cache::Bool = true,
 )
+  isempty(strip(text)) && return String[]
+
   # Check cache first
   cache_key = "entities:$(hash(text)):$(hash(string(typeof(domain))))"
   if use_cache && haskey(client.cache.responses, cache_key)
@@ -359,16 +415,15 @@ Fallback entity discovery prompt when domain provider is not available.
 """
 function create_fallback_entity_discovery_prompt(text::String)
   return """
-You are an expert tasked with extracting entities from text.
+You are an expert biomedical information extraction assistant.
 
-Extract all entities (people, places, organizations, concepts, etc.) from the following text.
+Task: Extract biomedical entities from the following text.
 
 Return only the entity names, one per line, in the format:
 ENTITY_NAME
 
 Rules:
-- Extract proper entities only
-- Include people, places, organizations, concepts
+- Extract biomedical entities only (diseases, drugs, symptoms, procedures, biomarkers)
 - Do not include generic words
 - Return entities in their original form as they appear in text
 - List each entity on a separate line
@@ -398,28 +453,41 @@ Fallback relation matching prompt when domain provider is not available.
 function create_fallback_relation_matching_prompt(entities::Vector{String}, text::String)
   entities_str = join(entities, "\n- ")
   return """
-You are an expert tasked with finding relationships between entities.
+You are an expert biomedical relation extraction assistant.
 
-Given the following entities extracted from text, determine what relationships exist between them based on the text content.
+Task: Find relations between these entities based on the text.
 
 Entities:
 - $entities_str
 
 Text: $text
 
-For each pair of entities that are related in the text, return in format:
+Return each relation on a separate line in the format:
 ENTITY1 -> RELATION -> ENTITY2
 
-Where RELATION describes the relationship type.
-
 Rules:
-- Only include relationships that are explicitly or implicitly stated in the text
-- Use appropriate relationship terms
-- Each relationship should be on a separate line
-- If no clear relationship exists, return nothing for that pair
+- Only include relationships that are explicitly supported by the text
+- Use concise relation labels (e.g., TREATS, CAUSES, ASSOCIATED_WITH)
+- If no clear relation exists, return nothing
 
 Relationships:
 """
+end
+
+"""
+    create_tail_formation_prompt(tokens::Vector{Tuple{Int, Float64}}, text::String)
+
+Create a prompt for forming coherent tail entities from predicted tokens (fallback).
+
+# Arguments
+- `tokens::Vector{Tuple{Int, Float64}}`: Top-k predicted tokens with probabilities
+- `text::String`: Original text for context
+
+# Returns
+- `String`: Formatted prompt for LLM
+"""
+function create_tail_formation_prompt(tokens::Vector{Tuple{Int,Float64}}, text::String)
+  return create_fallback_tail_formation_prompt(tokens, text)
 end
 
 """
@@ -453,22 +521,17 @@ Fallback tail formation prompt when domain provider is not available.
 function create_fallback_tail_formation_prompt(tokens::Vector{Tuple{Int,Float64}}, text::String)
   token_list = join(["$(token[1]) (prob: $(round(token[2], digits=3)))" for token in tokens], "\n")
   return """
-You are an expert tasked with forming coherent entity names from predicted tokens.
+You are an expert biomedical information extraction assistant.
 
-Given the following predicted tokens with their probabilities, form coherent entity names that would logically complete the relationship in the text.
+Task: Form coherent entity names from predicted tokens.
 
 Predicted tokens:
 $token_list
 
 Original text context: $text
 
-Create 3-5 coherent entity names that could be the tail entity in a relationship. Each entity should:
-- Be a valid term
-- Be consistent with the context
-- Use appropriate terminology
-- Be 1-3 words long
-
-Return each entity on a separate line:
+Form coherent entity names (3-5 candidates) that could be the tail entity in a relationship.
+Return each entity on a separate line.
 
 Formed entities:
 """
@@ -538,7 +601,9 @@ function parse_relation_response(response::String)
                 relation = uppercase(replace(relation, r"\s+" => "_"))  # Normalize
 
                 if !isempty(entity1) && !isempty(relation) && !isempty(entity2)
-                    relations[entity1] = Dict("relation" => relation, "entity2" => entity2)
+                    if !haskey(relations, entity1)
+                        relations[entity1] = Dict("relation" => relation, "entity2" => entity2)
+                    end
                 end
             end
         end

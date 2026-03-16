@@ -46,9 +46,16 @@ function _create_llm_client(options::GraphMERT.ProcessingOptions)
             throw(ArgumentError("local_config must be provided when use_local is true"))
         end
         return load_local_model(options.local_config)
-    else
+    end
+
+    if !options.use_helper_llm
         return nothing
     end
+
+    api_key = get(ENV, "OPENAI_API_KEY", "")
+    isempty(api_key) && return nothing
+
+    return create_helper_llm_client(api_key)
 end
 
 
@@ -210,6 +217,16 @@ function form_tail_from_tokens(
   max_candidates = min(5, length(tokens))
   max_candidates == 0 && return String[]
 
+  # Prefer HelperLLMClient when provided.
+  if llm_client isa GraphMERT.HelperLLMClient
+    llm_tails = GraphMERT.form_tail_from_tokens(tokens, text, llm_client)
+    llm_tails = unique([String(strip(t)) for t in llm_tails if !isempty(strip(t))])
+    if !isempty(llm_tails)
+      return sort(llm_tails, by=t -> calculate_tail_similarity(t, text), rev=true)
+    end
+  end
+
+  # Fallback: produce candidate phrases directly from the source text.
   cleaned_words = [
     lowercase(m.match)
     for m in eachmatch(r"[A-Za-z][A-Za-z0-9_-]*", text)
@@ -241,7 +258,8 @@ function form_tail_from_tokens(
     push!(possible_tails, candidates[candidate_idx])
   end
 
-  return possible_tails
+  possible_tails = unique([String(strip(t)) for t in possible_tails if !isempty(strip(t))])
+  return sort(possible_tails, by=t -> calculate_tail_similarity(t, text), rev=true)
 end
 
 """
@@ -288,9 +306,9 @@ end
 Simple similarity heuristic between a candidate tail string and the source text.
 Used for filtering triples when full semantic similarity is not available.
 """
-function calculate_tail_similarity(tail::String, text::String)
-  tail_norm = lowercase(strip(tail))
-  text_norm = lowercase(strip(text))
+function calculate_tail_similarity(tail::AbstractString, text::AbstractString)
+  tail_norm = lowercase(strip(String(tail)))
+  text_norm = lowercase(strip(String(text)))
   isempty(tail_norm) && return 0.0
 
   # Token-overlap based Jaccard similarity

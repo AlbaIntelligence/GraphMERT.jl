@@ -95,11 +95,11 @@ end
     text = "Diabetes is treated with"
     possible_tails = form_tail_from_tokens(tokens, text)
 
-    @test length(possible_tails) == 5
+    @test 1 ≤ length(possible_tails) ≤ 5
     @test all(!isempty(tail) for tail in possible_tails)
 
-    # Check that tails are entity-like strings
-    @test all(startswith(tail, "entity_") for tail in possible_tails)
+    # Fallback tails should be text-grounded (nonzero overlap with the source text).
+    @test all(GraphMERT.calculate_tail_similarity(tail, text) > 0 for tail in possible_tails)
   end
 
   @testset "Triple Filtering and Deduplication" begin
