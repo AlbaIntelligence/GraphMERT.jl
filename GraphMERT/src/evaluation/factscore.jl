@@ -116,7 +116,7 @@ function evaluate_factscore(
         "max_context_sentences" => max_context_sentences,
         "evaluation_method" => llm_client !== nothing ? "llm" : "heuristic",
     )
-    
+
     # Add domain-specific metrics if requested
     if include_domain_metrics
         # Try to get domain name from metadata or parameter
@@ -124,7 +124,7 @@ function evaluate_factscore(
         if domain === nothing && haskey(kg.metadata, "domain")
             domain = kg.metadata["domain"]
         end
-        
+
         if domain !== nothing
             try
                 # Try to get domain provider from registry
@@ -199,13 +199,14 @@ function filter_triples_by_confidence(kg::KnowledgeGraph, threshold::Float64)
     id_to_index = Dict{String,Int}(entity.id => idx for (idx, entity) in enumerate(kg.entities))
 
     for (rel_idx, relation) in enumerate(kg.relations)
-        relation.confidence < threshold && continue
+        if relation.confidence >= threshold
+            head_idx = get(id_to_index, relation.head, 0)
+            tail_idx = get(id_to_index, relation.tail, 0)
 
-        head_idx = get(id_to_index, relation.head, 0)
-        tail_idx = get(id_to_index, relation.tail, 0)
-        (head_idx == 0 || tail_idx == 0 || head_idx == tail_idx) && continue
-
-        push!(filtered_triples, (head_idx, rel_idx, tail_idx))
+            if head_idx != 0 && tail_idx != 0 && head_idx != tail_idx
+                push!(filtered_triples, (head_idx, rel_idx, tail_idx))
+            end
+        end
     end
 
     return filtered_triples

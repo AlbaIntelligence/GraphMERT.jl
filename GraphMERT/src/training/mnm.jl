@@ -229,9 +229,11 @@ function calculate_mnm_loss(
                 # Use one-vs-all BCE on the vocabulary logits so the loss stays
                 # well-defined for the full logit vector produced by the LM head.
                 leaf_logits = logits[batch_idx, seq_pos, :]
-                target = zeros(Float32, vocab_size)
+                
+                # Zygote-friendly target construction (avoid mutation)
                 label_idx = clamp(label + 1, 1, vocab_size)  # convert 0-based token ids to Julia indices
-                target[label_idx] = 1.0f0
+                target = Flux.onehot(label_idx, 1:vocab_size)
+                
                 loss = Flux.Losses.logitbinarycrossentropy(leaf_logits, target)
 
                 total_loss += loss
@@ -319,7 +321,9 @@ Key: Even though leaves are masked, H-GAT still fuses them with:
 """
 function _prepare_roberta_inputs_from_graph(
     masked_graph::LeafyChainGraph,
-)::Tuple{Matrix{Int}, Array{Float32, 3}, Matrix{Int}, Matrix{Int}, Int}
+    attention_config::GraphMERT.SpatialAttentionConfig,
+    relation_types::Vector{String}
+)::Tuple{Matrix{Int}, Array{Float32, 3}, Matrix{Int}, Matrix{Int}, Int, GraphMERT.AttentionDecayMask, Vector{Int}}
     input_ids_vec = graph_to_sequence(masked_graph)
     seq_len = length(input_ids_vec)
 
@@ -333,7 +337,16 @@ function _prepare_roberta_inputs_from_graph(
     position_ids = create_position_ids(seq_len, 1)
     token_type_ids = create_token_type_ids(seq_len, 1)
 
-    return input_ids, attention_mask, position_ids, token_type_ids, seq_len
+    # Create attention decay mask (expensive, do outside gradient)
+    attention_decay_mask = create_graph_attention_mask(
+        masked_graph.adjacency_matrix,
+        attention_config
+    )
+
+    # Calculate relation IDs (expensive/string-heavy, do outside gradient)
+    relation_ids = get_relation_ids_for_sequence(masked_graph, relation_types)
+
+    return input_ids, attention_mask, position_ids, token_type_ids, seq_len, attention_decay_mask, relation_ids
 end
 
 function _forward_pass_mnm_inputs(
@@ -343,27 +356,45 @@ function _forward_pass_mnm_inputs(
     position_ids::Matrix{Int},
     token_type_ids::Matrix{Int},
     seq_len::Int,
+    attention_decay_mask::GraphMERT.AttentionDecayMask,
+    leafy_chain_graph::LeafyChainGraph, # Still needed for hgat adjacency?
+    relation_ids::Vector{Int}
 )::Array{Float32, 3}
-    encoder_output, _ = model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
-    batch_size, _, _ = size(encoder_output)
+    
+    # We call model(...) which is GraphMERTModel forward pass
+    # We need to update GraphMERTModel forward pass signature to accept relation_ids
+    # and attention_decay_mask pre-computed.
+    
+    # Or we can manually call components here to have fine control.
+    # GraphMERTModel(input_ids, attention_mask, position_ids, token_type_ids, leafy_chain_graph)
+    # This standard forward pass computes everything.
+    # But we want to inject pre-computed masks and ids.
+    
+    # Let's use the components directly to avoid changing public API of GraphMERTModel too much,
+    # OR update GraphMERTModel to accept optional pre-computed values.
+    # Updating GraphMERTModel is cleaner for consistency.
+    
+    # Assuming updated GraphMERTModel signature:
+    _, _, lm_logits, _ = model(
+        input_ids, 
+        attention_mask, 
+        position_ids, 
+        token_type_ids, 
+        leafy_chain_graph; # H-GAT needs adjacency from this
+        attention_decay_mask=attention_decay_mask,
+        relation_ids=relation_ids
+    )
 
-    hidden_dim = size(encoder_output, 3)
-    encoder_reshaped = reshape(encoder_output, batch_size * seq_len, hidden_dim)
-    encoder_reshaped = permutedims(encoder_reshaped, (2, 1))               # (hidden_dim, batch*seq)
-    lm_2d = model.lm_head(encoder_reshaped)                                 # (vocab_size, batch*seq)
-    vocab_size = size(lm_2d, 1)
-    lm_3d = reshape(lm_2d, vocab_size, batch_size, seq_len)                 # (vocab, batch, seq)
-    lm_3d = permutedims(lm_3d, (2, 3, 1))                                   # (batch, seq, vocab)
-
-    return Array{Float32,3}(lm_3d)
+    # lm_logits is (batch, seq, vocab)
+    return lm_logits
 end
 
 function forward_pass_mnm(
     model::GraphMERTModel,
     masked_graph::LeafyChainGraph,
 )::Array{Float32, 3}  # Returns logits [batch, seq_len, vocab_size]
-    input_ids, attention_mask, position_ids, token_type_ids, seq_len =
-        _prepare_roberta_inputs_from_graph(masked_graph)
+    input_ids, attention_mask, position_ids, token_type_ids, seq_len, attention_decay_mask, relation_ids =
+        _prepare_roberta_inputs_from_graph(masked_graph, model.config.attention_config, model.config.relation_types)
 
     return _forward_pass_mnm_inputs(
         model,
@@ -372,6 +403,9 @@ function forward_pass_mnm(
         position_ids,
         token_type_ids,
         seq_len,
+        attention_decay_mask,
+        masked_graph,
+        relation_ids
     )
 end
 
@@ -429,8 +463,8 @@ function train_joint_mlm_mnm_step(
 
     # === Forward Pass ===
 
-    input_ids, attention_mask, position_ids, token_type_ids, seq_len =
-        _prepare_roberta_inputs_from_graph(joint_masked_graph)
+    input_ids, attention_mask, position_ids, token_type_ids, seq_len, attention_decay_mask, relation_ids =
+        _prepare_roberta_inputs_from_graph(joint_masked_graph, model.config.attention_config, model.config.relation_types)
 
     logits = _forward_pass_mnm_inputs(
         model,
@@ -439,6 +473,9 @@ function train_joint_mlm_mnm_step(
         position_ids,
         token_type_ids,
         seq_len,
+        attention_decay_mask,
+        joint_masked_graph,
+        relation_ids
     )
 
     # === Loss Calculation ===
@@ -473,6 +510,9 @@ function train_joint_mlm_mnm_step(
             position_ids,
             token_type_ids,
             seq_len,
+            attention_decay_mask,
+            joint_masked_graph,
+            relation_ids
         )
         mlm_loss_g, _ = calculate_mlm_loss_with_boundary(
             logits_g,
@@ -494,6 +534,9 @@ function train_joint_mlm_mnm_step(
         position_ids,
         token_type_ids,
         seq_len,
+        attention_decay_mask,
+        joint_masked_graph,
+        relation_ids
     )
     mlm2, _ = calculate_mlm_loss_with_boundary(
         logits2,

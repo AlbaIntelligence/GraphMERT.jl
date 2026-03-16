@@ -386,6 +386,15 @@ function save_biomed_tokenizer(tokenizer::BioMedTokenizer, vocab_path::String)
     return true
 end
 
+"""
+    id_to_token(tokenizer::BioMedTokenizer, token_id::Int)
+
+Get token string for a token ID.
+"""
+function id_to_token(tokenizer::BioMedTokenizer, token_id::Int)
+    return get_token(tokenizer.vocab, token_id)
+end
+
 # Export functions
 export BioMedTokenizerConfig,
     BioMedVocabulary,
@@ -393,6 +402,7 @@ export BioMedTokenizerConfig,
     tokenize,
     encode,
     decode,
+    id_to_token,
     batch_encode,
     prepare_input_for_roberta,
     prepare_batch_for_roberta,

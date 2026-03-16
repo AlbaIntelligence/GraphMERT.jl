@@ -178,13 +178,36 @@ function (model::GraphMERTModel)(
     position_ids::Matrix{Int},
     token_type_ids::Matrix{Int},
     leafy_chain_graph::LeafyChainGraph,
+    ;
+    attention_decay_mask::Union{GraphMERT.AttentionDecayMask, Nothing} = nothing,
+    relation_ids::Union{Vector{Int}, Nothing} = nothing
 )
 
     # 1. Get initial embeddings from RoBERTa
     embedding_output = model.roberta.embeddings(input_ids, position_ids, token_type_ids)
 
     # 2. Inject relation type embeddings into the sequence
-    inject_relation_types!(embedding_output, model.relation_embeddings, leafy_chain_graph, model.config.relation_types)
+    if relation_ids !== nothing
+        # Optimized path: use pre-computed relation IDs
+        # relation_ids is (seq_len,)
+        
+        rel_embeds = model.relation_embeddings(relation_ids) # (hidden_dim, seq_len)
+        
+        # Permute to (1, seq, hidden) to broadcast over batch
+        rel_embeds_perm = permutedims(rel_embeds, (2, 1)) # (seq, hidden)
+        rel_embeds_3d = reshape(rel_embeds_perm, 1, size(rel_embeds_perm, 1), size(rel_embeds_perm, 2)) # (1, seq, hidden)
+        
+        embedding_output = embedding_output .+ rel_embeds_3d
+    else
+        # Legacy/slow path: use get_relation_ids_for_sequence inside model
+        # Note: this might trigger Zygote string issues if called inside gradient
+        relation_ids_internal = get_relation_ids_for_sequence(leafy_chain_graph, model.config.relation_types)
+        
+        rel_embeds = model.relation_embeddings(relation_ids_internal)
+        rel_embeds_perm = permutedims(rel_embeds, (2, 1))
+        rel_embeds_3d = reshape(rel_embeds_perm, 1, size(rel_embeds_perm, 1), size(rel_embeds_perm, 2))
+        embedding_output = embedding_output .+ rel_embeds_3d
+    end
 
     # 3. Run H-GAT to refine embeddings based on graph structure
     # H-GAT takes (batch, nodes, hidden) which matches embedding_output
@@ -215,11 +238,13 @@ function (model::GraphMERTModel)(
         attention_mask_3d = attention_mask
     end
 
-    # Create attention decay mask for spatial bias
-    attention_decay_mask = create_graph_attention_mask(
-        leafy_chain_graph.adjacency_matrix,
-        model.config.attention_config,
-    )
+    # Create attention decay mask for spatial bias (use passed one if available)
+    if attention_decay_mask === nothing
+        attention_decay_mask = create_graph_attention_mask(
+            leafy_chain_graph.adjacency_matrix,
+            model.config.attention_config,
+        )
+    end
 
     # 5. Run RoBERTa encoder
     # We use hgat_output as the input to the encoder
@@ -268,9 +293,63 @@ function (model::GraphMERTModel)(
 end
 
 """
+    get_relation_ids_for_sequence(graph, relation_types)
+
+Generate relation IDs for the sequence to allow vectorized embedding lookup.
+Returns vector of Ints (1-based indices into relation_embeddings).
+Index 1 is reserved for "NO_RELATION" (padding).
+"""
+function get_relation_ids_for_sequence(
+    graph::LeafyChainGraph,
+    relation_types::Vector{String},
+)::Vector{Int}
+    # Calculate sequence length based on graph config
+    # Note: graph_to_sequence uses max_sequence_length
+    seq_len = graph.config.max_sequence_length
+    
+    # Initialize with 1 (padding/no relation)
+    rel_ids = ones(Int, seq_len)
+    
+    num_roots = graph.config.num_roots
+    num_leaves = graph.config.num_leaves_per_root
+    
+    # Iterate roots to find relations injected into leaves
+    for r in 1:num_roots
+        rel_sym = graph.leaf_relations[r, 1]
+        
+        if rel_sym !== nothing
+            rel_str = string(rel_sym)
+            idx = findfirst(==(rel_str), relation_types)
+            
+            if idx !== nothing
+                # Map to embedding index (idx + 1, since 1 is padding)
+                emb_idx = idx + 1
+                
+                # Apply to all injected leaves
+                for l in 1:num_leaves
+                    if graph.injected_mask[r, l]
+                        # Calculate position (1-based for Julia arrays)
+                        # Root tokens are 1..num_roots
+                        # Leaves start at num_roots + 1
+                        pos = num_roots + (r-1)*num_leaves + l
+                        
+                        if pos <= seq_len
+                            rel_ids[pos] = emb_idx
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return rel_ids
+end
+
+"""
     inject_relation_types!(embeddings, relation_embeddings, graph, relation_types)
 
-Inject relation type embeddings into the sequence at injected leaf positions.
+Deprecated: Use get_relation_ids_for_sequence and vector addition instead.
+Kept for backward compatibility if needed, but not Zygote-safe.
 """
 function inject_relation_types!(
     embeddings::AbstractArray{Float32, 3},
