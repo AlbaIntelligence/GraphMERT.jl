@@ -11,6 +11,13 @@ using JSON3
 using Dates
 
 """
+    AbstractLLMClient
+
+Abstract base type for LLM clients.
+"""
+abstract type AbstractLLMClient end
+
+"""
     HelperLLMConfig
 
 Configuration for helper LLM client.
@@ -55,11 +62,11 @@ mutable struct HelperLLMCache
 end
 
 """
-    HelperLLMClient
+    OpenAIClient <: AbstractLLMClient
 
-Helper LLM client with rate limiting and caching.
+OpenAI API client implementation with rate limiting and caching.
 """
-mutable struct HelperLLMClient
+mutable struct OpenAIClient <: AbstractLLMClient
     config::HelperLLMConfig
     cache::HelperLLMCache
     request_fn::Function
@@ -68,6 +75,9 @@ mutable struct HelperLLMClient
     token_count::Int
     rate_limit_window_start::Float64
 end
+
+# Backward compatibility alias
+const HelperLLMClient = OpenAIClient
 
 """
     create_helper_llm_client(api_key::String; kwargs...)
@@ -118,22 +128,22 @@ function create_helper_llm_client(
         rate_limit,
     )
     cache = HelperLLMCache(1000, 3600)
-    return HelperLLMClient(config, cache, request_fn, 0.0, 0, 0, time())
+    return OpenAIClient(config, cache, request_fn, 0.0, 0, 0, time())
 end
 
 """
-    _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String, String}})
+    _make_llm_request(client::OpenAIClient, messages::Vector{Dict{String, String}})
 
 Make an authenticated HTTP request to OpenAI API with rate limiting and retry logic.
 
 # Arguments
-- `client::HelperLLMClient`: LLM client instance
+- `client::OpenAIClient`: LLM client instance
 - `messages::Vector{Dict{String, String}}`: Chat messages
 
 # Returns
 - `Tuple{Union{Dict, Nothing}, Union{String, Nothing}, Union{Int, Nothing}}`: (response_data, error_message, status_code)
 """
-function _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String,String}})
+function _make_llm_request(client::OpenAIClient, messages::Vector{Dict{String,String}})
     # Rate limiting check (tokens per minute)
     current_time = time()
     if current_time - client.rate_limit_window_start < 60.0  # 1 minute window
@@ -212,12 +222,12 @@ function _make_llm_request(client::HelperLLMClient, messages::Vector{Dict{String
 end
 
 """
-    make_llm_request(client::HelperLLMClient, prompt::String)
+    make_llm_request(client::AbstractLLMClient, prompt::String)
 
 Make a request to the helper LLM with a simple text prompt.
 
 # Arguments
-- `client::HelperLLMClient`: LLM client instance
+- `client::AbstractLLMClient`: LLM client instance
 - `prompt::String`: Text prompt
 
 # Returns
@@ -239,7 +249,7 @@ function _normalize_usage(usage)
     end
 end
 
-function make_llm_request(client::HelperLLMClient, prompt::String)
+function make_llm_request(client::OpenAIClient, prompt::String)
     messages = [Dict("role" => "user", "content" => prompt)]
 
     data, error_msg, status = _make_llm_request(client, messages)
@@ -255,18 +265,123 @@ function make_llm_request(client::HelperLLMClient, prompt::String)
 end
 
 """
-    discover_entities(client::HelperLLMClient, text::String; use_cache::Bool=true)
+    MockLLMClient <: AbstractLLMClient
+
+Mock LLM client for testing.
+Returns canned responses based on prompt content or predefined mapping.
+"""
+struct MockLLMClient <: AbstractLLMClient
+    responses::Dict{String, String}
+    default_response::String
+end
+
+"""
+    create_mock_llm_client(responses::Dict{String, String}=Dict{String, String}())
+
+Create a mock LLM client.
+"""
+function create_mock_llm_client(responses::Dict{String, String}=Dict{String, String}())
+    return MockLLMClient(responses, "Default mock response")
+end
+
+function make_llm_request(client::MockLLMClient, prompt::String)
+    # Check for exact match in predefined responses
+    if haskey(client.responses, prompt)
+        return HelperLLMResponse(true, client.responses[prompt], nothing, Dict{String,Any}(), 200)
+    end
+    
+    # Fallback to simple keyword matching for common tasks if not in map
+    if occursin("Extract biomedical entities", prompt)
+        return HelperLLMResponse(true, "Diabetes\nMetformin\nInsulin", nothing, Dict{String,Any}(), 200)
+    elseif occursin("Find relations between these entities", prompt)
+        return HelperLLMResponse(true, "Diabetes -> TREATS -> Metformin", nothing, Dict{String,Any}(), 200)
+    elseif occursin("Form coherent entity names", prompt)
+        return HelperLLMResponse(true, "Insulin resistance\nHyperglycemia", nothing, Dict{String,Any}(), 200)
+    end
+
+    return HelperLLMResponse(true, client.default_response, nothing, Dict{String,Any}(), 200)
+end
+
+"""
+    GeminiClient <: AbstractLLMClient
+
+Google Gemini API client.
+"""
+mutable struct GeminiClient <: AbstractLLMClient
+    api_key::String
+    model::String
+    request_fn::Function
+end
+
+"""
+    create_gemini_client(api_key::String; model::String="gemini-pro", request_fn::Function=HTTP.post)
+
+Create a Gemini LLM client.
+"""
+function create_gemini_client(
+    api_key::String;
+    model::String = "gemini-pro",
+    request_fn::Function = HTTP.post,
+)
+    return GeminiClient(api_key, model, request_fn)
+end
+
+function make_llm_request(client::GeminiClient, prompt::String)
+    # Placeholder for actual Gemini API call
+    # In a real implementation, we would use HTTP.post to 
+    # https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}
+    
+    url = "https://generativelanguage.googleapis.com/v1beta/models/$(client.model):generateContent?key=$(client.api_key)"
+    
+    # Simple JSON body for Gemini
+    body = Dict(
+        "contents" => [
+            Dict("parts" => [Dict("text" => prompt)])
+        ]
+    )
+    
+    try
+        # Use request_fn for testability
+        response = client.request_fn(url, ["Content-Type" => "application/json"], JSON3.write(body))
+        
+        if response.status == 200
+            data = JSON3.read(String(response.body))
+            # Parse Gemini response structure
+            # candidates[0].content.parts[0].text
+            if haskey(data, "candidates") && !isempty(data["candidates"])
+                content = data["candidates"][1]["content"]["parts"][1]["text"]
+                return HelperLLMResponse(true, content, nothing, Dict{String,Any}(), 200)
+            end
+        end
+        return HelperLLMResponse(false, "", "Empty or invalid response from Gemini", Dict{String,Any}(), response.status)
+    catch e
+        return HelperLLMResponse(false, "", "Gemini request failed: $e", Dict{String,Any}(), 500)
+    end
+end
+
+"""
+    discover_entities(client::AbstractLLMClient, text::String; use_cache::Bool=true)
 
 Discover entities in text using the helper LLM (fallback prompt).
 
 This overload is intended for simple usage and offline testing where a domain provider
 is not available.
 """
-function discover_entities(client::HelperLLMClient, text::String; use_cache::Bool = true)
+function discover_entities(client::AbstractLLMClient, text::String; use_cache::Bool = true)
   isempty(strip(text)) && return String[]
 
   cache_key = "entities:$(hash(text))"
-  if use_cache && haskey(client.cache.responses, cache_key)
+  # Only use cache if client has one (OpenAIClient has one)
+  # For abstract client, we might need a cache interface or optional cache field
+  # For now, we assume subtypes might have cache or we handle it here if possible.
+  # But AbstractLLMClient doesn't guarantee 'cache' field.
+  # We should probably push caching logic into make_llm_request or keep it specific to OpenAIClient/CachedClients.
+  
+  # However, for now let's assume subtypes compatible with cache access IF they have it.
+  # Or better: check if client has cache field.
+  has_cache = hasfield(typeof(client), :cache)
+  
+  if use_cache && has_cache && haskey(client.cache.responses, cache_key)
     cached_response, cache_time = client.cache.responses[cache_key]
     if (now() - cache_time).value / 1000 < client.cache.ttl_seconds
       return parse_entity_response(cached_response.content)
@@ -278,7 +393,7 @@ function discover_entities(client::HelperLLMClient, text::String; use_cache::Boo
 
   if response.success
     entities = parse_entity_response(response.content)
-    if use_cache
+    if use_cache && has_cache
       client.cache.responses[cache_key] = (response, now())
     end
     return entities
@@ -289,12 +404,12 @@ function discover_entities(client::HelperLLMClient, text::String; use_cache::Boo
 end
 
 """
-    discover_entities(client::HelperLLMClient, text::String, domain::Any; use_cache::Bool=true)
+    discover_entities(client::AbstractLLMClient, text::String, domain::Any; use_cache::Bool=true)
 
 Discover entities in text using LLM with domain-specific prompts.
 
 # Arguments
-- `client::HelperLLMClient`: LLM client instance
+- `client::AbstractLLMClient`: LLM client instance
 - `text::String`: Text to analyze
 - `domain::DomainProvider`: Domain provider for prompt generation
 - `use_cache::Bool`: Whether to use cached responses
@@ -303,7 +418,7 @@ Discover entities in text using LLM with domain-specific prompts.
 - `Vector{String}`: Discovered entity names
 """
 function discover_entities(
-  client::HelperLLMClient,
+  client::AbstractLLMClient,
   text::String,
   domain::Any;
   use_cache::Bool = true,
@@ -311,8 +426,10 @@ function discover_entities(
   isempty(strip(text)) && return String[]
 
   # Check cache first
+  has_cache = hasfield(typeof(client), :cache)
   cache_key = "entities:$(hash(text)):$(hash(string(typeof(domain))))"
-  if use_cache && haskey(client.cache.responses, cache_key)
+  
+  if use_cache && has_cache && haskey(client.cache.responses, cache_key)
     cached_response, cache_time = client.cache.responses[cache_key]
     if (now() - cache_time).value / 1000 < client.cache.ttl_seconds
       return parse_entity_response(cached_response.content)
@@ -335,7 +452,7 @@ function discover_entities(
     entities = parse_entity_response(response.content)
 
     # Cache response
-    if use_cache
+    if use_cache && has_cache
       client.cache.responses[cache_key] = (response, now())
     end
 
@@ -347,12 +464,12 @@ function discover_entities(
 end
 
 """
-    match_relations(client::HelperLLMClient, entities::Vector{String}, text::String; use_cache::Bool=true)
+    match_relations(client::AbstractLLMClient, entities::Vector{String}, text::String; use_cache::Bool=true)
 
 Match relations between entities using LLM.
 
 # Arguments
-- `client::HelperLLMClient`: LLM client instance
+- `client::AbstractLLMClient`: LLM client instance
 - `entities::Vector{String}`: Entity names
 - `text::String`: Original text for context
 - `use_cache::Bool`: Whether to use cached responses
@@ -361,15 +478,17 @@ Match relations between entities using LLM.
 - `Dict{String, Dict{String, String}}`: Relations in format entity1 => (relation => entity2)
 """
 function match_relations(
-    client::HelperLLMClient,
+    client::AbstractLLMClient,
     entities::Vector{String},
     text::String;
     use_cache::Bool = true,
 )
     # Check cache first
+    has_cache = hasfield(typeof(client), :cache)
     entities_key = join(sort(entities), "|")
     cache_key = "relations:$(hash(entities_key)):$(hash(text))"
-    if use_cache && haskey(client.cache.responses, cache_key)
+    
+    if use_cache && has_cache && haskey(client.cache.responses, cache_key)
         cached_response, cache_time = client.cache.responses[cache_key]
         if (now() - cache_time).value / 1000 < client.cache.ttl_seconds
             return parse_relation_response(cached_response.content)
@@ -386,7 +505,7 @@ function match_relations(
         relations = parse_relation_response(response.content)
 
         # Cache response
-        if use_cache
+        if use_cache && has_cache
             client.cache.responses[cache_key] = (response, now())
         end
 
@@ -652,7 +771,7 @@ Discover entities in multiple texts using LLM.
 # Returns
 - `Vector{Vector{String}}`: List of entity lists, one per text
 """
-function discover_entities_batch(client::HelperLLMClient, texts::Vector{String})
+function discover_entities_batch(client::AbstractLLMClient, texts::Vector{String})
     results = Vector{Vector{String}}()
 
     for text in texts
@@ -680,7 +799,7 @@ Match relations in multiple texts using LLM.
 - `Vector{Dict{String, Dict{String, String}}}`: List of relation dictionaries
 """
 function match_relations_batch(
-    client::HelperLLMClient,
+    client::AbstractLLMClient,
     entity_lists::Vector{Vector{String}},
     texts::Vector{String},
 )
@@ -719,13 +838,15 @@ Form coherent tail entities from predicted tokens using LLM.
 function form_tail_from_tokens(
     tokens::Vector{Tuple{Int,Float64}},
     text::String,
-    client::HelperLLMClient;
+    client::AbstractLLMClient;
     use_cache::Bool = true,
 )
     # Check cache first
+    has_cache = hasfield(typeof(client), :cache)
     tokens_key = join([string(t[1]) for t in tokens], "|")
     cache_key = "tails:$(hash(tokens_key)):$(hash(text))"
-    if use_cache && haskey(client.cache.responses, cache_key)
+    
+    if use_cache && has_cache && haskey(client.cache.responses, cache_key)
         cached_response, cache_time = client.cache.responses[cache_key]
         if (now() - cache_time).value / 1000 < client.cache.ttl_seconds
             return parse_tail_formation_response(cached_response.content)
@@ -742,7 +863,7 @@ function form_tail_from_tokens(
         tails = parse_tail_formation_response(response.content)
 
         # Cache response
-        if use_cache
+        if use_cache && has_cache
             client.cache.responses[cache_key] = (response, now())
         end
 

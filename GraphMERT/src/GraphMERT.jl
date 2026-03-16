@@ -169,8 +169,10 @@ export calculate_entity_confidence, calculate_relation_confidence
 export load_wikipedia_domain, load_biomedical_domain
 
 # Export helper LLM functions
-export create_helper_llm_client, discover_entities, match_relations
-export discover_entities_batch, match_relations_batch
+export AbstractLLMClient, OpenAIClient, MockLLMClient, GeminiClient
+export create_helper_llm_client, create_mock_llm_client, create_gemini_client
+export discover_entities, match_relations, make_llm_request
+export discover_entities_batch, match_relations_batch, form_tail_from_tokens
 export create_entity_discovery_prompt, create_relation_matching_prompt, create_tail_formation_prompt
 export parse_entity_response, parse_relation_response, parse_tail_formation_response
 

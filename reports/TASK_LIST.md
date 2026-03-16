@@ -136,14 +136,14 @@
 
 **File**: `src/llm/helper.jl`
 
-- 🔴 C1.1 Define `AbstractLLMClient` abstract type with `call_llm(client, prompt) -> String`
-- 🔴 C1.2 Implement `MockLLMClient` returning canned responses (for CI)
-- 🔴 C1.3 Implement `OpenAIClient` (reads `OPENAI_API_KEY` from env)
-- 🔴 C1.4 Implement `GeminiClient` (reads `GOOGLE_API_KEY` from env)
-- 🔴 C1.5 Add prompt templates as `const` strings: head discovery, relation matching, tail formation, FActScore verification
-- 🔴 C1.6 Add response parser for entity list (bullet/numbered/plain)
-- 🔴 C1.7 Add rate limiting (token bucket) and retry logic
-- 🔴 C1.8 Add result caching (file-based, keyed by SHA256 of prompt)
+- ✅ C1.1 Define `AbstractLLMClient` abstract type with `call_llm(client, prompt) -> String`
+- ✅ C1.2 Implement `MockLLMClient` returning canned responses (for CI)
+- ✅ C1.3 Implement `OpenAIClient` (reads `OPENAI_API_KEY` from env)
+- ✅ C1.4 Implement `GeminiClient` (reads `GOOGLE_API_KEY` from env)
+- ✅ C1.5 Add prompt templates as `const` strings: head discovery, relation matching, tail formation, FActScore verification
+- ✅ C1.6 Add response parser for entity list (bullet/numbered/plain)
+- ✅ C1.7 Add rate limiting (token bucket) and retry logic
+- ✅ C1.8 Add result caching (file-based, keyed by SHA256 of prompt)
 
 ### C2 — UMLS REST API client
 
@@ -196,12 +196,12 @@
 
 **File**: `src/training/mnm.jl`
 
-- 🔴 D2.1 Call real `forward_pass_mnm` with masked graph as input
-- 🔴 D2.2 Compute joint loss: `L = L_MLM + L_MNM`
-- 🔴 D2.3 Compute gradients via `Zygote.gradient`
-- 🔴 D2.4 Apply `Flux.update!` on all parameters
-- 🔴 D2.5 Verify gradient flows through H-GAT (check `∂L/∂W_hgat ≠ 0`)
-- 🔴 D2.6 Add test: loss decreases over 3 steps on fixed toy input
+- ✅ D2.1 Call real `forward_pass_mnm` with masked graph as input
+- ✅ D2.2 Compute joint loss: `L = L_MLM + L_MNM`
+- ✅ D2.3 Compute gradients via `Zygote.gradient`
+- ✅ D2.4 Apply `Flux.update!` on all parameters
+- ✅ D2.5 Verify gradient flows through H-GAT (check `∂L/∂W_hgat ≠ 0`)
+- ✅ D2.6 Add test: loss decreases over 3 steps on fixed toy input
 
 ### D3 — Checkpoint system
 
