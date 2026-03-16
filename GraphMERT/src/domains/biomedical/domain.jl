@@ -13,6 +13,7 @@ using Logging
 include("entities.jl")
 include("relations.jl")
 include("umls.jl")
+include("entity_linking.jl")
 include("prompts.jl")
 
 """
@@ -24,9 +25,13 @@ mutable struct BiomedicalDomain <: DomainProvider
     config::DomainConfig
     entity_types::Dict{String, Dict{String, Any}}
     relation_types::Dict{String, Dict{String, Any}}
-    umls_client::Union{Any, Nothing}  # UMLSClient when available
+    umls_client::Union{UMLSClient, Nothing}  # UMLSClient when available
+    entity_linker::Union{AbstractEntityLinker, Nothing} # SapBERT or other linker
     
-    function BiomedicalDomain(umls_client::Union{Any, Nothing} = nothing)
+    function BiomedicalDomain(
+        umls_client::Union{UMLSClient, Nothing} = nothing,
+        entity_linker::Union{AbstractEntityLinker, Nothing} = nothing
+    )
         # Initialize entity types
         entity_types = Dict{String, Dict{String, Any}}(
             "DISEASE" => Dict("domain" => "biomedical", "category" => "pathology", "umls_group" => "DISO"),
@@ -83,7 +88,7 @@ mutable struct BiomedicalDomain <: DomainProvider
             confidence_strategies=Dict{String, Any}(),
         )
         
-        new(config, entity_types, relation_types, umls_client)
+        new(config, entity_types, relation_types, umls_client, entity_linker)
     end
 end
 

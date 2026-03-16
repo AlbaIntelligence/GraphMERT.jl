@@ -136,6 +136,11 @@ include("api/config.jl")
 include("api/helpers.jl")
 include("api/serialization.jl")
 
+# LLM integrations
+include("llm/helper.jl")
+include("llm/local.jl")
+include("llm/embeddings.jl")
+
 # Visualization
 include("visualization/visualization.jl")
 
@@ -178,6 +183,11 @@ export parse_entity_response, parse_relation_response, parse_tail_formation_resp
 
 # Export local LLM functions
 export LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_model
+
+# Export embedding functions
+export AbstractEmbeddingClient, GeminiEmbeddingClient, MockEmbeddingClient
+export create_gemini_embedding_client, create_mock_embedding_client
+export embed, embed_batch, cosine_similarity
 
 # Note: Domain-specific exports (UMLS, PubMed, biomedical graph functions) should be
 # exported by domain modules, not here in the core module

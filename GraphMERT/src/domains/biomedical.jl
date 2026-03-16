@@ -21,12 +21,13 @@ include("biomedical/domain.jl")
 # include("GraphMERT/src/domains/biomedical/pubmed.jl")
 
 """
-    load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing)
+    load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing, entity_linker::Union{Any, Nothing} = nothing)
 
 Load and register the biomedical domain.
 
 # Arguments
 - `umls_client::Union{Any, Nothing}`: Optional UMLS client for entity linking
+- `entity_linker::Union{Any, Nothing}`: Optional entity linker (e.g. SapBERT)
 
 # Returns
 - `BiomedicalDomain`: The created domain instance
@@ -41,9 +42,10 @@ domain = load_biomedical_domain()
 register_domain!("biomedical", domain)
 ```
 """
-function load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing)
-    return BiomedicalDomain(umls_client)
+function load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing, entity_linker::Union{Any, Nothing} = nothing)
+    return BiomedicalDomain(umls_client, entity_linker)
 end
 
 # Export
 export BiomedicalDomain, load_biomedical_domain
+export AbstractEntityLinker, MockEntityLinker, SapBERTLinker

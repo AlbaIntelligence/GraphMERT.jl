@@ -147,34 +147,34 @@
 
 ### C2 — UMLS REST API client
 
-**File**: `src/biomedical/umls.jl`
+**File**: `src/domains/biomedical/umls.jl`
 
-- 🔴 C2.1 Implement TGT/ST authentication (reads `UMLS_API_KEY` from env)
-- 🔴 C2.2 Implement `lookup_cui(client, entity_text) -> Vector{(CUI, score)}`
-- 🔴 C2.3 Implement `retrieve_triples(client, cui, allowed_relations) -> Vector{SemanticTriple}`
-- 🔴 C2.4 Add local SQLite cache for CUI lookups and triples
-- 🔴 C2.5 Implement `MockUMLSClient` with fixture data for CI
-- 🔴 C2.6 Add rate limiting (UMLS allows ~20 req/s)
+- ✅ C2.1 Implement TGT/ST authentication (reads `UMLS_API_KEY` from env) (Changed to apiKey auth)
+- ✅ C2.2 Implement `get_entity_cui` (was lookup_cui)
+- ✅ C2.3 Implement `retrieve_triples`
+- 🟡 C2.4 Add local SQLite cache for CUI lookups and triples (Implemented in-memory `UMLSCache`)
+- ✅ C2.5 Implement `MockUMLSClient` with fixture data for CI
+- ✅ C2.6 Add rate limiting (UMLS allows ~20 req/s)
 
 ### C3 — SapBERT entity linking
 
-**File**: `src/biomedical/entity_linking.jl`
+**File**: `src/domains/biomedical/entity_linking.jl`
 
-- 🔴 C3.1 Define `EntityLinker` abstract type
-- 🔴 C3.2 Implement `SapBERTLinker` using ONNX model via `ONNX.jl` or Python subprocess
-- 🔴 C3.3 Build/load ANN index (cosine similarity over UMLS concept embeddings)
-- 🔴 C3.4 Implement `link_entity(linker, text) -> Vector{(CUI, score)}`
-- 🔴 C3.5 Implement `MockEntityLinker` with fixture mappings for CI
+- ✅ C3.1 Define `AbstractEntityLinker` abstract type
+- 🟡 C3.2 Implement `SapBERTLinker` (Stubbed for future ONNX integration)
+- 🟡 C3.3 Build/load ANN index (Stubbed)
+- ✅ C3.4 Implement `link_entity(linker, text) -> Vector{(CUI, score)}`
+- ✅ C3.5 Implement `MockEntityLinker` with fixture mappings for CI
 - 🔴 C3.6 Add character 3-gram Jaccard filter as secondary reranker
 
 ### C4 — Embedding client for contextual selection
 
 **File**: `src/llm/embeddings.jl`
 
-- 🔴 C4.1 Define `AbstractEmbeddingClient` with `embed(client, text) -> Vector{Float32}`
-- 🔴 C4.2 Implement `GeminiEmbeddingClient`
-- 🔴 C4.3 Implement `MockEmbeddingClient` (random unit vectors, seeded)
-- 🔴 C4.4 Add cosine similarity utility `cosine_sim(a, b)`
+- ✅ C4.1 Define `AbstractEmbeddingClient` with `embed(client, text) -> Vector{Float32}`
+- ✅ C4.2 Implement `GeminiEmbeddingClient`
+- ✅ C4.3 Implement `MockEmbeddingClient` (random unit vectors, seeded)
+- ✅ C4.4 Add cosine similarity utility `cosine_similarity`
 
 ---
 

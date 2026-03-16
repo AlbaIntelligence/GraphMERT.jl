@@ -25,14 +25,19 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 
 - **Project status**: See `reports/PROJECT_STATUS.md` for overview; `reports/PARITY_PLAN.md` for current defect list and work streams.
 - **Recent Fixes**:
+  - Implemented LLM client abstraction (OpenAI, Gemini).
+  - Implemented UMLS REST API client with mock mode.
+  - Implemented Entity Linking abstraction (SapBERT stub).
+  - Implemented Embedding client abstraction.
   - Fixed H-GAT dimension mismatches (batch, nodes, hidden).
   - Fixed `softmax` calls to `Flux.softmax`.
   - Implemented real `predict_tail_tokens` pipeline.
   - Verified model persistence with JLD2.
+  - Fixed FActScore performance bug (`filter_triples_by_confidence`).
 - **Confirmed P0 bugs** (nothing works end-to-end until these are fixed):
   - `train_graphmert` returns `MockGraphMERTModel` with `rand()` losses — no real training.
-  - `filter_triples_by_confidence` is an O(N²×M) cartesian product — FActScore is wrong.
   - `max_position_embeddings=512` but sequence length is 1024 — embedding table too small.
+  - (Fixed) `filter_triples_by_confidence` is an O(N²×M) cartesian product — FActScore is wrong.
   - (Fixed) `predict_tail_tokens` (Stage 3) uses `rand(Float32, vocab_size)` — no real inference.
   - (Fixed) `form_tail_from_tokens` (Stage 4) returns `"entity_N"` strings — no real extraction.
   - (Fixed) All weight I/O in `persistence.jl` is stubbed — `save_model`/`load_model` do nothing.
