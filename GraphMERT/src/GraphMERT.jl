@@ -89,9 +89,9 @@ include("domains/registry.jl")
 # include("domains/biomedical/domain.jl")  # Loaded on demand or via explicit include
 
 # Architecture components
+include("architectures/attention.jl")
 include("architectures/roberta.jl")
 include("architectures/hgat.jl")
-include("architectures/attention.jl")
 
 # Graph structures
 include("graphs/leafy_chain.jl")

@@ -329,6 +329,7 @@ Forward pass for RoBERTa self-attention.
 function (attention::RoBERTaSelfAttention)(
     hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
     attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
+    attention_decay_mask::Union{Nothing, AttentionDecayMask} = nothing,
 )
     batch_size, seq_length, hidden_size = size(hidden_states)
 
@@ -371,6 +372,22 @@ function (attention::RoBERTaSelfAttention)(
     mask3 = permutedims(attention_mask, (2, 3, 1))
     scores4 = scores4 .+ reshape(mask3, seq_length, seq_length, batch_size, 1)
 
+    # Apply attention decay mask if provided
+    # GraphMERT spatial bias: add log(decay_mask) to scores
+    if attention_decay_mask !== nothing
+        # mask.mask is (seq, seq) with values in [0, 1] (exp(-dist))
+        # We need to broadcast it across batches and heads
+        # log(exp(-lambda*d)) = -lambda*d, which is the additive bias we want
+        
+        # Add epsilon to avoid log(0) for infinite distances
+        epsilon = 1f-12
+        spatial_bias = log.(attention_decay_mask.mask .+ epsilon)
+        
+        # Reshape for broadcasting: (seq, seq, 1, 1)
+        # scores4 is (seq, seq, batch, heads)
+        scores4 = scores4 .+ reshape(spatial_bias, seq_length, seq_length, 1, 1)
+    end
+
     probs4 = Flux.softmax(scores4; dims = 2)
     probs4 = attention.dropout(probs4)
 
@@ -396,9 +413,10 @@ Forward pass for a single RoBERTa layer.
 function (layer::RoBERTaLayer)(
     hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
     attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
+    attention_decay_mask::Union{Nothing, AttentionDecayMask} = nothing,
 )
     # Self-attention
-    attention_output = layer.attention.self(hidden_states, attention_mask)
+    attention_output = layer.attention.self(hidden_states, attention_mask, attention_decay_mask)
     # Self-attention output projection
     batch_size, seq_len, hidden_size = size(attention_output)
     attention_output_reshaped = reshape(attention_output, hidden_size, batch_size * seq_len)
@@ -443,9 +461,10 @@ Forward pass for RoBERTa encoder.
 function (encoder::RoBERTaEncoder)(
     hidden_states::Array{Float32, 3},  # (batch_size, seq_len, hidden_size)
     attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
+    attention_decay_mask::Union{Nothing, AttentionDecayMask} = nothing,
 )
     for layer in encoder.layers
-        hidden_states = layer(hidden_states, attention_mask)
+        hidden_states = layer(hidden_states, attention_mask, attention_decay_mask)
     end
     return hidden_states
 end
@@ -461,12 +480,13 @@ function (model::RoBERTaModel)(
     attention_mask::Array{Float32, 3},  # (batch_size, seq_len, seq_len)
     position_ids::Matrix{Int},  # (seq_len, batch_size)
     token_type_ids::Matrix{Int},  # (seq_len, batch_size)
+    attention_decay_mask::Union{Nothing, AttentionDecayMask} = nothing,
 )
     # Embeddings
     embedding_output = model.embeddings(input_ids, position_ids, token_type_ids)  # (batch_size, seq_len, hidden_size)
 
     # Encoder
-    encoder_output = model.encoder(embedding_output, attention_mask)  # (batch_size, seq_len, hidden_size)
+    encoder_output = model.encoder(embedding_output, attention_mask, attention_decay_mask)  # (batch_size, seq_len, hidden_size)
 
     # Pooler - use first token (equivalent to [CLS])
     pooled_output = model.pooler(encoder_output[:, 1, :]')  # (hidden_size, batch_size)

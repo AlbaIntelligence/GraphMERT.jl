@@ -174,15 +174,15 @@ function (model::GraphMERTModel)(
     leafy_chain_graph::LeafyChainGraph,
 )
 
-    # RoBERTa encoding
-    roberta_output, pooled_output =
-        model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
-
     # Create attention decay mask for the leafy chain graph
     attention_decay_mask = create_graph_attention_mask(
         leafy_chain_graph.adjacency_matrix,
         model.config.attention_config,
     )
+
+    # RoBERTa encoding
+    roberta_output, pooled_output =
+        model.roberta(input_ids, attention_mask, position_ids, token_type_ids, attention_decay_mask)
 
     # H-GAT processing
     hgat_output = model.hgat(roberta_output, leafy_chain_graph.adjacency_matrix)

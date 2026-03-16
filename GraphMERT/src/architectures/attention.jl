@@ -7,6 +7,7 @@ for the GraphMERT architecture, enabling effective attention over graph structur
 
 using LinearAlgebra
 using SparseArrays
+using Flux
 
 # ============================================================================
 # Attention Decay Mask Types
