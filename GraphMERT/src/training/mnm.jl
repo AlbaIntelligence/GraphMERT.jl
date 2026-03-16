@@ -224,9 +224,13 @@ function calculate_mnm_loss(
                     continue
                 end
 
-                # Get logits and compute cross-entropy
+                # Use one-vs-all BCE on the vocabulary logits so the loss stays
+                # well-defined for the full logit vector produced by the LM head.
                 leaf_logits = logits[batch_idx, seq_pos, :]
-                loss = Flux.crossentropy(leaf_logits, label + 1)  # +1 because Flux uses 1-based indexing
+                target = zeros(Float32, vocab_size)
+                label_idx = clamp(label + 1, 1, vocab_size)  # convert 0-based token ids to Julia indices
+                target[label_idx] = 1.0f0
+                loss = Flux.Losses.logitbinarycrossentropy(leaf_logits, target)
 
                 total_loss += loss
                 count += 1

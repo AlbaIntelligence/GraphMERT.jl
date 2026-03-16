@@ -38,7 +38,7 @@ struct RoBERTaConfig
         num_attention_heads::Int = 12,
         num_hidden_layers::Int = 12,
         intermediate_size::Int = 3072,
-        max_position_embeddings::Int = 512,
+        max_position_embeddings::Int = 1024,
         type_vocab_size::Int = 1,
         layer_norm_eps::Float64 = 1e-12,
         hidden_dropout_prob::Float64 = 0.1,

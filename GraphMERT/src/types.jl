@@ -660,7 +660,7 @@ struct GraphMERTConfig
     hidden_size::Int=768,
     num_attention_heads::Int=12,
     num_hidden_layers::Int=12,
-    max_position_embeddings::Int=512,
+    max_position_embeddings::Int=1024,
     type_vocab_size::Int=2,
     initializer_range::Float64=0.02,
     layer_norm_eps::Float64=1e-12,
@@ -682,6 +682,7 @@ struct GraphMERTConfig
     relation_types::Vector{String}=String[],
     domain::String="general",
   )
+    @assert max_position_embeddings >= max_length "max_position_embeddings must be at least max_length"
     new(
       model_path,
       vocab_size,

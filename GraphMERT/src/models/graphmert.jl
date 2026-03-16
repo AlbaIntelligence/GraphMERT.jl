@@ -49,6 +49,7 @@ struct GraphMERTConfig
         max_sequence_length::Int = 1024,  # align with ChainGraphConfig (128 roots + 896 leaves)
         hidden_dim::Int = 768,
     )
+        @assert roberta_config.max_position_embeddings >= max_sequence_length "RoBERTa position embeddings must cover max_sequence_length"
         new(
             roberta_config,
             hgat_config,

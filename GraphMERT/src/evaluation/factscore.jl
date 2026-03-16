@@ -196,16 +196,16 @@ Filter triples by minimum confidence threshold.
 """
 function filter_triples_by_confidence(kg::KnowledgeGraph, threshold::Float64)
     filtered_triples = Vector{Tuple{Int,Int,Int}}()
+    id_to_index = Dict{String,Int}(entity.id => idx for (idx, entity) in enumerate(kg.entities))
 
-    # Create all possible entity-relation-entity combinations
-    for (head_idx, head_entity) in enumerate(kg.entities)
-        for (rel_idx, relation) in enumerate(kg.relations)
-            for (tail_idx, tail_entity) in enumerate(kg.entities)
-                if head_idx != tail_idx && relation.confidence >= threshold
-                    push!(filtered_triples, (head_idx, rel_idx, tail_idx))
-                end
-            end
-        end
+    for (rel_idx, relation) in enumerate(kg.relations)
+        relation.confidence < threshold && continue
+
+        head_idx = get(id_to_index, relation.head, 0)
+        tail_idx = get(id_to_index, relation.tail, 0)
+        (head_idx == 0 || tail_idx == 0 || head_idx == tail_idx) && continue
+
+        push!(filtered_triples, (head_idx, rel_idx, tail_idx))
     end
 
     return filtered_triples

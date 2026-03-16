@@ -19,6 +19,8 @@ All entity and relation extraction uses domain providers for domain-specific log
 
 # using DocStringExtensions  # Temporarily disabled
 
+using Flux
+
 # Import LLM client types from main module for backend selection
 using ...GraphMERT: HelperLLMClient, HelperLLMConfig, create_helper_llm_client
 using ...GraphMERT: LocalLLMClient, LocalLLMConfig, load_model as load_local_model
@@ -153,21 +155,38 @@ function predict_tail_tokens(
 )
   # Create a simple graph for prediction (would be more sophisticated)
   graph = GraphMERT.create_leafy_chain_from_text(text)
+  input_ids_vec = GraphMERT.graph_to_sequence(graph)
+  seq_len = length(input_ids_vec)
 
-  # Encode head entity and relation into the graph
-  # This is a simplified implementation - full version would be more complex
+  logits = if model isa GraphMERT.GraphMERTModel
+    safe_input_ids = [x == 0 ? 1 : x for x in input_ids_vec]
+    input_ids = reshape(safe_input_ids, seq_len, 1)
+    attention_mask = GraphMERT.create_attention_mask(input_ids)
+    position_ids = reshape(collect(1:seq_len), seq_len, 1)
+    token_type_ids = ones(Int, seq_len, 1)
 
-  # Forward pass through model
-  input_ids = GraphMERT.graph_to_sequence(graph)
-  attention_mask = GraphMERT.create_attention_mask(graph)
+    encoder_output, _ = model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
+    batch_size, _, hidden_dim = size(encoder_output)
+    encoder_reshaped = reshape(encoder_output, batch_size * seq_len, hidden_dim)
+    encoder_reshaped = permutedims(encoder_reshaped, (2, 1))
+    lm_2d = model.lm_head(encoder_reshaped)
+    vocab_size = size(lm_2d, 1)
+    lm_3d = reshape(lm_2d, vocab_size, batch_size, seq_len)
+    permutedims(lm_3d, (2, 3, 1))
+  else
+    attention_mask = GraphMERT.create_attention_mask(graph)
+    model(reshape(input_ids_vec, 1, :), reshape(attention_mask, 1, :))
+  end
 
-  # Get model predictions (simplified)
-  logits = model(reshape(input_ids, 1, :), reshape(attention_mask, 1, :))
-
-  # Extract top-k predictions for tail positions
-  # This is a placeholder - full implementation would be much more sophisticated
+  # Use the model's logits directly instead of placeholder randomness.
+  seq_len = size(logits, 2)
   vocab_size = size(logits, 3)
-  tail_probs = rand(Float32, vocab_size)  # Placeholder probabilities
+  leaf_start = min(graph.config.num_roots + 1, seq_len)
+  candidate_positions = collect(leaf_start:seq_len)
+  isempty(candidate_positions) && push!(candidate_positions, seq_len)
+
+  tail_logits = dropdims(mean(logits[1, candidate_positions, :]; dims=1), dims=1)
+  tail_probs = Flux.softmax(tail_logits)
 
   # Get top-k tokens
   top_indices = sortperm(tail_probs, rev=true)[1:min(top_k, vocab_size)]
@@ -188,19 +207,38 @@ function form_tail_from_tokens(
   text::String,
   llm_client::Union{Any,Nothing}=nothing,
 )
-  possible_tails = Vector{String}()
+  max_candidates = min(5, length(tokens))
+  max_candidates == 0 && return String[]
 
-  # Simple approach: combine tokens into entity-like strings
-  # In practice, would use LLM to form grammatically correct entities
+  cleaned_words = [
+    lowercase(m.match)
+    for m in eachmatch(r"[A-Za-z][A-Za-z0-9_-]*", text)
+    if length(m.match) > 2
+  ]
 
-  # Take top tokens and form combinations
-  top_token_ids = [token[1] for token in tokens[1:min(5, length(tokens))]]
+  candidates = String[]
+  seen = Set{String}()
+  for n in 3:-1:1
+    if length(cleaned_words) < n
+      continue
+    end
+    for i in 1:(length(cleaned_words) - n + 1)
+      phrase = join(cleaned_words[i:(i + n - 1)], " ")
+      phrase in seen && continue
+      push!(seen, phrase)
+      push!(candidates, phrase)
+    end
+  end
 
-  # Simple entity formation (would be more sophisticated)
-  for token_id in top_token_ids
-    # Convert token ID to string representation (simplified)
-    entity_str = "entity_$(token_id)"
-    push!(possible_tails, entity_str)
+  if isempty(candidates)
+    fallback = strip(text)
+    return isempty(fallback) ? String[] : fill(fallback, max_candidates)
+  end
+
+  possible_tails = String[]
+  for (token_id, _score) in tokens[1:max_candidates]
+    candidate_idx = mod1(token_id, length(candidates))
+    push!(possible_tails, candidates[candidate_idx])
   end
 
   return possible_tails
@@ -325,8 +363,13 @@ function extract_knowledge_graph(
   relations = match_relations_for_entities(entities, text, domain_provider, options; llm_client = llm_client)
   @info "Extracted $(length(relations)) relations using domain: $(options.domain)"
 
-  # Stages 3–5 (optional): When a full GraphMERT model is provided, run tail prediction, tail formation, and filtering
-  if model !== nothing && !isempty(relations) && model isa GraphMERTModel
+  # Stages 3–5 (optional): run tail prediction only for models that expose the
+  # lightweight two-argument extraction interface used by the current API.
+  supports_tail_prediction =
+    model !== nothing &&
+    applicable(model, reshape(Int[1], 1, 1), reshape(Int[1], 1, 1))
+
+  if !isempty(relations) && supports_tail_prediction
     triples = _build_triples_from_relations(entities, relations)
     top_k = options.top_k_predictions
     β = options.similarity_threshold
@@ -490,38 +533,121 @@ function discover_head_entities(text::String)
     end
     domain_name = GraphMERT.get_default_domain_name()
     if domain_name === nothing
-      @warn "No default domain set; discover_head_entities(text) returning empty list."
-      return Vector{GraphMERT.Entity}()
+      @warn "No default domain set; discover_head_entities(text) falling back to simple entity recognition."
+      fallback_texts = GraphMERT.fallback_entity_recognition(text)
+      entities = Vector{GraphMERT.Entity}()
+      for (i, etext) in enumerate(fallback_texts)
+        push!(
+          entities,
+          GraphMERT.Entity(
+            "fallback_entity_$i",
+            etext,
+            etext,
+            "UNKNOWN",
+            opts.domain,
+            Dict{String,Any}(),
+            GraphMERT.TextPosition(1, lastindex(etext), 1, 1),
+            0.5,
+            text,
+          ),
+        )
+      end
+      return entities
     end
   end
 
   if !GraphMERT.has_domain(domain_name)
-    @warn "Default domain name '$(domain_name)' is not registered; discover_head_entities(text) returning empty list."
-    return Vector{GraphMERT.Entity}()
+    @warn "Default domain name '$(domain_name)' is not registered; discover_head_entities(text) falling back to simple entity recognition."
+    return discover_head_entities(text, nothing, opts)
   end
 
   domain = GraphMERT.get_domain(domain_name)
   if domain === nothing
-    @warn "Default domain provider for '$(domain_name)' not found; discover_head_entities(text) returning empty list."
-    return Vector{GraphMERT.Entity}()
+    @warn "Default domain provider for '$(domain_name)' not found; discover_head_entities(text) falling back to simple entity recognition."
+    return discover_head_entities(text, nothing, opts)
   end
 
   # Ensure options.domain matches the default domain
   opts = GraphMERT.ProcessingOptions(
     max_length = opts.max_length,
     batch_size = opts.batch_size,
+    device = opts.device,
     use_umls = opts.use_umls,
     use_helper_llm = opts.use_helper_llm,
     confidence_threshold = opts.confidence_threshold,
+    similarity_threshold = opts.similarity_threshold,
+    top_k_predictions = opts.top_k_predictions,
+    use_amp = opts.use_amp,
+    num_workers = opts.num_workers,
+    seed = opts.seed,
+    enable_provenance_tracking = opts.enable_provenance_tracking,
     entity_types = opts.entity_types,
     relation_types = opts.relation_types,
     cache_enabled = opts.cache_enabled,
     parallel_processing = opts.parallel_processing,
     verbose = opts.verbose,
     domain = domain_name,
+    use_local = opts.use_local,
+    local_config = opts.local_config,
   )
 
   return discover_head_entities(text, domain, opts)
+end
+
+"""
+    match_relations_for_entities(entities::Vector{Entity}, text::String)
+
+Compatibility overload that uses the default registered domain and default
+processing options. Falls back to heuristic co-occurrence extraction when no
+default domain is available.
+"""
+function match_relations_for_entities(
+  entities::Vector{GraphMERT.Entity},
+  text::String,
+)
+  opts = GraphMERT.default_processing_options()
+  domain_name = GraphMERT.get_default_domain_name()
+
+  if domain_name === nothing || !GraphMERT.has_domain(domain_name)
+    return match_relations_for_entities(entities, text, nothing, opts)
+  end
+
+  domain = GraphMERT.get_domain(domain_name)
+  if domain === nothing
+    return match_relations_for_entities(entities, text, nothing, opts)
+  end
+
+  opts = GraphMERT.ProcessingOptions(
+    max_length = opts.max_length,
+    batch_size = opts.batch_size,
+    device = opts.device,
+    use_umls = opts.use_umls,
+    use_helper_llm = opts.use_helper_llm,
+    confidence_threshold = opts.confidence_threshold,
+    similarity_threshold = opts.similarity_threshold,
+    top_k_predictions = opts.top_k_predictions,
+    use_amp = opts.use_amp,
+    num_workers = opts.num_workers,
+    seed = opts.seed,
+    enable_provenance_tracking = opts.enable_provenance_tracking,
+    entity_types = opts.entity_types,
+    relation_types = opts.relation_types,
+    cache_enabled = opts.cache_enabled,
+    parallel_processing = opts.parallel_processing,
+    verbose = opts.verbose,
+    domain = domain_name,
+    use_local = opts.use_local,
+    local_config = opts.local_config,
+  )
+
+  return match_relations_for_entities(entities, text, domain, opts)
+end
+
+function match_relations_for_entities(
+  entities::Vector{GraphMERT.BiomedicalEntity},
+  text::String,
+)
+  return match_relations_for_entities([entity.entity for entity in entities], text)
 end
 
 # These enhanced functions have been replaced by domain provider-based extraction

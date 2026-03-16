@@ -28,6 +28,7 @@ include("test_utils.jl")
   include("unit/test_persistence.jl")
   include("unit/test_default_encoder.jl")
   include("unit/test_seed_injection.jl")
+  include("unit/test_regressions_stream_ab.jl")
   include("unit/test_umls.jl")
 end
 

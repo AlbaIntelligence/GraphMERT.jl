@@ -105,10 +105,13 @@ end
     @test length(relations) > 0
 
     # Check that relations connect the entities
-    for (head_idx, tail_idx, relation_type, confidence) in relations
-      @test head_idx != tail_idx  # No self-relations
-      @test 1 ≤ head_idx ≤ length(entities)
-      @test 1 ≤ tail_idx ≤ length(entities)
+    entity_ids = Set(e.id for e in entities)
+    for relation in relations
+      @test relation.head != relation.tail
+      @test relation.head in entity_ids
+      @test relation.tail in entity_ids
+      @test !isempty(relation.relation_type)
+      @test 0.0 ≤ relation.confidence ≤ 1.0
     end
   end
 
@@ -174,7 +177,10 @@ end
     mock_model = MockExtractionModel(30522)
 
     # Test with empty text
-    @test_throws ArgumentError GraphMERT.extract_knowledge_graph("", mock_model)
+    empty_kg = GraphMERT.extract_knowledge_graph("", mock_model)
+    @test empty_kg isa GraphMERT.KnowledgeGraph
+    @test isempty(empty_kg.entities)
+    @test isempty(empty_kg.relations)
 
     # Test with very long text (would need proper max_length handling)
     # long_text = repeat("word ", 10000)

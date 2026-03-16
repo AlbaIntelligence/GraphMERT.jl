@@ -119,6 +119,15 @@ function extract_entities(domain::BiomedicalDomain, text::String, config::Any)
     return extract_biomedical_entities(text, config, domain)
 end
 
+function extract_entities(
+    domain::BiomedicalDomain,
+    text::String,
+    config::Any,
+    llm_client::Any,
+)
+    return extract_entities(domain, text, config)
+end
+
 """
     extract_relations(domain::BiomedicalDomain, entities::Vector{Entity}, text::String, config::ProcessingOptions)
 
