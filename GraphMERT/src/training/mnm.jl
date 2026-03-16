@@ -19,24 +19,25 @@ Select root positions to mask for MLM training.
 function select_roots_to_mask(
     graph::LeafyChainGraph,
     mlm_probability::Float64,
-    rng::AbstractRNG
+    rng::AbstractRNG,
 )::Tuple{Vector{Int}, Vector{Tuple{Int,Int}}}  # masked_positions, span_boundaries
 
     masked_positions = Int[]
     span_boundaries = Tuple{Int,Int}[]
 
-    # Get all root positions (first part of sequence)
     num_roots = graph.config.num_roots
+    pad_id = graph.config.pad_token_id
 
-    # Calculate number of roots to mask
-    num_to_mask = max(1, round(Int, num_roots * mlm_probability))
+    valid_roots = findall(t -> t != pad_id, graph.root_tokens)
+    if isempty(valid_roots)
+        return masked_positions, span_boundaries
+    end
 
-    # Randomly select root positions to mask
-    root_positions = shuffle(rng, 1:num_roots)[1:min(num_to_mask, num_roots)]
+    num_to_mask = min(length(valid_roots), max(1, round(Int, length(valid_roots) * mlm_probability)))
+    root_positions = shuffle(rng, valid_roots)[1:num_to_mask]
 
     for root_pos in root_positions
         push!(masked_positions, root_pos)
-        # For span masking, mask a span starting at this root
         span_end = min(root_pos + 2, num_roots)  # Simple span of 3
         push!(span_boundaries, (root_pos, span_end))
     end
@@ -148,33 +149,34 @@ function apply_mlm_masks(
     masked_positions::Vector{Int},
     mask_token_id::Int,
     vocab_size::Int,
-    rng::AbstractRNG
-)::Tuple{LeafyChainGraph, Matrix{Int}}
+    rng::AbstractRNG,
+)::Tuple{LeafyChainGraph, Vector{Int}}
 
-    # Create copy of graph
     masked_graph = deepcopy(graph)
 
-    # Create labels matrix (-100 = ignore, actual token_id = predict)
-    labels = fill(-100, size(graph.root_tokens))
+    # Root labels are 1D (num_roots); -100 indicates "ignore"
+    labels = fill(-100, length(graph.root_tokens))
+    pad_id = graph.config.pad_token_id
 
     for pos in masked_positions
-        if pos <= size(graph.root_tokens, 1)
-            original_token = graph.root_tokens[pos]
+        if !(1 <= pos <= length(graph.root_tokens))
+            continue
+        end
 
-            # Store label
-            labels[pos] = original_token
+        original_token = graph.root_tokens[pos]
+        if original_token == pad_id
+            continue
+        end
 
-            # Apply masking strategy (same as MNM)
-            rand_val = rand(rng)
+        labels[pos] = original_token
 
-            if rand_val < 0.8
-                # 80%: Replace with [MASK]
-                masked_graph.root_tokens[pos] = mask_token_id
-            elseif rand_val < 0.9
-                # 10%: Replace with random token
+        rand_val = rand(rng)
+        if rand_val < 0.8
+            masked_graph.root_tokens[pos] = mask_token_id
+        elseif rand_val < 0.9
+            if vocab_size > 4
                 masked_graph.root_tokens[pos] = rand(rng, 4:(vocab_size-1))
             end
-            # 10%: Keep original
         end
     end
 
@@ -246,39 +248,58 @@ Calculate MLM loss with boundary loss.
 """
 function calculate_mlm_loss_with_boundary(
     logits::Array{Float32,3},
-    labels::Matrix{Int},
+    labels::Vector{Int},
     span_boundaries::Vector{Tuple{Int,Int}},
     graph::LeafyChainGraph,
-    config
+    config,
 )::Tuple{Float32, Float32}
 
-    # Simple MLM loss calculation
     batch_size, seq_len, vocab_size = size(logits)
+    @assert batch_size == 1 "calculate_mlm_loss_with_boundary currently assumes batch_size == 1"
+
     mlm_loss = 0.0f0
     count = 0
 
-    for i in 1:batch_size
-        for j in 1:seq_len
-            if labels[i,j] != -100
-                mlm_loss += Flux.crossentropy(logits[i,j,:], labels[i,j] + 1)
-                count += 1
-            end
+    # Root MLM loss: root positions map 1:graph.config.num_roots in the transformer sequence.
+    for pos in 1:length(labels)
+        label_token = labels[pos]
+        if label_token == -100
+            continue
         end
+
+        label_idx = label_token + 1  # 0-based token ids → Julia indices
+        if !(1 <= label_idx <= vocab_size)
+            continue
+        end
+
+        lsm = Flux.logsoftmax(@view logits[1, pos, :])
+        mlm_loss += -lsm[label_idx]
+        count += 1
     end
 
     mlm_loss = count > 0 ? mlm_loss / count : 0.0f0
 
-    # Simple boundary loss
     boundary_loss = 0.0f0
     if !isempty(span_boundaries)
+        pad_id = graph.config.pad_token_id
+        valid_count = 0
+
         for (start_pos, end_pos) in span_boundaries
+            if !(1 <= start_pos <= graph.config.num_roots && 1 <= end_pos <= graph.config.num_roots)
+                continue
+            end
+            if graph.root_tokens[start_pos] == pad_id || graph.root_tokens[end_pos] == pad_id
+                continue
+            end
             if start_pos <= seq_len && end_pos <= seq_len
-                start_logits = logits[1, start_pos, :]
-                end_logits = logits[1, end_pos, :]
+                start_logits = @view logits[1, start_pos, :]
+                end_logits = @view logits[1, end_pos, :]
                 boundary_loss += norm(start_logits - end_logits)
+                valid_count += 1
             end
         end
-        boundary_loss /= length(span_boundaries)
+
+        boundary_loss = valid_count > 0 ? boundary_loss / valid_count : 0.0f0
     end
 
     return mlm_loss + boundary_loss, boundary_loss
@@ -296,44 +317,62 @@ Key: Even though leaves are masked, H-GAT still fuses them with:
 - Relation embeddings (being trained)
 - Head token embeddings (from roots)
 """
-function forward_pass_mnm(
-    model::GraphMERTModel,
-    masked_graph::LeafyChainGraph
-)::Array{Float32, 3}  # Returns logits [batch, seq_len, vocab_size]
-
-    # Convert leafy chain graph to token sequence
-    input_ids_vec = graph_to_sequence(masked_graph)                 # Vector{Int} of length max_sequence_length
+function _prepare_roberta_inputs_from_graph(
+    masked_graph::LeafyChainGraph,
+)::Tuple{Matrix{Int}, Array{Float32, 3}, Matrix{Int}, Matrix{Int}, Int}
+    input_ids_vec = graph_to_sequence(masked_graph)
     seq_len = length(input_ids_vec)
-    # RoBERTa embedding expects 1-based indices; chain graph may use 0 for padding
-    input_ids_vec = [x == 0 ? 1 : x for x in input_ids_vec]
 
-    # RoBERTa expects (seq_len, batch_size)
+    # RoBERTa expects (seq_len, batch_size) with 0-based IDs (we shift to 1-based inside embeddings)
     input_ids = reshape(input_ids_vec, seq_len, 1)
 
-    # Create 3D attention mask (batch, seq, seq) using RoBERTa utility
+    # (batch, seq, seq) float mask used by attention
     attention_mask = create_attention_mask(input_ids)
 
-    # Position and token type IDs (seq_len, batch_size); position embedding is 1-based
-    position_ids = reshape(collect(1:seq_len), seq_len, 1)
-    token_type_ids = zeros(Int, seq_len, 1)
+    # Position and token type IDs (seq_len, batch_size), 0-based (shifted inside embeddings)
+    position_ids = create_position_ids(seq_len, 1)
+    token_type_ids = create_token_type_ids(seq_len, 1)
 
-    # Forward pass through RoBERTa encoder to obtain contextual states
+    return input_ids, attention_mask, position_ids, token_type_ids, seq_len
+end
+
+function _forward_pass_mnm_inputs(
+    model::GraphMERTModel,
+    input_ids::Matrix{Int},
+    attention_mask::Array{Float32, 3},
+    position_ids::Matrix{Int},
+    token_type_ids::Matrix{Int},
+    seq_len::Int,
+)::Array{Float32, 3}
     encoder_output, _ = model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
-    # encoder_output: (batch_size=1, seq_len, hidden_dim)
-
-    # Project hidden states to vocabulary logits with the LM head
     batch_size, _, _ = size(encoder_output)
-    hidden_dim = model.config.hidden_dim
 
-    # Reshape to (hidden_dim, batch * seq) for Dense, then back to (batch, seq, vocab)
+    hidden_dim = size(encoder_output, 3)
     encoder_reshaped = reshape(encoder_output, batch_size * seq_len, hidden_dim)
-    encoder_reshaped = permutedims(encoder_reshaped, (2, 1))              # (hidden_dim, batch*seq)
-    lm_2d = model.lm_head(encoder_reshaped)                                # (vocab_size, batch*seq)
+    encoder_reshaped = permutedims(encoder_reshaped, (2, 1))               # (hidden_dim, batch*seq)
+    lm_2d = model.lm_head(encoder_reshaped)                                 # (vocab_size, batch*seq)
     vocab_size = size(lm_2d, 1)
-    lm_3d = reshape(lm_2d, vocab_size, batch_size, seq_len)                # (vocab, batch, seq)
-    lm_3d = permutedims(lm_3d, (2, 3, 1))                                  # (batch, seq, vocab)
+    lm_3d = reshape(lm_2d, vocab_size, batch_size, seq_len)                 # (vocab, batch, seq)
+    lm_3d = permutedims(lm_3d, (2, 3, 1))                                   # (batch, seq, vocab)
 
     return Array{Float32,3}(lm_3d)
+end
+
+function forward_pass_mnm(
+    model::GraphMERTModel,
+    masked_graph::LeafyChainGraph,
+)::Array{Float32, 3}  # Returns logits [batch, seq_len, vocab_size]
+    input_ids, attention_mask, position_ids, token_type_ids, seq_len =
+        _prepare_roberta_inputs_from_graph(masked_graph)
+
+    return _forward_pass_mnm_inputs(
+        model,
+        input_ids,
+        attention_mask,
+        position_ids,
+        token_type_ids,
+        seq_len,
+    )
 end
 
 """
@@ -390,7 +429,17 @@ function train_joint_mlm_mnm_step(
 
     # === Forward Pass ===
 
-    logits = forward_pass_mnm(model, joint_masked_graph)
+    input_ids, attention_mask, position_ids, token_type_ids, seq_len =
+        _prepare_roberta_inputs_from_graph(joint_masked_graph)
+
+    logits = _forward_pass_mnm_inputs(
+        model,
+        input_ids,
+        attention_mask,
+        position_ids,
+        token_type_ids,
+        seq_len,
+    )
 
     # === Loss Calculation ===
 
@@ -415,10 +464,47 @@ function train_joint_mlm_mnm_step(
 
     # === Backward Pass ===
 
-    grads = gradient(() -> total_loss, Flux.params(model))
-    Flux.update!(optimizer, Flux.params(model), grads)
+    ps = Flux.params(model)
+    grads = gradient(ps) do
+        logits_g = _forward_pass_mnm_inputs(
+            model,
+            input_ids,
+            attention_mask,
+            position_ids,
+            token_type_ids,
+            seq_len,
+        )
+        mlm_loss_g, _ = calculate_mlm_loss_with_boundary(
+            logits_g,
+            mlm_labels,
+            root_span_boundaries,
+            joint_masked_graph,
+            mlm_config,
+        )
+        mnm_loss_g = calculate_mnm_loss(logits_g, mnm_labels, joint_masked_graph)
+        return mlm_loss_g + μ * mnm_loss_g
+    end
+    Flux.update!(optimizer, ps, grads)
 
-    return total_loss, mlm_loss, mnm_loss
+    # Recompute scalar losses for reporting (post-update)
+    logits2 = _forward_pass_mnm_inputs(
+        model,
+        input_ids,
+        attention_mask,
+        position_ids,
+        token_type_ids,
+        seq_len,
+    )
+    mlm2, _ = calculate_mlm_loss_with_boundary(
+        logits2,
+        mlm_labels,
+        root_span_boundaries,
+        joint_masked_graph,
+        mlm_config,
+    )
+    mnm2 = calculate_mnm_loss(logits2, mnm_labels, joint_masked_graph)
+
+    return mlm2 + μ * mnm2, mlm2, mnm2
 end
 
 # Export functions for external use

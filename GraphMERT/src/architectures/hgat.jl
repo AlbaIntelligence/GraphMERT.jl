@@ -147,8 +147,8 @@ struct HGATLayer
   function HGATLayer(config::HGATConfig)
     attention = HGATAttention(config)
     feed_forward = HGATFeedForward(config)
-    layer_norm1 = LayerNorm(config.hidden_dim, config.layer_norm_eps)
-    layer_norm2 = LayerNorm(config.hidden_dim, config.layer_norm_eps)
+    layer_norm1 = LayerNorm(config.hidden_dim; eps = config.layer_norm_eps)
+    layer_norm2 = LayerNorm(config.hidden_dim; eps = config.layer_norm_eps)
     dropout = Dropout(config.dropout_rate)
 
     new(
@@ -183,6 +183,15 @@ struct HGATModel
     new(layers, input_projection, output_projection, config)
   end
 end
+
+# ============================================================================
+# Functor definitions (Flux parameter traversal)
+# ============================================================================
+
+Flux.@functor HGATAttention (query_projection, key_projection, value_projection, output_projection, dropout)
+Flux.@functor HGATFeedForward (input_projection, output_projection, activation, dropout)
+Flux.@functor HGATLayer (attention, feed_forward, layer_norm1, layer_norm2, dropout)
+Flux.@functor HGATModel (layers, input_projection, output_projection)
 
 # ============================================================================
 # Forward Pass Functions

@@ -28,6 +28,7 @@ struct MLMConfig
     span_length::Int
     boundary_loss_weight::Float64
     temperature::Float64
+    mask_token_id::Int
 
     function MLMConfig(;
         vocab_size::Int = 50265,
@@ -37,6 +38,7 @@ struct MLMConfig
         span_length::Int = 3,
         boundary_loss_weight::Float64 = 1.0,
         temperature::Float64 = 1.0,
+        mask_token_id::Int = 103,
     )
         @assert vocab_size > 0 "Vocabulary size must be positive"
         @assert hidden_size > 0 "Hidden size must be positive"
@@ -45,6 +47,7 @@ struct MLMConfig
         @assert span_length > 0 "Span length must be positive"
         @assert boundary_loss_weight >= 0.0 "Boundary loss weight must be non-negative"
         @assert temperature > 0.0 "Temperature must be positive"
+        @assert mask_token_id >= 0 "mask_token_id must be non-negative"
 
         new(
             vocab_size,
@@ -54,6 +57,7 @@ struct MLMConfig
             span_length,
             boundary_loss_weight,
             temperature,
+            mask_token_id,
         )
     end
 end
@@ -137,7 +141,13 @@ function create_mlm_batch(texts::Vector{String}, config::MLMConfig; rng::Abstrac
         create_span_masks(reshape(tokens, 1, :), config; rng=rng)
 
         # Apply masks to input_ids and create labels
-        masked_input_ids = apply_masks(reshape(tokens, 1, :), masked_positions, config.vocab_size; rng=rng)
+        masked_input_ids = apply_masks(
+            reshape(tokens, 1, :),
+            masked_positions,
+            config.vocab_size,
+            config.mask_token_id;
+            rng=rng,
+        )
         input_ids[i, 1:length(tokens)] = masked_input_ids[1, :]
 
         # Set labels for masked positions
@@ -251,7 +261,8 @@ Apply masks to input sequence.
 function apply_masks(
     input_ids::Matrix{Int},
     masked_positions::Vector{Int},
-    vocab_size::Int;
+    vocab_size::Int,
+    mask_token_id::Int;
     rng::AbstractRNG = Random.GLOBAL_RNG,
 )
     batch_size, seq_len = size(input_ids)
@@ -262,17 +273,16 @@ function apply_masks(
         seq_idx = mod(pos - 1, seq_len) + 1
 
         if 1 <= batch_idx <= batch_size && 1 <= seq_idx <= seq_len
-            # 80% of the time, replace with [MASK] token
-            # 10% of the time, replace with random token
-            # 10% of the time, keep original token
             rand_val = rand(rng)
 
             if rand_val < 0.8
-                masked_input_ids[batch_idx, seq_idx] = 103  # [MASK] token ID
+                masked_input_ids[batch_idx, seq_idx] = mask_token_id
             elseif rand_val < 0.9
-                masked_input_ids[batch_idx, seq_idx] = rand(rng, 4:(vocab_size-1))
+                # Avoid special tokens (0-3: PAD, UNK, CLS, SEP) when possible
+                if vocab_size > 4
+                    masked_input_ids[batch_idx, seq_idx] = rand(rng, 4:(vocab_size-1))
+                end
             end
-            # Otherwise keep original token
         end
     end
 
@@ -396,8 +406,13 @@ function create_mlm_batch(
     masked_positions, span_boundaries = create_span_masks(input_ids, config; rng = rng)
 
     # Apply masks
-    masked_input_ids =
-        apply_masks(input_ids, masked_positions, config.vocab_size; rng = rng)
+    masked_input_ids = apply_masks(
+        input_ids,
+        masked_positions,
+        config.vocab_size,
+        config.mask_token_id;
+        rng = rng,
+    )
 
     # Create labels (only masked positions have labels)
     labels = fill(-100, size(input_ids))  # -100 is the ignore index

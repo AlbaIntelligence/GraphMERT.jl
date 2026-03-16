@@ -91,7 +91,7 @@ struct RoBERTaEmbeddings
         word_embeddings = Embedding(config.vocab_size, config.hidden_size)
         position_embeddings = Embedding(config.max_position_embeddings, config.hidden_size)
         token_type_embeddings = Embedding(config.type_vocab_size, config.hidden_size)
-        layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        layer_norm = LayerNorm(config.hidden_size; eps = config.layer_norm_eps)
         dropout = Dropout(config.hidden_dropout_prob)
 
         new(
@@ -152,7 +152,7 @@ struct RoBERTaSelfOutput
 
     function RoBERTaSelfOutput(config::RoBERTaConfig)
         dense = Dense(config.hidden_size, config.hidden_size)
-        layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        layer_norm = LayerNorm(config.hidden_size; eps = config.layer_norm_eps)
         dropout = Dropout(config.hidden_dropout_prob)
 
         new(dense, layer_norm, dropout)
@@ -207,7 +207,7 @@ struct RoBERTaOutput
 
     function RoBERTaOutput(config::RoBERTaConfig)
         dense = Dense(config.intermediate_size, config.hidden_size)
-        layer_norm = LayerNorm(config.hidden_size, config.layer_norm_eps)
+        layer_norm = LayerNorm(config.hidden_size; eps = config.layer_norm_eps)
         dropout = Dropout(config.hidden_dropout_prob)
 
         new(dense, layer_norm, dropout)
@@ -290,27 +290,34 @@ function (embeddings::RoBERTaEmbeddings)(
     position_ids::Matrix{Int},
     token_type_ids::Matrix{Int},
 )
-    # Word embeddings - Flux.Embedding expects (vocab_size, batch_size) input
-    # But we have (seq_len, batch_size), so we need to transpose
-    word_embeddings = embeddings.word_embeddings(input_ids')
+    # This codebase uses 0-based IDs (pad_token_id=0, position_ids start at 0).
+    # Flux.Embedding is 1-based, so we shift IDs by +1 at lookup time.
+    # Expected ranges before shifting:
+    #   input_ids ∈ [0, vocab_size-1]
+    #   position_ids ∈ [0, max_position_embeddings-1]
+    #   token_type_ids ∈ [0, type_vocab_size-1]
+    input_ids_1 = input_ids .+ 1
+    position_ids_1 = position_ids .+ 1
+    token_type_ids_1 = token_type_ids .+ 1
+
+    # Word embeddings - inputs are (seq_len, batch_size)
+    word_embeddings = embeddings.word_embeddings(input_ids_1)
 
     # Position embeddings
-    position_embeddings = embeddings.position_embeddings(position_ids')
+    position_embeddings = embeddings.position_embeddings(position_ids_1)
 
     # Token type embeddings
-    token_type_embeddings = embeddings.token_type_embeddings(token_type_ids')
+    token_type_embeddings = embeddings.token_type_embeddings(token_type_ids_1)
 
     # Combine embeddings - result is (hidden_size, seq_len, batch_size)
     embeddings_output = word_embeddings .+ position_embeddings .+ token_type_embeddings
 
-    # Transpose to (batch_size, seq_len, hidden_size) for layer norm
-    embeddings_output = permutedims(embeddings_output, [3, 2, 1])
-
-    # Layer normalization and dropout
+    # Layer normalization and dropout (Flux.LayerNorm expects the feature dimension first)
     embeddings_output = embeddings.layer_norm(embeddings_output)
     embeddings_output = embeddings.dropout(embeddings_output)
 
-    return embeddings_output
+    # Return (batch_size, seq_len, hidden_size) for downstream layers
+    return permutedims(embeddings_output, [3, 2, 1])
 end
 
 """
@@ -338,37 +345,46 @@ function (attention::RoBERTaSelfAttention)(
     key_layer = reshape(key_layer, batch_size, seq_length, attention.all_head_size)
     value_layer = reshape(value_layer, batch_size, seq_length, attention.all_head_size)
 
-    # Split into heads
+    # Split into heads: (batch_size, seq_length, num_heads, head_dim)
     query_layer = reshape(query_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
     key_layer = reshape(key_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
     value_layer = reshape(value_layer, batch_size, seq_length, attention.num_attention_heads, attention.attention_head_size)
 
-    # Transpose for attention computation: (batch_size, num_heads, seq_length, head_size)
-    query_layer = permutedims(query_layer, [1, 3, 2, 4])
-    key_layer = permutedims(key_layer, [1, 3, 2, 4])
-    value_layer = permutedims(value_layer, [1, 3, 2, 4])
+    # NNlib.batched_mul expects batch dimensions last. We treat (batch, head) as the batch.
+    # Q: (seq, head_dim, batch*heads), K: (head_dim, seq, batch*heads), V: (seq, head_dim, batch*heads)
+    Q = permutedims(query_layer, (2, 4, 1, 3))
+    Q = reshape(Q, seq_length, attention.attention_head_size, batch_size * attention.num_attention_heads)
 
-    # Attention scores: (batch_size, num_heads, seq_length, seq_length)
-    attention_scores = batched_mul(query_layer, permutedims(key_layer, [1, 2, 4, 3]))
-    attention_scores = attention_scores ./ sqrt(Float32(attention.attention_head_size))
+    K = permutedims(key_layer, (4, 2, 1, 3))
+    K = reshape(K, attention.attention_head_size, seq_length, batch_size * attention.num_attention_heads)
 
-    # Apply attention mask
-    attention_scores = attention_scores .+ attention_mask
+    V = permutedims(value_layer, (2, 4, 1, 3))
+    V = reshape(V, seq_length, attention.attention_head_size, batch_size * attention.num_attention_heads)
 
-    # Softmax
-    attention_probs = softmax(attention_scores, dims = 4)
-    attention_probs = attention.dropout(attention_probs)
+    # Attention scores: (seq, seq, batch*heads)
+    scores3 = batched_mul(Q, K) ./ sqrt(Float32(attention.attention_head_size))
 
-    # Apply attention to values: (batch_size, num_heads, seq_length, head_size)
-    context_layer = batched_mul(attention_probs, value_layer)
+    # Reshape to (seq, seq, batch, heads) to apply the mask and softmax
+    scores4 = reshape(scores3, seq_length, seq_length, batch_size, attention.num_attention_heads)
 
-    # Transpose back: (batch_size, seq_length, num_heads, head_size)
-    context_layer = permutedims(context_layer, [1, 3, 2, 4])
+    # attention_mask is (batch, seq, seq) => (seq, seq, batch)
+    mask3 = permutedims(attention_mask, (2, 3, 1))
+    scores4 = scores4 .+ reshape(mask3, seq_length, seq_length, batch_size, 1)
 
-    # Concatenate heads: (batch_size, seq_length, hidden_size)
-    context_layer = reshape(context_layer, batch_size, seq_length, attention.all_head_size)
+    probs4 = Flux.softmax(scores4; dims = 2)
+    probs4 = attention.dropout(probs4)
 
-    return context_layer
+    probs3 = reshape(probs4, seq_length, seq_length, batch_size * attention.num_attention_heads)
+
+    # Context: (seq, head_dim, batch*heads)
+    context3 = batched_mul(probs3, V)
+
+    # Back to (batch, seq, heads, head_dim)
+    context4 = reshape(context3, seq_length, attention.attention_head_size, batch_size, attention.num_attention_heads)
+    context_layer = permutedims(context4, (3, 1, 4, 2))
+
+    # Concatenate heads: (batch, seq, hidden)
+    return reshape(context_layer, batch_size, seq_length, attention.all_head_size)
 end
 
 """
@@ -389,20 +405,31 @@ function (layer::RoBERTaLayer)(
     attention_output = layer.attention.output.dense(attention_output_reshaped)
     attention_output = reshape(attention_output, batch_size, seq_len, hidden_size)
     attention_output = layer.attention.output.dropout(attention_output)
-    attention_output = layer.attention.output.layer_norm(attention_output .+ hidden_states)
+
+    # Flux.LayerNorm expects the feature dimension first; our tensors are (batch, seq, hidden).
+    residual = attention_output .+ hidden_states
+    residual_hsb = permutedims(residual, (3, 2, 1))  # (hidden, seq, batch)
+    residual_2d = reshape(residual_hsb, hidden_size, batch_size * seq_len)
+    norm_2d = layer.attention.output.layer_norm(residual_2d)
+    norm_hsb = reshape(norm_2d, hidden_size, seq_len, batch_size)
+    attention_output = permutedims(norm_hsb, (3, 2, 1))  # (batch, seq, hidden)
 
     # Intermediate layer
-    intermediate_reshaped = reshape(attention_output, hidden_size, batch_size * seq_len)
-    intermediate_output = layer.intermediate.dense(intermediate_reshaped)
-    intermediate_output = reshape(intermediate_output, :, batch_size * seq_len)
+    intermediate_2d = reshape(attention_output, hidden_size, batch_size * seq_len)
+    intermediate_output = layer.intermediate.dense(intermediate_2d)  # (intermediate_size, batch_size*seq_len)
     intermediate_output = layer.intermediate.activation.(intermediate_output)
-    intermediate_output = reshape(intermediate_output, size(layer.intermediate.dense.W, 2), batch_size * seq_len)
 
     # Output layer
     layer_output = layer.output.dense(intermediate_output)
     layer_output = reshape(layer_output, batch_size, seq_len, hidden_size)
     layer_output = layer.output.dropout(layer_output)
-    layer_output = layer.output.layer_norm(layer_output .+ attention_output)
+
+    residual2 = layer_output .+ attention_output
+    residual2_hsb = permutedims(residual2, (3, 2, 1))
+    residual2_2d = reshape(residual2_hsb, hidden_size, batch_size * seq_len)
+    norm2_2d = layer.output.layer_norm(residual2_2d)
+    norm2_hsb = reshape(norm2_2d, hidden_size, seq_len, batch_size)
+    layer_output = permutedims(norm2_hsb, (3, 2, 1))
 
     return layer_output
 end
@@ -449,6 +476,20 @@ function (model::RoBERTaModel)(
 end
 
 # ============================================================================
+# Functor definitions (Flux parameter traversal)
+# ============================================================================
+
+Flux.@functor RoBERTaEmbeddings (word_embeddings, position_embeddings, token_type_embeddings, layer_norm, dropout)
+Flux.@functor RoBERTaSelfAttention (query, key, value, dropout)
+Flux.@functor RoBERTaSelfOutput (dense, layer_norm, dropout)
+Flux.@functor RoBERTaAttention (self, output)
+Flux.@functor RoBERTaIntermediate (dense, activation)
+Flux.@functor RoBERTaOutput (dense, layer_norm, dropout)
+Flux.@functor RoBERTaLayer (attention, intermediate, output)
+Flux.@functor RoBERTaEncoder (layers,)
+Flux.@functor RoBERTaModel (embeddings, encoder, pooler)
+
+# ============================================================================
 # Utility Functions
 # ============================================================================
 
@@ -460,30 +501,15 @@ Create attention mask from input IDs.
 """
 function create_attention_mask(input_ids::Matrix{Int})
     # input_ids: (seq_len, batch_size)
-    # Create 3D attention mask: (batch_size, seq_len, seq_len)
+    # Return additive mask (batch_size, seq_len, seq_len) applied to attention *scores*.
+    # We mask **keys** that are padding, but do not mask queries. Masking queries can
+    # produce all-(-Inf) rows → NaNs in softmax, which then leak into later layers.
     seq_len, batch_size = size(input_ids)
 
-    # Create 2D mask first: (batch_size, seq_len) where 1 = valid, 0 = padding
-    seq_mask = (input_ids' .!= 0) .* 1.0f0  # (batch_size, seq_len)
+    key_valid = input_ids' .!= 0  # (batch_size, seq_len)
+    key_mask = ifelse.(reshape(key_valid, batch_size, 1, seq_len), 0.0f0, -Inf32)
 
-    # Expand to 3D: (batch_size, seq_len, seq_len)
-    attention_mask = reshape(seq_mask, batch_size, seq_len, 1)
-    attention_mask = repeat(attention_mask, 1, 1, seq_len)
-
-    # Apply masking for padding tokens
-    for b in 1:batch_size
-        for i in 1:seq_len
-            for j in 1:seq_len
-                if seq_mask[b, i] == 0 || seq_mask[b, j] == 0
-                    attention_mask[b, i, j] = -Inf32
-                else
-                    attention_mask[b, i, j] = 0.0f0
-                end
-            end
-        end
-    end
-
-    return attention_mask
+    return repeat(key_mask, 1, seq_len, 1)
 end
 
 """

@@ -111,6 +111,8 @@ struct GraphMERTModel
     end
 end
 
+Flux.@functor GraphMERTModel (roberta, hgat, entity_classifier, relation_classifier, lm_head)
+
 """
     create_graphmert_model(config::GraphMERTConfig)
 

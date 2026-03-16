@@ -13,6 +13,7 @@ with both syntactic and semantic objectives.
 
 using Random
 using Statistics
+using Dates
 
 """
     set_reproducible_seed(seed::Int=42)
@@ -54,30 +55,45 @@ end
 # Training components are included in the same module namespace
 
 function default_graphmert_config()
+    roberta_config = GraphMERT.RoBERTaConfig(
+        vocab_size = 30522,
+        hidden_size = 512,
+        num_hidden_layers = 12,
+        num_attention_heads = 8,
+        intermediate_size = 2048,
+        max_position_embeddings = 1024,
+        type_vocab_size = 2,
+        layer_norm_eps = 1e-12,
+        hidden_dropout_prob = 0.1,
+        attention_probs_dropout_prob = 0.1,
+    )
+
+    hgat_config = GraphMERT.HGATConfig(
+        input_dim = 512,
+        hidden_dim = 256,
+        num_heads = 4,
+        num_layers = 2,
+        dropout_rate = 0.1,
+        attention_dropout_rate = 0.1,
+        layer_norm_eps = 1e-12,
+        use_residual = true,
+        use_layer_norm = true,
+    )
+
+    attention_config = GraphMERT.SpatialAttentionConfig(
+        max_distance = 512,
+        decay_lambda = 0.6,
+        decay_p_init = 1.0,
+        use_distance_bias = true,
+        distance_bias_weight = 0.1,
+    )
+
     return GraphMERT.GraphMERTConfig(
-        roberta_config = GraphMERT.RoBERTaConfig(
-            vocab_size = 30522,
-            hidden_size = 512,
-            num_hidden_layers = 12,
-            num_attention_heads = 8,
-            intermediate_size = 2048,
-            max_position_embeddings = 1024,
-            type_vocab_size = 2,
-            layer_norm_eps = 1e-12,
-            hidden_dropout_prob = 0.1,
-            attention_probs_dropout_prob = 0.1,
-        ),
-        hgat_config = GraphMERT.HGATConfig(
-            hidden_size = 512,
-            num_attention_heads = 4,
-            num_relation_types = 50,
-            relation_embedding_dim = 64,
-        ),
-        attention_config = GraphMERT.SpatialAttentionConfig(
-            hidden_size = 512,
-            decay_lambda = 0.6,
-            decay_p_init = 1.0,
-        ),
+        roberta_config = roberta_config,
+        hgat_config = hgat_config,
+        attention_config = attention_config,
+        max_sequence_length = 1024,
+        hidden_dim = 512,
     )
 end
 
@@ -213,100 +229,90 @@ model = train_graphmert(
 ```
 """
 function train_graphmert(
-train_texts::Vector{String},
-config::GraphMERTConfig;
-seed_kg::Union{Vector{GraphMERT.SemanticTriple},Nothing} = nothing,
-mlm_config::GraphMERT.MLMConfig = default_mlm_config(),
-mnm_config::GraphMERT.MNMConfig = default_mnm_config(),
-injection_config::Union{GraphMERT.SeedInjectionConfig,Nothing} = nothing,
-num_epochs::Int = 10,
-learning_rate::Float64 = 1e-4,
-checkpoint_dir::String = "checkpoints",
-random_seed::Int = 42,
-)::MockGraphMERTModel
+    train_texts::Vector{String},
+    config::GraphMERTConfig;
+    seed_kg::Union{Vector{GraphMERT.SemanticTriple},Nothing} = nothing,
+    mlm_config::GraphMERT.MLMConfig = default_mlm_config(),
+    mnm_config::GraphMERT.MNMConfig = default_mnm_config(),
+    injection_config::Union{GraphMERT.SeedInjectionConfig,Nothing} = nothing,
+    num_epochs::Int = 10,
+    learning_rate::Float64 = 1e-4,
+    checkpoint_dir::String = "checkpoints",
+    random_seed::Int = 42,
+    max_steps_per_epoch::Int = 10,
+    chain_config::GraphMERT.ChainGraphConfig = GraphMERT.default_chain_graph_config(),
+    μ::Float64 = 1.0,
+    model::Union{GraphMERTModel,Nothing} = nothing,
+    save_checkpoints::Bool = true,
+)::GraphMERTModel
 
-    # Set random seed for reproducibility
     set_reproducible_seed(random_seed)
+    rng = Random.MersenneTwister(random_seed)
 
-    # Initialize model (mock implementation for now)
-    model = create_mock_graphmert_model(config)
+    if mlm_config.vocab_size != config.roberta_config.vocab_size
+        @warn "MLM vocab_size != RoBERTa vocab_size; using RoBERTa vocab_size for tokenization" mlm_vocab=mlm_config.vocab_size roberta_vocab=config.roberta_config.vocab_size
+    end
+
+    if model === nothing
+        model = create_graphmert_model(config)
+    end
+
     optimizer = Flux.Adam(learning_rate)
 
-    # Set up seed KG injection if provided
-    if seed_kg !== nothing && injection_config !== nothing
-        println("Using seed KG injection with $(length(seed_kg)) triples")
-    else
-        println("Training without seed KG injection")
+    if seed_kg !== nothing || injection_config !== nothing
+        @warn "Seed KG injection is not yet wired into the real training loop; training proceeds without injection" has_seed_kg = (seed_kg !== nothing) has_injection_config = (injection_config !== nothing)
     end
 
-    # Training loop
     for epoch = 1:num_epochs
-    println("Epoch $epoch/$num_epochs")
-        epoch_start_time = time()
+        println("Epoch $epoch/$num_epochs")
 
-    # Shuffle training data for this epoch
-    shuffled_texts = shuffle(train_texts)
+        shuffled_texts = shuffle(rng, train_texts)
+        steps = min(max_steps_per_epoch, length(shuffled_texts))
 
-    # Prepare training data for this epoch
-    if seed_kg !== nothing && injection_config !== nothing
-    graphs, mnm_batch, mlm_batch = prepare_training_data(
-    shuffled_texts,
-        seed_kg,
-            mlm_config,
-        mnm_config,
-        injection_config,
-    )
-    else
-    # Create basic graphs without injection
-    graphs = [create_empty_chain_graph(
-    Int[hash(c) % 30522 for c in split(text, " ")],
-    String[w for w in split(text, " ")],
-    GraphMERT.default_chain_graph_config()
-    ) for text in shuffled_texts[1:min(100, length(shuffled_texts))]]
-
-        # Create basic MLM batch
-            mlm_batch = create_mlm_batch(shuffled_texts[1:min(32, length(shuffled_texts))], mlm_config)
-        mnm_batch = nothing  # Skip MNM for now
-    end
-
-    # Training steps
-    batch_size = 4  # Small batch size for demo
-    num_batches = max(1, length(shuffled_texts) ÷ batch_size)
-    total_mlm_loss = 0.0
+        total_loss = 0.0
+        total_mlm_loss = 0.0
         total_mnm_loss = 0.0
-    num_steps = 0
 
-    for batch_idx = 1:min(10, num_batches)  # Limit to 10 batches per epoch for demo
-    start_idx = (batch_idx - 1) * batch_size + 1
-        end_idx = min(batch_idx * batch_size, length(shuffled_texts))
-            batch_texts = shuffled_texts[start_idx:end_idx]
+        for step in 1:steps
+            text = shuffled_texts[step]
+            toks = split(text)
+            toks = toks[1:min(length(toks), chain_config.num_roots)]
 
-            # Simulate training step
-            mlm_loss = 2.0 * rand() + 0.5  # Random loss between 0.5-2.5
-            mnm_loss = 0.0
-            if mnm_batch !== nothing
-                mnm_loss = 1.5 * rand() + 0.2  # Random loss between 0.2-1.7
+            vocab_size = config.roberta_config.vocab_size
+            token_ids = Int[]
+            for t in toks
+                if vocab_size > 4
+                    push!(token_ids, 4 + Int(mod(hash(t), vocab_size - 4)))
+                else
+                    push!(token_ids, 1)
+                end
             end
 
-            combined_loss = mlm_loss + (mnm_loss > 0 ? 0.5 * mnm_loss : 0.0)
+            graph = create_empty_chain_graph(token_ids, String[t for t in toks], chain_config)
 
-            # Simulate gradient update (would be Flux.update! in real implementation)
-            # For demo, just accumulate losses
-            total_mlm_loss += mlm_loss
-            total_mnm_loss += mnm_loss
-            num_steps += 1
+            step_total, step_mlm, step_mnm = train_joint_mlm_mnm_step(
+                model,
+                graph,
+                mlm_config,
+                mnm_config,
+                optimizer,
+                μ,
+                rng,
+            )
 
-            # Log progress every few steps
-            if batch_idx % 3 == 0
-                avg_mlm_loss = total_mlm_loss / num_steps
-                avg_mnm_loss = total_mnm_loss / num_steps
-                avg_combined_loss = avg_mlm_loss + (avg_mnm_loss > 0 ? 0.5 * avg_mnm_loss : 0.0)
-                log_training_step(epoch, batch_idx, avg_combined_loss, avg_mlm_loss, avg_mnm_loss)
-            end
+            total_loss += step_total
+            total_mlm_loss += step_mlm
+            total_mnm_loss += step_mnm
         end
 
-        # Save checkpoint
-        if epoch % 2 == 0
+        if steps > 0
+            avg_loss = total_loss / steps
+            avg_mlm = total_mlm_loss / steps
+            avg_mnm = total_mnm_loss / steps
+            log_training_step(epoch, steps, avg_loss, avg_mnm, avg_mlm)
+        end
+
+        if save_checkpoints && !isempty(checkpoint_dir) && epoch % 2 == 0
             checkpoint_path = joinpath(checkpoint_dir, "graphmert_epoch$(epoch).jld2")
             save_training_checkpoint(model, checkpoint_path)
             println("Saved checkpoint: $checkpoint_path")
@@ -325,29 +331,6 @@ Create default training configurations for GraphMERT.
 - `Tuple{GraphMERTConfig, MLMConfig, MNMConfig, SeedInjectionConfig}`: Default configurations
 """
 
-function create_mock_graphmert_model(config::GraphMERTConfig)
-    # Create a simple mock model that returns dummy predictions
-    # This allows the training loop to run and demonstrate the process
-
-    return MockGraphMERTModel(config)
-end
-
-struct MockGraphMERTModel
-    config::GraphMERTConfig
-end
-
-# Mock forward pass that returns dummy logits
-function (model::MockGraphMERTModel)(input_ids, attention_mask, position_ids, token_type_ids, graph)
-    batch_size = size(input_ids, 1)
-    seq_len = size(input_ids, 2)
-    vocab_size = 30522  # Mock vocab size
-
-    # Return dummy entity and relation logits
-    entity_logits = rand(Float32, batch_size, seq_len, length(model.config.entity_types))
-    relation_logits = rand(Float32, batch_size, 10, length(model.config.relation_types))  # Mock 10 relations
-
-    return entity_logits, relation_logits, rand(Float32, batch_size, seq_len, model.config.hidden_dim)
-end
 
 function create_training_configurations()::Tuple{
     GraphMERTConfig,
@@ -383,10 +366,10 @@ function create_training_configurations()::Tuple{
 
     attention_config = SpatialAttentionConfig(
         max_distance = 512,
-        decay_rate = 0.1f0,
-        decay_type = :exponential,
+        decay_lambda = 0.6,
+        decay_p_init = 1.0,
         use_distance_bias = true,
-        distance_bias_weight = 0.1f0,
+        distance_bias_weight = 0.1,
     )
 
     model_config = GraphMERTConfig(
@@ -481,7 +464,7 @@ function save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String
     # In full implementation, would use JLD2.jl or similar
     open(checkpoint_path, "w") do io
         write(io, "GraphMERT Model Checkpoint\n")
-        write(io, "Saved at: $(now())\n")
+        write(io, "Saved at: $(Dates.now())\n")
         write(io, "Model parameters: $(length(Flux.params(model)))\n")
     end
 
