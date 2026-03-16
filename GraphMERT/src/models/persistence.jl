@@ -17,16 +17,22 @@ struct ModelMetadata
     performance_metrics::Dict{String,Any}
 end
 
+using JSON
+using JLD2
+using Flux
+using Dates
+
 """
     save_model(model::GraphMERTModel, save_path::String; include_config::Bool=true, include_optimizer_state::Bool=false)::Bool
 
-Save model to file.
+Save model weights and configuration to a JLD2 file.
+Uses `Flux.state` to serialize parameters in a framework-compatible way.
 
 # Arguments
 - `model::GraphMERTModel`: Model to save
-- `save_path::String`: Output path
-- `include_config::Bool`: Whether to save configuration
-- `include_optimizer_state::Bool`: Whether to save optimizer state
+- `save_path::String`: Output path (should end in .jld2)
+- `include_config::Bool`: Whether to save configuration (default: true)
+- `include_optimizer_state::Bool`: (Not yet implemented)
 
 # Returns
 - `Bool`: Success status
@@ -37,87 +43,139 @@ function save_model(
     include_config::Bool = true,
     include_optimizer_state::Bool = false,
 )::Bool
-    # For demo purposes, create a simple checkpoint
-    checkpoint_data = Dict(
-        "model_type" => "GraphMERT",
-        "version" => "0.1.0",
-        "timestamp" => string(now()),
-        "model_params" => length(Flux.params(model)),
-        "config" => include_config ? model.config : nothing,
-        "description" => "GraphMERT model checkpoint",
-    )
+    try
+        # Ensure directory exists
+        dir_path = dirname(save_path)
+        if !isdir(dir_path)
+            mkpath(dir_path)
+        end
 
-    # Save to JSON file (in practice would save model weights)
-    open(save_path, "w") do io
-        JSON.print(io, checkpoint_data, 2)
+        # Get model state (parameters + buffers)
+        # Note: Flux.state returns a named tuple structure that JLD2 can serialize directly
+        model_state = Flux.state(model)
+
+        # Prepare dictionary to save
+        # We explicitely separate complex structures to avoid type inference issues
+        data = Dict{String,Any}(
+            "model_type" => "GraphMERT",
+            "version" => "1.0"
+        )
+
+        if include_config
+            data["config"] = model.config
+        end
+
+        # Save using JLD2.save which handles Dict{String, Any} correctly
+        data["model_state"] = model_state
+        JLD2.save(save_path, data)
+
+        @info "Model saved successfully to: $save_path"
+        return true
+    catch e
+        @error "Failed to save model to $save_path: $e"
+        return false
     end
-
-    @info "Model saved to: $save_path"
-    return true
 end
 
 """
     load_model(load_path::String; device::Symbol=:cpu, strict::Bool=true)::Union{GraphMERTModel, Nothing}
 
-Load model from file. When loading a full checkpoint, returns the full model (RoBERTa + H-GAT)
-so that extraction uses the encoder (FR-005). Current implementation builds full GraphMERTModel
-from saved config; loading pretrained weights from checkpoint is post-MVP.
+Load model from a JLD2 checkpoint.
+Reconstructs the model structure from the saved config, then loads weights using `Flux.loadmodel!`.
 
 # Arguments
-- `load_path::String`: Path to model checkpoint (JSON with model_type and config)
-- `device::Symbol`: Target device (`:cpu` or `:cuda`)
-- `strict::Bool`: Whether to require exact parameter match
+- `load_path::String`: Path to .jld2 checkpoint
+- `device::Symbol`: Target device (currently only :cpu supported)
+- `strict::Bool`: Whether to fail on missing keys (passed to loadmodel!)
 
 # Returns
-- `GraphMERTModel` or `Nothing`: Loaded model or nothing if failed
+- `GraphMERTModel` or `Nothing`
 """
 function load_model(
     load_path::String;
     device::Symbol = :cpu,
     strict::Bool = true,
 )::Union{GraphMERTModel,Nothing}
+    # 1. Handle directory path (legacy/HF style) - fallback for non-JLD2 paths
+    if isdir(load_path) || endswith(load_path, "json")
+        # Existing logic for JSON checkpoints/directories (kept for backward compat)
+        return _load_legacy_json_model(load_path)
+    end
+
+    # 2. JLD2 Loading
     try
-        # If path is a directory (e.g. encoders/roberta-base), look for checkpoint.json inside
+        if !isfile(load_path)
+            @error "Model file not found: $load_path"
+            return nothing
+        end
+
+        # Load data from JLD2
+        # JLD2.load returns a Dict{String, Any}
+        data = JLD2.load(load_path)
+
+        # Validate type
+        if get(data, "model_type", "") != "GraphMERT"
+            @warn "Checkpoint at $load_path does not claim to be 'GraphMERT'. Proceeding with caution."
+        end
+
+        # Reconstruct model from config
+        if !haskey(data, "config")
+            @error "Checkpoint missing 'config'. Cannot reconstruct architecture."
+            return nothing
+        end
+        
+        config = data["config"]
+        model = GraphMERTModel(config)
+
+        # Load weights
+        if haskey(data, "model_state")
+            model_state = data["model_state"]
+            Flux.loadmodel!(model, model_state)
+            @info "Model weights restored from $load_path"
+        else
+            @warn "Checkpoint missing 'model_state'. Returning uninitialized model."
+        end
+
+        if device == :gpu
+            # model = gpu(model) # specific gpu logic if needed
+        end
+
+        return model
+
+    catch e
+        @error "Failed to load JLD2 model from $load_path: $e"
+        return nothing
+    end
+end
+
+# Internal helper for the old JSON logic
+function _load_legacy_json_model(load_path::String)
+    try
         checkpoint_file = load_path
         if isdir(load_path)
             checkpoint_file = joinpath(load_path, "checkpoint.json")
-            # If no GraphMERT checkpoint but Hugging Face config.json exists, build default model (weights TBD)
             if !isfile(checkpoint_file) && isfile(joinpath(load_path, "config.json"))
                 @info "Using encoder directory (no checkpoint.json); building default model for: $load_path"
                 return GraphMERTModel(GraphMERTConfig())
             end
         end
+        
         if !isfile(checkpoint_file)
-            @error "Model file not found: $checkpoint_file"
+            @error "Legacy checkpoint not found: $checkpoint_file"
             return nothing
         end
 
-        # Load checkpoint metadata
         checkpoint_data = JSON.parsefile(checkpoint_file)
-
-        if !haskey(checkpoint_data, "model_type") ||
-           checkpoint_data["model_type"] != "GraphMERT"
-            @error "Invalid model file: $load_path"
-            return nothing
+        if haskey(checkpoint_data, "config")
+             # JSON parsing of structs is tricky; this is a simplified fallback
+             # Ideally we convert dict -> struct here. For now returning default.
+             @warn "JSON checkpoint loading is deprecated. Returning default initialized model."
+             return GraphMERTModel(GraphMERTConfig())
         end
-
-        # For demo purposes, create a new model with the saved config
-        # In practice, would load actual model weights
-        if haskey(checkpoint_data, "config") && checkpoint_data["config"] !== nothing
-            config = checkpoint_data["config"]
-            # Create model with loaded config
-            model = GraphMERTModel(GraphMERTConfig())  # Simplified
-            @info "Model loaded from: $load_path"
-            return model
-        else
-            @warn "No configuration found in checkpoint, creating default model"
-            model = GraphMERTModel(GraphMERTConfig())
-            return model
-        end
-
-    catch e
-        @error "Failed to load model from $load_path: $e"
         return nothing
+    catch e
+         @error "Legacy load failed: $e"
+         return nothing
     end
 end
 

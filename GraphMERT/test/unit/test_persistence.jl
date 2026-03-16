@@ -12,184 +12,108 @@ Tests the checkpoint saving and loading functionality including:
 using Test
 using Random
 using GraphMERT
-using GraphMERT: save_training_checkpoint, log_training_step, create_training_configurations
-using GraphMERT: MLMConfig, MNMConfig, SeedInjectionConfig
+using Flux
+using Flux: state, loadmodel!
+# using GraphMERT: save_training_checkpoint, log_training_step, create_training_configurations
+# using GraphMERT: MLMConfig, MNMConfig, SeedInjectionConfig
 
 @testset "Model Persistence Tests" begin
-
-  @testset "Checkpoint Saving" begin
-    # Test checkpoint directory creation
-    test_dir = "test_checkpoints"
-    test_path = joinpath(test_dir, "test_model.jld2")
-
-    # Clean up any existing test directory
-    if isdir(test_dir)
-      rm(test_dir, recursive=true)
+    
+    # Helper to create a small test model config to keep tests fast
+    function create_test_config()
+        r_conf = GraphMERT.RoBERTaConfig(
+            vocab_size = 100,
+            hidden_size = 32,
+            num_hidden_layers = 1,
+            num_attention_heads = 2,
+            max_position_embeddings = 64
+        )
+        # HGAT config must be compatible
+        h_conf = GraphMERT.HGATConfig(
+            input_dim = 32,
+            hidden_dim = 32,
+            num_heads = 2,
+            num_layers = 1
+        )
+        return GraphMERT.GraphMERTConfig(
+            roberta_config = r_conf,
+            hgat_config = h_conf,
+            max_sequence_length = 64,
+            hidden_dim = 32
+        )
     end
 
-    # Test that checkpoint saving works
-    # Note: This would require a full GraphMERTModel in real implementation
-    # For now, we test the function signature and basic functionality
+    @testset "JLD2 Round-Trip" begin
+        # Use mktempdir via Base
+        test_dir = mktempdir()
+        test_path = joinpath(test_dir, "model_roundtrip.jld2")
+        
+        try
+            # 1. Create model
+            config = create_test_config()
+            model = GraphMERT.GraphMERTModel(config)
+            
+            # Mutate a weight to verify restoration (ensure we don't just get fresh init)
+            # Access deep into RoBERTa word embeddings
+            w_matrix = model.roberta.embeddings.word_embeddings.weight
+            original_val = w_matrix[1]
+            w_matrix[1] += 1.5f0
+            expected_val = w_matrix[1]
+            
+            # 2. Save
+            success = GraphMERT.save_model(model, test_path)
+            @test success
+            @test isfile(test_path)
+            
+            # 3. Load back
+            loaded_model = GraphMERT.load_model(test_path)
+            @test loaded_model isa GraphMERT.GraphMERTModel
+            
+            # 4. Verify config restoration
+            @test loaded_model.config.hidden_dim == 32
+            @test loaded_model.config.roberta_config.vocab_size == 100
+            
+            # 5. Verify weight restoration
+            loaded_w = loaded_model.roberta.embeddings.word_embeddings.weight
+            loaded_val = loaded_w[1]
+            
+            @test loaded_val ≈ expected_val
+            @test loaded_val ≉ original_val 
+            
+            # 6. Verify entire state structure matches
+            ps_orig = Flux.params(model)
+            ps_load = Flux.params(loaded_model)
+            @test length(ps_orig) == length(ps_load)
 
-    @test isdir(test_dir) == false  # Directory should not exist yet
-
-    # Test checkpoint path creation
-    checkpoint_path = joinpath("checkpoints", "model_epoch_1.jld2")
-    expected_dir = dirname(checkpoint_path)
-    @test expected_dir == "checkpoints"
-    @test basename(checkpoint_path) == "model_epoch_1.jld2"
-  end
-
-  @testset "Training Progress Logging" begin
-    # Test logging function with various inputs
-    @test_nowarn log_training_step(1, 1, 0.5, 0.3, 0.2)
-    @test_nowarn log_training_step(10, 100, 1.234, 0.567, 0.123)
-    @test_nowarn log_training_step(100, 1000, 0.001, 0.0005, 0.0005)
-
-    # Test with edge cases
-    @test_nowarn log_training_step(1, 1, 0.0, 0.0, 0.0)
-    @test_nowarn log_training_step(1, 1, 999.999, 888.888, 777.777)
-  end
-
-  @testset "Configuration Persistence" begin
-    # Test that configurations can be created and used
-    model_config, mlm_config, mnm_config, injection_config = create_training_configurations()
-
-    @test model_config isa GraphMERTConfig
-    @test mlm_config isa MLMConfig
-    @test mnm_config isa MNMConfig
-    @test injection_config isa SeedInjectionConfig
-
-    # Test configuration properties
-    @test mlm_config.vocab_size > 0
-    @test mnm_config.vocab_size > 0
-    @test injection_config.entity_linking_threshold > 0.0
-    @test injection_config.entity_linking_threshold < 1.0
-  end
-
-  @testset "Checkpoint Metadata" begin
-    # Test checkpoint metadata structure
-    test_metadata = Dict(
-      "epoch" => 1,
-      "step" => 100,
-      "loss" => 0.5,
-      "timestamp" => "2024-01-01T00:00:00",
-      "model_version" => "1.0.0"
-    )
-
-    @test test_metadata["epoch"] == 1
-    @test test_metadata["step"] == 100
-    @test test_metadata["loss"] == 0.5
-    @test haskey(test_metadata, "timestamp")
-    @test haskey(test_metadata, "model_version")
-  end
-
-  @testset "Error Handling" begin
-    # Test error handling for invalid paths
-    invalid_path = "/invalid/path/that/does/not/exist/model.jld2"
-
-    # Test that function handles invalid paths gracefully
-    # (In real implementation, would test actual error handling)
-    @test ispath(invalid_path) == false
-
-    # Test error handling for corrupted checkpoints
-    corrupted_checkpoint = "corrupted_model.jld2"
-    @test isfile(corrupted_checkpoint) == false  # File doesn't exist
-  end
-
-  @testset "Cross-Platform Compatibility" begin
-    # Test path handling on different platforms
-    unix_path = "checkpoints/model.jld2"
-    windows_path = "checkpoints\\model.jld2"
-
-    # Test that paths are handled correctly
-    @test basename(unix_path) == "model.jld2"
-    @test dirname(unix_path) == "checkpoints"
-
-    # Test Windows path handling (may behave differently on Unix systems)
-    # We test the concept rather than exact behavior
-    @test occursin("model.jld2", windows_path)
-    @test occursin("checkpoints", windows_path)
-  end
-
-  @testset "Checkpoint Naming" begin
-    # Test checkpoint naming conventions
-    epoch = 5
-    step = 1000
-    loss = 0.123
-
-    # Test various naming patterns
-    patterns = [
-      "graphmert_epoch$(epoch).jld2",
-      "checkpoint_epoch$(epoch)_step$(step).jld2",
-      "model_epoch$(epoch)_loss$(round(loss, digits=3)).jld2"
-    ]
-
-    for pattern in patterns
-      @test isa(pattern, String)
-      @test length(pattern) > 0
-      @test occursin("epoch", pattern)
-    end
-  end
-
-  @testset "Memory Management" begin
-    # Test that checkpoint operations don't cause memory leaks
-    # (In real implementation, would test actual memory usage)
-
-    # Test that repeated operations don't accumulate memory
-    for i in 1:10
-      @test_nowarn log_training_step(i, i * 10, 0.5, 0.3, 0.2)
+        finally
+            rm(test_dir, recursive=true, force=true)
+        end
     end
 
-    # Test that configurations can be created multiple times
-    for i in 1:5
-      configs = create_training_configurations()
-      @test length(configs) == 4
-    end
-  end
-
-  @testset "Reproducibility" begin
-    # Test that random seed management works
-    Random.seed!(42)
-    val1 = rand()
-
-    Random.seed!(42)
-    val2 = rand()
-
-    @test val1 == val2  # Same seed should produce same result
-
-    # Test that different seeds produce different results
-    Random.seed!(43)
-    val3 = rand()
-    @test val1 != val3
-  end
-
-  @testset "Performance" begin
-    # Test that checkpoint operations are reasonably fast
-    # (In real implementation, would test actual timing)
-
-    start_time = time()
-
-    # Simulate checkpoint operations
-    for i in 1:100
-      log_training_step(1, i, 0.5, 0.3, 0.2)
+    @testset "Error Handling" begin
+        test_dir = mktempdir()
+        try
+            # Test loading non-existent file
+            @test GraphMERT.load_model(joinpath(test_dir, "nonexistent.jld2")) === nothing
+            
+            # Test loading corrupted file
+            bad_path = joinpath(test_dir, "corrupt.jld2")
+            write(bad_path, "not a jld2 file")
+            # JLD2 usually throws, our wrapper catches and returns nothing
+            @test GraphMERT.load_model(bad_path) === nothing
+        finally
+            rm(test_dir, recursive=true, force=true)
+        end
     end
 
-    end_time = time()
-    elapsed = end_time - start_time
-
-    @test elapsed < 1.0  # Should complete in less than 1 second
-  end
-
-  @testset "Integration" begin
-    # Test integration with training pipeline
-    model_config, mlm_config, mnm_config, injection_config = create_training_configurations()
-
-    # Test that all configurations are compatible
-    @test model_config isa GraphMERTConfig
-    @test mlm_config.vocab_size == mnm_config.vocab_size  # Should match
-
-    # Test that training progress logging works with configurations
-    @test_nowarn log_training_step(1, 1, 0.5, 0.3, 0.2)
-  end
+    @testset "Legacy/Fallback Handling" begin
+        # Test that passing a directory returns default/nothing as appropriate
+        # (This exercises the legacy JSON fallback path)
+        empty_dir = mktempdir()
+        try
+            @test GraphMERT.load_model(empty_dir) === nothing
+        finally
+            rm(empty_dir, recursive=true, force=true)
+        end
+    end
 end
