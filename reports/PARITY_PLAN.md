@@ -15,15 +15,15 @@
 | Leafy chain graph              | ✅ Correct                        | —                                                                    |
 | MLM masking + loss             | ✅ Correct                        | —                                                                    |
 | MNM masking                    | ✅ Correct                        | Wrong loss function (crossentropy → BCE with logits)                 |
-| Joint training pipeline        | ❌ Mock only                      | `train_graphmert` returns `MockGraphMERTModel`, uses `rand()` losses |
+| Joint training pipeline        | ✅ Implemented                    | —                                                                    |
 | Triple extraction (stages 1–2) | ⚠️ Partial                        | Domain arity mismatch (3-arg vs 4-arg)                               |
-| Triple extraction (stages 3–4) | ❌ Placeholders                   | `rand()` logits; `"entity_N"` tails                                  |
-| Model persistence              | ❌ Stubs                          | All weight I/O warns and returns false                               |
-| FActScore\*                    | ❌ Bug                            | Cartesian product instead of iterating relations                     |
+| Triple extraction (stages 3–4) | ✅ Implemented                    | —                                                                    |
+| Model persistence              | ✅ Implemented                    | —                                                                    |
+| FActScore\*                    | ✅ Implemented                    | —                                                                    |
 | ValidityScore                  | ⚠️ Partial                        | —                                                                    |
-| LLM client                     | ❌ Stub                           | Needed for extraction stages 1,2,4 and evaluation                    |
-| UMLS client                    | ❌ Stub                           | Needed for seed injection                                            |
-| SapBERT linking                | ❌ Not implemented                | Needed for seed injection                                            |
+| LLM client                     | ✅ Implemented                    | —                                                                    |
+| UMLS client                    | ✅ Implemented                    | —                                                                    |
+| SapBERT linking                | ⚠️ Partial (Stub)                 | Needed for seed injection                                            |
 
 ---
 
