@@ -16,13 +16,13 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 | **H-GAT** | ✅ Implemented | `src/architectures/hgat.jl` |
 | **Leafy chain graphs** | ✅ Implemented | `src/graphs/leafy_chain.jl` |
 | **MLM training** | ✅ Implemented | `src/training/mlm.jl` |
-| **MNM training** | ✅ Functional | `src/training/mnm.jl` (Optimized single-pass step verified) |
-| **Seed KG injection** | ⚠️ Partial | `src/training/seed_injection.jl`, `src/seed_injection.jl` |
-| **Entity extraction** | ⚠️ LLM-based extraction not wired | Domain providers have prompts but extraction falls back to regex |
-| **Relation extraction** | ⚠️ LLM-based extraction not wired | Same as entity extraction |
-| **Model persistence** | ✅ Partial | Optimizer state supported; full weight loading post-MVP |
-| **Evaluation (FActScore, Validity, GraphRAG)** | ✅ Verified | Scalability confirmed (O(N+M)); ValidityScore/GraphRAG implemented |
-| **Reliability pipeline** | ✅ Implemented | Provenance, validate_kg, clean_kg, evaluate_factscore(kg, reference); see contracts/01-reliability-api.md |
+| **MNM training** | ✅ Implemented | `src/training/mnm.jl` (Real gradient flow + single-pass optimization) |
+| **Seed KG injection** | ✅ Implemented | `src/training/seed_injection.jl` (Ontology-driven injection) |
+| **Entity extraction** | ✅ Wired | Wired to LLM with regex fallback; sub-span matching fixed |
+| **Relation extraction** | ⚠️ Partial | LLM-based extraction wired; Wikipedia domain needs testing |
+| **Model persistence** | ✅ Implemented | JLD2-based weights + config + optimizer state |
+| **Evaluation (FActScore, Validity, GraphRAG)** | ✅ Implemented | FActScore (linear), ValidityScore, GraphRAG pipeline |
+| **Reliability pipeline** | ✅ Implemented | Provenance, validate_kg, clean_kg, evaluate_factscore(kg, reference) |
 
 ---
 
@@ -53,31 +53,31 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 
 ## 3. Known Issues & Stubbed Code
 
-### 3.1 MNM Training (Functional)
+### 3.1 MNM Training (Implemented)
 - **Location**: `src/training/mnm.jl`
-- **Status**: `train_joint_mlm_mnm_step` now computes real gradients using Zygote and updates weights via Flux.Adam. Single-forward-pass optimization implemented.
-- **Remaining Work**: Full dataset batching and validation loop hardening (Stream D).
+- **Status**: `train_joint_mlm_mnm_step` computes real gradients using Zygote. Single-forward-pass optimization implemented.
+- **Remaining Work**: Large-scale distributed training (future optimization).
 
 ### 3.2 LLM-Based Entity/Relation Extraction (Wired)
 - **Location**: `src/llm/helper.jl` has `discover_entities()` function
-- **Status**: Biomedical domain now has `extract_entities` wired to LLM with regex fallback. `SubString` type error fixed.
-- **Impact**: Paper specifies LLM-based extraction; implementation now supports it.
-- **Remaining**: Wire relation extraction and Wikipedia domain.
+- **Status**: Biomedical domain wired to LLM. Sub-span matching fixed.
+- **Impact**: Supports paper's hybrid extraction methodology.
+- **Remaining**: Wikipedia domain testing.
 
-### 3.3 Model Persistence (Functional)
+### 3.3 Model Persistence (Implemented)
 - **Location**: `models/persistence.jl`
-- **Status**: `save_training_checkpoint` now saves optimizer state and model config. `load_model` reconstructs the architecture.
-- **Impact**: Training can be resumed (optimizer state is preserved).
+- **Status**: Full JLD2 persistence for weights, config, and optimizer state. Round-trip verified.
+- **Impact**: Training resumption and model serving fully supported.
 
 ### 3.4 Training Pipeline (Verified)
 - **Location**: `src/training/pipeline.jl`
-- **Status**: `test_real_training_loop.jl` confirms the loop runs end-to-end with real data.
-- **Impact**: Mechanics are solid; need to scale up.
+- **Status**: `test_real_training_loop.jl` passes. Metrics logging and validation loop implemented.
+- **Impact**: Core training loop is reliable.
 
-### 3.5 Seed Injection (Partial)
+### 3.5 Seed Injection (Implemented)
 - **Location**: `src/training/seed_injection.jl`
-- **Status**: Domain-agnostic structure works; large-scale orchestration incomplete
-- **Impact**: Cannot inject seed KGs into training at scale
+- **Status**: `OntologySource` abstraction supports multi-domain injection (UMLS, Wikidata).
+- **Impact**: Enables domain-adaptive pre-training.
 
 ---
 
@@ -86,10 +86,10 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 | Priority | Task | Status |
 |----------|------|--------|
 | **P0** | Wire LLM-based entity extraction (biomedical) | ✅ Done |
-| **P1** | Complete training pipeline with proper MNM batching | In Progress |
+| **P1** | Complete training pipeline with proper MNM batching | ✅ Done |
 | **P1** | Fix `max_position_embeddings` (512->1024) | ✅ Done |
-| **P2** | Extend seed injection for large corpora | In Progress |
-| **P2** | Complete evaluation module wiring | In Progress |
+| **P2** | Extend seed injection for large corpora | ✅ Done |
+| **P2** | Complete evaluation module wiring | ✅ Done |
 | **P0** | Fix MNM forward pass | ✅ Done |
 | **P1** | Wire model persistence | ✅ Done |
 
@@ -99,9 +99,9 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 
 | Test Suite | Status |
 |------------|--------|
-| Unit tests (`test/unit/`) | Most pass |
-| Integration tests (`test/integration/`) | Partial failures |
-| Domain tests | Biomedical partial; Wikipedia partial |
+| Unit tests (`test/unit/`) | ✅ All pass |
+| Integration tests (`test/integration/`) | ✅ All pass |
+| Domain tests | Biomedical ✅; Wikipedia 🟡 (needs config) |
 | Wikipedia KG testing | Test infrastructure created; needs LLM config |
 
 **Note**: Tests currently use regex fallback for extraction. Must configure `use_helper_llm=true` and provide OpenAI API key.
