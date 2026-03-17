@@ -110,11 +110,12 @@ include("text/tokenizer.jl")
 # included by domain modules, not here in the core module
 
 # Training
+include("training/logging.jl")
+include("training/distillation.jl")
 include("training/mlm.jl")
 include("training/mnm.jl")
+include("training/ontology_sources.jl")
 include("training/seed_injection.jl")
-include("seed_injection.jl")  # New EPIC 2 module
-include("training/logging.jl")
 include("training/pipeline.jl")
 include("training/span_masking.jl")
 include("data/preparation.jl")

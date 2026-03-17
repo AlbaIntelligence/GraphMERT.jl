@@ -1072,11 +1072,33 @@ struct SemanticTriple
 end
 
 """
+    OntologySource
+
+Abstract type for ontology sources used in seed KG injection.
+"""
+abstract type OntologySource end
+
+"""
+    UMLSOntologySource <: OntologySource
+
+UMLS-based ontology source (default for biomedical domain).
+"""
+struct UMLSOntologySource <: OntologySource end
+
+"""
+    WikidataOntologySource <: OntologySource
+
+Wikidata-based ontology source (default for Wikipedia domain).
+"""
+struct WikidataOntologySource <: OntologySource
+    sparql_endpoint::String
+end
+WikidataOntologySource() = WikidataOntologySource("https://query.wikidata.org/sparql")
+
+"""
     SeedInjectionConfig
 
-Configuration for seed KG injection algorithm.
-
-
+Configuration for Seed KG Injection.
 """
 struct SeedInjectionConfig
   entity_linking_threshold::Float64
@@ -1089,6 +1111,7 @@ struct SeedInjectionConfig
   max_triples_per_sequence::Int
   use_contextual_filtering::Bool
   contextual_similarity_threshold::Float64
+  ontology_source::OntologySource
 
   function SeedInjectionConfig(
     entity_linking_threshold::Float64=0.5,
@@ -1101,6 +1124,7 @@ struct SeedInjectionConfig
     max_triples_per_sequence::Int=10,
     use_contextual_filtering::Bool=true,
     contextual_similarity_threshold::Float64=0.6,
+    ontology_source::OntologySource=UMLSOntologySource(),
   )
     @assert 0 < entity_linking_threshold < 1 "entity_linking_threshold must be between 0 and 1"
     @assert top_k_candidates > 0 "top_k_candidates must be positive"
@@ -1122,6 +1146,7 @@ struct SeedInjectionConfig
       max_triples_per_sequence,
       use_contextual_filtering,
       contextual_similarity_threshold,
+      ontology_source,
     )
   end
 end
@@ -1142,6 +1167,7 @@ function SeedInjectionConfig(;
     max_triples_per_sequence::Int=10,
     use_contextual_filtering::Bool=true,
     contextual_similarity_threshold::Float64=0.6,
+    ontology_source::OntologySource=UMLSOntologySource(),
 )
     SeedInjectionConfig(
         entity_linking_threshold,
@@ -1154,6 +1180,7 @@ function SeedInjectionConfig(;
         max_triples_per_sequence,
         use_contextual_filtering,
         contextual_similarity_threshold,
+        ontology_source,
     )
 end
 

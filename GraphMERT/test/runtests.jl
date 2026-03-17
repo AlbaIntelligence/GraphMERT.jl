@@ -43,6 +43,12 @@ end
   include("integration/test_training_pipeline.jl")
 end
 
+# External service tests (Run only if RUN_EXTERNAL_TESTS=true)
+@testset "External Service Tests" begin
+  # These tests check environment variables internally and skip if not set
+  include("external/test_external_services.jl")
+end
+
 # Performance tests
 @testset "Performance Tests" begin
   include("performance/test_extraction_performance.jl")

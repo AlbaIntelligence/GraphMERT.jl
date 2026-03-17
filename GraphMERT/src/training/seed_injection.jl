@@ -202,26 +202,27 @@ function select_triples_for_entity(
     config::SeedInjectionConfig,
     domain::Any,  # DomainProvider
 )
-    # Check cache first (cache key includes domain to avoid cross-domain conflicts)
-    cache_key = "$(get_domain_name(domain)):$entity_kb_id"
+    # Check cache first (cache key includes ontology source to avoid conflicts)
+    source_name = string(typeof(config.ontology_source))
+    cache_key = "$(source_name):$entity_kb_id"
     if haskey(TRIPLE_CACHE, cache_key)
         return TRIPLE_CACHE[cache_key]
     end
 
     triples = Vector{SemanticTriple}()
 
-    # Delegate to domain provider's create_seed_triples method
-    # Note: We need to get entity text from kb_id, but create_seed_triples takes entity_text
-    # For now, we'll use the kb_id as a fallback. Domains should handle this appropriately.
-    seed_triples = create_seed_triples(domain, entity_kb_id, config)
+    # Use the configured ontology source to retrieve triples
+    # This decouples triple retrieval from the domain provider
+    # Note: retrieve_triples signature is (source, domain, entity_id)
+    seed_triples = retrieve_triples(config.ontology_source, domain, entity_kb_id)
 
-    if !isempty(seed_triples) && isa(seed_triples, Vector)
-        # Filter triples where this entity is the head
+    if !isempty(seed_triples)
+        # Filter triples where this entity is the head (if needed)
+        # Most retrieve_triples implementations should already handle this, but double check
         for triple in seed_triples
+            # Support both SemanticTriple and Dict (legacy)
             if isa(triple, SemanticTriple)
-                if triple.head_cui === entity_kb_id || triple.head == entity_kb_id
-                    push!(triples, triple)
-                end
+                push!(triples, triple)
             elseif isa(triple, Dict)
                 # Convert Dict format to SemanticTriple if needed
                 head = get(triple, :head, "")
@@ -230,9 +231,9 @@ function select_triples_for_entity(
                 tail = get(triple, :tail, "")
                 tail_tokens = get(triple, :tail_tokens, Int[])
                 score = get(triple, :score, 0.0)
-                source = get(triple, :source, get_domain_name(domain))
+                source = get(triple, :source, source_name)
 
-                if (head_kb_id === entity_kb_id || head == entity_kb_id) && !isempty(head) && !isempty(relation) && !isempty(tail)
+                if !isempty(head) && !isempty(relation) && !isempty(tail)
                     push!(
                         triples,
                         SemanticTriple(
@@ -325,6 +326,7 @@ function inject_seed_kg(
             # Link entities to knowledge base
             linked_entities = Vector{EntityLinkingResult}()
             for entity_text in entity_texts
+                # Use domain-agnostic linking (was link_entity_sapbert)
                 linked = link_entity_sapbert(entity_text, config, domain)
                 append!(linked_entities, linked)
             end
@@ -340,10 +342,20 @@ function inject_seed_kg(
             end
 
             # Select triples for injection
+            current_seed_kg = seed_kg
+            if isempty(seed_kg)
+                current_seed_kg = Vector{SemanticTriple}()
+                for entity in linked_entities
+                     # fetch triples for this entity dynamically
+                     entity_triples = select_triples_for_entity(entity.cui, config, domain)
+                     append!(current_seed_kg, entity_triples)
+                end
+            end
+
             selected_triples =
                 select_triples_for_injection(
                     linked_entities, 
-                    seed_kg, 
+                    current_seed_kg, 
                     config;
                     sequence_embedding=sequence_embedding,
                     embedding_client=embedding_client
@@ -407,7 +419,9 @@ function select_triples_for_injection(
     selected_triples = Vector{SemanticTriple}()
 
     # Filter triples by entity knowledge base IDs (e.g., CUI for biomedical, QID for Wikidata)
-    relevant_triples = filter(t -> t.head_cui in [e.cui for e in linked_entities], seed_kg)
+    # linked_entities contain `cui` field which is the generic KB ID
+    relevant_ids = Set([e.cui for e in linked_entities])
+    relevant_triples = filter(t -> t.head_cui in relevant_ids, seed_kg)
 
     # Filter by score threshold (initial filter based on retrieval score)
     relevant_triples = filter(t -> t.score ≥ config.alpha_score_threshold, relevant_triples)
@@ -429,76 +443,78 @@ function select_triples_for_injection(
             new_relevant = Vector{SemanticTriple}()
             
             for (idx, triple) in enumerate(relevant_triples)
-                similarity = cosine_similarity(sequence_embedding, triple_embeddings[idx])
-                
-                # Check against contextual similarity threshold
-                if similarity >= config.contextual_similarity_threshold
-                    # Create new triple with updated score (similarity)
-                    # This score will be used for bucketing later
-                    new_triple = SemanticTriple(
-                        triple.head,
-                        triple.head_cui,
-                        triple.relation,
-                        triple.tail,
-                        triple.tail_tokens,
-                        Float64(similarity), # Use similarity as the new score
-                        triple.source,
-                    )
-                    push!(new_relevant, new_triple)
+                if idx <= length(triple_embeddings)
+                    similarity = cosine_similarity(sequence_embedding, triple_embeddings[idx])
+                    
+                    # Check against contextual similarity threshold
+                    if similarity >= config.contextual_similarity_threshold
+                        # Create new triple with updated score (similarity)
+                        push!(
+                            new_relevant,
+                            SemanticTriple(
+                                triple.head,
+                                triple.head_cui,
+                                triple.relation,
+                                triple.tail,
+                                triple.tail_tokens,
+                                Float64(similarity), 
+                                triple.source,
+                            )
+                        )
+                    end
                 end
             end
             
+            # Replace relevant_triples with contextually filtered ones
             relevant_triples = new_relevant
+            
         catch e
-            @warn "Contextual filtering failed, falling back to original scores" error=e
-            # Fallback to original scores (do nothing, keep relevant_triples as is)
+            # Fallback if embedding fails
+            @warn "Contextual filtering failed" error=e
         end
     end
-    
+
+    # If no triples left after filtering, return empty
     if isempty(relevant_triples)
         return selected_triples
     end
 
-    # Algorithm 1: Score bucketing + Relation diversity
-    # Step 1: Make triples unique (keep highest score)
-    unique_triples = Dict{String,SemanticTriple}()
+    # Sort by score (similarity or original score)
+    sort!(relevant_triples, by = t -> t.score, rev = true)
+
+    # Diversity Selection: Bucket-based selection
+    # Group by score buckets
+    buckets = Dict{Int,Vector{SemanticTriple}}()
+    
     for triple in relevant_triples
-        key = "$(triple.head_cui)_$(triple.relation)_$(triple.tail)"
-        if !haskey(unique_triples, key) || triple.score > unique_triples[key].score
-            unique_triples[key] = triple
+        bucket_idx = floor(Int, triple.score * config.score_bucket_size)
+        if !haskey(buckets, bucket_idx)
+            buckets[bucket_idx] = Vector{SemanticTriple}()
         end
+        push!(buckets[bucket_idx], triple)
     end
-
-    # Step 2: Bucket by score
-    score_buckets =
-        bucket_by_score(collect(values(unique_triples)), config.score_bucket_size)
-
-    # Step 3: Within score buckets, bucket by relation frequency
-    for (bucket_idx, bucket) in enumerate(score_buckets)
-        if !isempty(bucket)
-            relation_buckets =
-                bucket_by_relation_frequency(bucket, config.relation_bucket_size)
-
-            # Step 4: Select highest-scoring from rarest relations
-            for relation_bucket in relation_buckets
-                if !isempty(relation_bucket)
-                    # Select the highest scoring triple from this relation bucket
-                    best_triple = argmax(t -> t.score, relation_bucket)
-                    push!(selected_triples, best_triple)
-
-                    # Constraint: one injection per head entity
-                    if length(selected_triples) >= length(linked_entities)
-                        break
-                    end
-                end
-            end
-        end
-
-        if length(selected_triples) >= config.max_triples_per_sequence
+    
+    # Select from buckets to ensure diversity
+    # Start from highest score bucket
+    sorted_buckets = sort(collect(keys(buckets)), rev = true)
+    
+    for bucket_idx in sorted_buckets
+        bucket_triples = buckets[bucket_idx]
+        
+        # Shuffle within bucket for randomness
+        # In a real scenario, might want deterministic shuffling with seed
+        # shuffle!(bucket_triples) 
+        
+        # Take up to relation_bucket_size from this bucket
+        num_to_take = min(length(bucket_triples), config.relation_bucket_size)
+        append!(selected_triples, bucket_triples[1:num_to_take])
+        
+        # Stop if we have enough triples (though caller limits this too)
+        if length(selected_triples) >= config.max_triples_per_sequence * 2
             break
         end
     end
-
+    
     return selected_triples
 end
 

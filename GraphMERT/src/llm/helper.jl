@@ -115,6 +115,9 @@ function create_helper_llm_client(
     rate_limit::Int = 10000,
     request_fn::Function = HTTP.post,
 )
+    # DEBUG PRINT
+    println("DEBUG: create_helper_llm_client called with request_fn: ", request_fn)
+    
     isempty(api_key) && throw(ArgumentError("api_key must be non-empty"))
 
     config = HelperLLMConfig(
@@ -128,6 +131,7 @@ function create_helper_llm_client(
         rate_limit,
     )
     cache = HelperLLMCache(1000, 3600)
+    # Correctly initialize OpenAIClient with the request_fn
     return OpenAIClient(config, cache, request_fn, 0.0, 0, 0, time())
 end
 
@@ -183,10 +187,15 @@ function _make_llm_request(client::OpenAIClient, messages::Vector{Dict{String,St
     # Make request with retry logic
     for attempt = 1:client.config.max_retries
         try
+            # Call request_fn using the stored function in client
+            # Note: We must call it as client.request_fn(...)
             response = client.request_fn(
                 url,
                 headers,
                 JSON3.write(request_body);
+                # Pass timeout as keyword arg if supported by the function
+                # Use splatting for flexibility? No, let's assume it supports common HTTP.jl kwargs
+                # or just pass a Dict if we want to be safer
                 timeout = client.config.timeout,
             )
 

@@ -60,10 +60,11 @@ $text
 
 Instructions:
 1. Extract all biomedical entities mentioned in the text
-2. Return only the entity names, one per line
-3. Use the exact text as it appears in the input
-4. Do not include common words or non-medical terms
-5. Focus on specific medical terminology and proper nouns
+2. Classify each entity into one of the types listed above (e.g., DISEASE, DRUG, PROTEIN)
+3. Return the results in the format: Entity Name | Entity Type
+4. One entity per line
+5. Use the exact text as it appears in the input
+6. Do not include common words or non-medical terms
 
 Return the entities:
 """

@@ -132,7 +132,7 @@ function extract_entities(
     config::Any,
     llm_client::Any,
 )
-    return extract_entities(domain, text, config)
+    return extract_biomedical_entities(text, config, domain; llm_client=llm_client)
 end
 
 """

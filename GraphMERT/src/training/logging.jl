@@ -33,7 +33,7 @@ function create_training_logger(log_dir::String, experiment_name::String="train"
     
     # Initialize CSV file with header
     io = open(csv_path, "w")
-    write(io, "epoch,step,combined_loss,mnm_loss,mlm_loss,elapsed_seconds,learning_rate,val_factscore\n")
+    write(io, "epoch,step,combined_loss,mnm_loss,mlm_loss,dist_loss,elapsed_seconds,learning_rate,val_factscore\n")
     flush(io)
     
     @info "Logging training metrics to: $csv_path"
@@ -55,16 +55,17 @@ Log metrics for a training step.
 """
 function log_metrics(logger::TrainingLogger, epoch::Int, step::Int, 
                      combined_loss::Real, mnm_loss::Real, mlm_loss::Real,
+                     dist_loss::Real=0.0,
                      learning_rate::Real=0.0)
     elapsed = (now() - logger.start_time).value / 1000.0
     
     # Log to CSV (val_factscore is NaN for step logs)
-    write(logger.io, "$epoch,$step,$combined_loss,$mnm_loss,$mlm_loss,$elapsed,$learning_rate,NaN\n")
+    write(logger.io, "$epoch,$step,$combined_loss,$mnm_loss,$mlm_loss,$dist_loss,$elapsed,$learning_rate,NaN\n")
     flush(logger.io)
     
     # Log to console (brief)
-    @printf("Epoch %d, Step %d: Loss = %.4f (MNM: %.4f, MLM: %.4f) [%.1fs]\n", 
-            epoch, step, combined_loss, mnm_loss, mlm_loss, elapsed)
+    @printf("Epoch %d, Step %d: Loss = %.4f (MNM: %.4f, MLM: %.4f, Dist: %.4f) [%.1fs]\n", 
+            epoch, step, combined_loss, mnm_loss, mlm_loss, dist_loss, elapsed)
 end
 
 """
@@ -75,16 +76,16 @@ end
 Log summary statistics for an epoch.
 """
 function log_epoch_summary(logger::TrainingLogger, epoch::Int, avg_loss::Real, 
-                           avg_mnm::Real, avg_mlm::Real, checkpoint_path::String="",
+                           avg_mnm::Real, avg_mlm::Real, avg_dist::Real=0.0, checkpoint_path::String="",
                            val_score::Real=NaN)
     elapsed = (now() - logger.start_time).value / 1000.0
     
     # Log epoch summary to CSV as step -1
-    write(logger.io, "$epoch,-1,$avg_loss,$avg_mnm,$avg_mlm,$elapsed,0.0,$val_score\n")
+    write(logger.io, "$epoch,-1,$avg_loss,$avg_mnm,$avg_mlm,$avg_dist,$elapsed,0.0,$val_score\n")
     flush(logger.io)
     
-    msg = @sprintf("Epoch %d Completed: Avg Loss = %.4f (MNM: %.4f, MLM: %.4f)", 
-                   epoch, avg_loss, avg_mnm, avg_mlm)
+    msg = @sprintf("Epoch %d Completed: Avg Loss = %.4f (MNM: %.4f, MLM: %.4f, Dist: %.4f)", 
+                   epoch, avg_loss, avg_mnm, avg_mlm, avg_dist)
     
     if !isnan(val_score)
         msg *= @sprintf(" | Val FActScore*: %.4f", val_score)

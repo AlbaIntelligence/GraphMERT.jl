@@ -428,8 +428,10 @@ function train_joint_mlm_mnm_step(
     mnm_config::MNMConfig,
     optimizer,
     μ::Float64 = 1.0,
-    rng::AbstractRNG = Random.GLOBAL_RNG
-)::Tuple{Float32, Float32, Float32}
+    rng::AbstractRNG = Random.GLOBAL_RNG;
+    distillation_config::Union{Distillation.DistillationConfig,Nothing} = nothing,
+    teacher_model::Union{GraphMERTModel,Nothing} = nothing,
+)::Tuple{Float32,Float32,Float32,Float32}
 
     # === MLM Masking (Syntactic Space) ===
 
@@ -461,15 +463,45 @@ function train_joint_mlm_mnm_step(
         rng
     )
 
+    # === Teacher Forward Pass (Distillation) ===
+    local teacher_logits
+    if distillation_config !== nothing && distillation_config.enabled && teacher_model !== nothing
+        # Teacher runs on the same masked graph (usually) or unmasked graph.
+        # Standard distillation: Student mimics Teacher on the SAME input.
+        # But Teacher is often trained on cleaner data? No, usually same input.
+        # We assume Teacher is in test mode (no dropout).
+        
+        # Prepare inputs for teacher (outside gradient to avoid tracking)
+        # We need to make sure we don't differentiate through teacher.
+        teacher_input_ids, teacher_attention_mask, teacher_position_ids, teacher_token_type_ids, teacher_seq_len, teacher_attention_decay_mask, teacher_relation_ids =
+            _prepare_roberta_inputs_from_graph(joint_masked_graph, teacher_model.config.attention_config, teacher_model.config.relation_types)
+
+        # Teacher forward pass (no gradient needed)
+        # Flux doesn't have a specific "no_grad" block like PyTorch, but we can just run it.
+        # Since teacher_model params are not in `ps`, Zygote won't compute grads for them.
+        teacher_logits = _forward_pass_mnm_inputs(
+            teacher_model,
+            teacher_input_ids,
+            teacher_attention_mask,
+            teacher_position_ids,
+            teacher_token_type_ids,
+            teacher_seq_len,
+            teacher_attention_decay_mask,
+            joint_masked_graph,
+            teacher_relation_ids
+        )
+    end
+
     # === Backward Pass ===
 
     ps = Flux.params(model)
-    local mlm_loss, mnm_loss
+    local mlm_loss, mnm_loss, dist_loss
+
+    # Pre-compute inputs outside gradient (they don't depend on model params)
+    input_ids, attention_mask, position_ids, token_type_ids, seq_len, attention_decay_mask, relation_ids =
+        _prepare_roberta_inputs_from_graph(joint_masked_graph, model.config.attention_config, model.config.relation_types)
 
     grads = gradient(ps) do
-        input_ids, attention_mask, position_ids, token_type_ids, seq_len, attention_decay_mask, relation_ids =
-            _prepare_roberta_inputs_from_graph(joint_masked_graph, model.config.attention_config, model.config.relation_types)
-
         logits = _forward_pass_mnm_inputs(
             model,
             input_ids,
@@ -492,16 +524,22 @@ function train_joint_mlm_mnm_step(
         )
         l_mnm = calculate_mnm_loss(logits, mnm_labels, joint_masked_graph)
         
+        l_dist = 0.0f0
+        if distillation_config !== nothing && distillation_config.enabled && teacher_model !== nothing
+            l_dist = Distillation.calculate_distillation_loss(logits, teacher_logits, distillation_config)
+        end
+
         # Capture for reporting (Zygote allows assigning to closed-over locals)
         mlm_loss = l_mlm
         mnm_loss = l_mnm
+        dist_loss = l_dist
 
-        return l_mlm + μ * l_mnm
+        return l_mlm + μ * l_mnm + l_dist
     end
 
     Flux.update!(optimizer, ps, grads)
 
-    return mlm_loss + μ * mnm_loss, mlm_loss, mnm_loss
+    return mlm_loss + μ * mnm_loss + dist_loss, mlm_loss, mnm_loss, dist_loss
 end
 
 # Export functions for external use

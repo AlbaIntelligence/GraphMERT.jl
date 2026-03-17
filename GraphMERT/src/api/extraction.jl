@@ -845,6 +845,55 @@ function deduplicate_entities(entities::Vector{GraphMERT.Entity})
   return deduplicated
 end
 
+"""
+    extend_knowledge_graph(existing_kg::KnowledgeGraph, text::String, model; options=default_processing_options())
+
+Extend an existing Knowledge Graph with new facts extracted from text.
+New entities and relations are merged, preserving provenance.
+"""
+function extend_knowledge_graph(
+    existing_kg::KnowledgeGraph,
+    text::String,
+    model;
+    options::ProcessingOptions=default_processing_options()
+)
+    # Extract new KG from text
+    new_kg = extract_knowledge_graph(text, model; options=options)
+    
+    # Merge with existing KG
+    # Reuse merge_graphs logic or implement specific extension logic
+    # Here we perform a simple merge
+    
+    # 1. Merge entities
+    merged_entities = copy(existing_kg.entities)
+    existing_entity_texts = Set(e.text for e in existing_kg.entities)
+    
+    for entity in new_kg.entities
+        if !(entity.text in existing_entity_texts)
+            push!(merged_entities, entity)
+            push!(existing_entity_texts, entity.text)
+        else
+            # Update existing entity? Or just keep original?
+            # Keeping original is safer for now, or merge attributes/provenance
+        end
+    end
+    
+    # 2. Merge relations
+    merged_relations = copy(existing_kg.relations)
+    # Deduplication logic for relations usually involves (head, relation, tail) tuple
+    existing_relation_keys = Set((r.head, r.relation_type, r.tail) for r in existing_kg.relations)
+    
+    for relation in new_kg.relations
+        key = (relation.head, relation.relation_type, relation.tail)
+        if !(key in existing_relation_keys)
+            push!(merged_relations, relation)
+            push!(existing_relation_keys, key)
+        end
+    end
+    
+    return KnowledgeGraph(merged_entities, merged_relations)
+end
+
 # Export functions for external use
 export discover_head_entities,
   match_relations_for_entities,
@@ -852,6 +901,7 @@ export discover_head_entities,
   form_tail_from_tokens,
   filter_and_deduplicate_triples,
   extract_knowledge_graph,
+  extend_knowledge_graph,
   deduplicate_entities
 
 # Deprecated: extract_biomedical_terms - use domain provider instead

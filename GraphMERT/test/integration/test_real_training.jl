@@ -78,7 +78,7 @@ using GraphMERT: RoBERTaConfig, HGATConfig, GraphMERTConfig, MLMConfig, MNMConfi
     
     println("Initial parameters sample: ", sum(Flux.params(model)[1]))
     
-    loss, mlm, mnm = train_joint_mlm_mnm_step(
+    loss, mlm, mnm, dist = train_joint_mlm_mnm_step(
         model,
         graph,
         mlm_config,
@@ -86,15 +86,16 @@ using GraphMERT: RoBERTaConfig, HGATConfig, GraphMERTConfig, MLMConfig, MNMConfi
         optimizer
     )
     
-    println("Step 1 Loss: $loss (MLM: $mlm, MNM: $mnm)")
+    println("Step 1 Loss: $loss (MLM: $mlm, MNM: $mnm, Dist: $dist)")
     
     @test loss > 0
     @test mlm >= 0
     @test mnm >= 0
+    @test dist == 0 # Distillation disabled by default
     
     # 5. Verify Parameter Update
     # Run another step and check if loss changes (simple sanity check)
-    loss2, mlm2, mnm2 = train_joint_mlm_mnm_step(
+    loss2, mlm2, mnm2, dist2 = train_joint_mlm_mnm_step(
         model,
         graph,
         mlm_config,

@@ -406,8 +406,8 @@ function process_single_batch(
         push!(
           results,
           KnowledgeGraph(
-            BiomedicalEntity[],
-            BiomedicalRelation[],
+            Entity[],
+            Relation[],
             Dict{String,Any}("error" => string(e)),
             now(),
           ),
@@ -445,8 +445,8 @@ function merge_knowledge_graphs(
   end
 
   # Collect all entities and relations
-  all_entities = BiomedicalEntity[]
-  all_relations = BiomedicalRelation[]
+  all_entities = KnowledgeEntity[]
+  all_relations = KnowledgeRelation[]
 
   for kg in knowledge_graphs
     if !isempty(kg.entities)
@@ -458,8 +458,8 @@ function merge_knowledge_graphs(
   end
 
   # Apply merging strategy
-  merged_entities::Vector{BiomedicalEntity} = all_entities
-  merged_relations::Vector{BiomedicalRelation} = all_relations
+  merged_entities::Vector{KnowledgeEntity} = all_entities
+  merged_relations::Vector{KnowledgeRelation} = all_relations
 
   if strategy == "union"
     # Simple union - keep all entities and relations

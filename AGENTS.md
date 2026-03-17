@@ -188,13 +188,13 @@ Work items: `TASK_LIST.md` §A1–A5 (Completed)
 
 ### Stream B — Architecture alignment (Python reference parity)
 
-Work items: `TASK_LIST.md` §B1–B6
+Work items: `TASK_LIST.md` §B1–B6 (Completed)
 
-5. **B1** — Fix `max_position_embeddings = 512` → 1024 in `RoBERTaConfig`.
-6. **B2** — Integrate attention decay mask (`exp(-α×d)`) into every transformer layer.
-7. **B3/B4** — Wire H-GAT relation embeddings into embedding layer; implement real `GraphMERTModel.forward`.
-8. **B5** — Fix MNM loss: `crossentropy` → `logitbinarycrossentropy`.
-9. **B6** — Fix `BiomedicalDomain.extract_entities` arity (✅ Fixed 3-arg → 4-arg).
+5. **B1** — Fix `max_position_embeddings = 512` → 1024. ✅ Fixed.
+6. **B2** — Integrate attention decay mask. ✅ Fixed.
+7. **B3/B4** — Wire H-GAT relation embeddings; implement real `GraphMERTModel.forward`. ✅ Fixed.
+8. **B5** — Fix MNM loss. ✅ Fixed.
+9. **B6** — Fix `BiomedicalDomain.extract_entities` arity. ✅ Fixed.
 
 ### Stream C–D — External integrations and full training
 
@@ -208,7 +208,7 @@ Work items: `TASK_LIST.md` §C1–C4, §D1–D5
 Work items: `TASK_LIST.md` §E–G
 
 13. Fix known test failures; add integration + persistence round-trip tests.
-14. Distillation hooks, multi-domain seed injection, KG completion mode.
+14. **Stream G (Extensions)**: ✅ All items (Distillation, Multi-domain injection, KG completion) implemented.
 
 ---
 

@@ -6,8 +6,7 @@
 
 A Julia implementation of the GraphMERT algorithm for constructing reliable knowledge graphs from unstructured text data, using a RoBERTa encoder with Hierarchical Graph Attention Networks (H-GAT).
 
-> **Implementation status (March 2026)**: Architecture, leafy chain graphs, MLM training, and
-> domain abstraction are structurally complete. The training pipeline is **functional** (computes real gradients, updates weights), but convergence has not been verified on large datasets. Tail prediction and extraction pipelines are wired. See [`reports/PROJECT_STATUS.md`](reports/PROJECT_STATUS.md) for details and [`reports/TASK_LIST.md`](reports/TASK_LIST.md) for the roadmap.
+> **Implementation status (March 2026)**: Architecture, leafy chain graphs, domain abstraction, and the **full training pipeline** (MLM+MNM with real gradients) are implemented and verified. Model persistence and checkpointing are fully functional. The extraction pipeline is wired to real model outputs, though a converged model has not yet been trained on large datasets. See [`reports/PROJECT_STATUS.md`](reports/PROJECT_STATUS.md) for details and [`reports/TASK_LIST.md`](reports/TASK_LIST.md) for the roadmap.
 
 ## Overview
 
@@ -25,8 +24,8 @@ GraphMERT.jl implements the state-of-the-art GraphMERT algorithm from the paper 
 - **Wikidata Integration**: Support for Wikidata entity linking (Wikipedia domain)
 - **Helper LLM Support**: External language model integration for enhanced entity discovery
 - **Dual Training Objectives**: MLM (Masked Language Modeling) + MNM (Masked Node Modeling)
-- **High Performance**: Processes 5,000+ tokens per second on standard hardware (target; not yet verified from real trained model)
-- **Memory Efficient**: Handles datasets up to 124.7M tokens with <4GB memory usage (target)
+- **High Performance Target**: Designed to process 5,000+ tokens per second (paper target; optimization in progress)
+- **Memory Efficient Target**: Architected to handle datasets up to 124.7M tokens with <4GB memory usage (paper target)
 
 ## Installation
 
@@ -165,12 +164,12 @@ The GraphMERT implementation follows a sophisticated multi-stage architecture:
 
 | Metric             | Paper target         | Status            |
 | ------------------ | -------------------- | ----------------- |
-| Processing Speed   | 5,000 tokens/sec     | ⏳ Not yet measured |
-| Memory Usage       | <4GB (124.7M tokens) | ⏳ Not yet measured |
-| FActScore          | 69.8%                | ⏳ Pending real training |
-| ValidityScore      | 68.8%                | ⏳ Pending real training |
-| Entity Recall      | >85%                 | ⏳ Pending real training |
-| Relation Precision | >80%                 | ⏳ Pending real training |
+| Processing Speed   | 5,000 tokens/sec     | ⏳ Pending optimization |
+| Memory Usage       | <4GB (124.7M tokens) | ⏳ Pending optimization |
+| FActScore          | 69.8%                | ⏳ Pending converged model |
+| ValidityScore      | 68.8%                | ⏳ Pending converged model |
+| Entity Recall      | >85%                 | ⏳ Pending converged model |
+| Relation Precision | >80%                 | ⏳ Pending converged model |
 
 ## Configuration
 

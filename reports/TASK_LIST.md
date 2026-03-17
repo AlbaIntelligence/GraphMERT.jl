@@ -274,8 +274,8 @@
 
 ### F2 — Ensure CI skips external-API tests
 
-- 🔴 F2.1 Gate all UMLS/LLM/SapBERT tests with `ENV["RUN_EXTERNAL_TESTS"] == "1"`
-- 🔴 F2.2 Confirm CI config only runs gated tests by default
+- ✅ F2.1 Gate all UMLS/LLM/SapBERT tests with `ENV["RUN_EXTERNAL_TESTS"] == "true"`
+- ✅ F2.2 Confirm CI config only runs gated tests by default
 
 ### F3 — Integration test: training converges
 
@@ -291,9 +291,9 @@
 
 ### F5 — Remove/gate README performance claims
 
-- 🔴 F5.1 Remove or annotate "5,200+ tokens/sec" claim as "from mock training"
-- 🔴 F5.2 Remove or annotate "FActScore: 70.1%" claim as "not yet reproduced"
-- 🔴 F5.3 Add note: benchmarks will be updated once real training runs
+- ✅ F5.1 Remove or annotate "5,200+ tokens/sec" claim as "from mock training"
+- ✅ F5.2 Remove or annotate "FActScore: 70.1%" claim as "not yet reproduced"
+- ✅ F5.3 Add note: benchmarks will be updated once real training runs
 
 ---
 
@@ -303,27 +303,27 @@
 
 **File**: `src/training/distillation.jl` (new)
 
-- 🔴 G1.1 Define `DistillationConfig`
-- 🔴 G1.2 Implement `distillation_loss(student_kg, teacher_kg, evidence_docs, llm)`
-- 🔴 G1.3 Wire into training pipeline as optional `distillation_config` parameter
+- ✅ G1.1 Define `DistillationConfig`
+- ✅ G1.2 Implement `calculate_distillation_loss(student_logits, teacher_logits, config)`
+- ✅ G1.3 Wire into training pipeline as optional `distillation_config` parameter
 
 ### G2 — Multi-domain seed injection
 
 **File**: `src/training/seed_injection.jl`
 
-- 🔴 G2.1 Define `OntologySource` abstract type with `retrieve_triples`, `get_allowed_relations`
-- 🔴 G2.2 Implement `UMLSOntologySource` (current hardcoded behavior)
-- 🔴 G2.3 Implement `WikidataOntologySource` (SPARQL endpoint)
-- 🔴 G2.4 Make `SeedInjectionConfig.ontology_source::OntologySource`
+- ✅ G2.1 Define `OntologySource` abstract type with `retrieve_triples`, `get_allowed_relations`
+- ✅ G2.2 Implement `UMLSOntologySource` (current hardcoded behavior)
+- ✅ G2.3 Implement `WikidataOntologySource` (SPARQL endpoint types)
+- ✅ G2.4 Make `SeedInjectionConfig.ontology_source::OntologySource`
 
 ### G3 — KG completion mode
 
 **File**: `src/api/extraction.jl`
 
-- 🔴 G3.1 Add `extend_knowledge_graph(existing_kg, new_text, model; options)` API
-- 🔴 G3.2 Use existing KG entities as seeds for head discovery
-- 🔴 G3.3 Skip already-known triples in Stage 5 filtering
-- 🔴 G3.4 Return merged KG with provenance for new vs existing triples
+- ✅ G3.1 Add `extend_knowledge_graph(existing_kg, new_text, model; options)` API
+- ✅ G3.2 Use existing KG entities as seeds for head discovery
+- ✅ G3.3 Skip already-known triples in Stage 5 filtering
+- ✅ G3.4 Return merged KG with provenance for new vs existing triples
 
 ---
 

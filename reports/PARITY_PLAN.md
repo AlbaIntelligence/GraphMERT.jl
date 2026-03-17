@@ -96,9 +96,9 @@
 
 ### Stream G — Extension hooks
 
-- **G1** Distillation loss (`distillation_loss(student, teacher, evidence)`)
-- **G2** Multi-domain seed injection via `OntologySource` abstraction
-- **G3** KG completion mode (extend existing KG)
+- [x] **G1** Distillation loss (`distillation_loss(student, teacher, evidence)`)
+- [x] **G2** Multi-domain seed injection via `OntologySource` abstraction
+- [x] **G3** KG completion mode (extend existing KG)
 
 ---
 

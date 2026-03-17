@@ -235,6 +235,8 @@ function train_graphmert(
     mlm_config::GraphMERT.MLMConfig = default_mlm_config(),
     mnm_config::GraphMERT.MNMConfig = default_mnm_config(),
     injection_config::Union{GraphMERT.SeedInjectionConfig,Nothing} = nothing,
+    distillation_config::Union{Distillation.DistillationConfig,Nothing} = nothing,
+    teacher_model::Union{GraphMERTModel,Nothing} = nothing,
     num_epochs::Int = 10,
     learning_rate::Float64 = 1e-4,
     checkpoint_dir::String = "checkpoints",
@@ -263,6 +265,10 @@ function train_graphmert(
 
     if seed_kg !== nothing || injection_config !== nothing
         @warn "Seed KG injection is not yet wired into the real training loop; training proceeds without injection" has_seed_kg = (seed_kg !== nothing) has_injection_config = (injection_config !== nothing)
+    end
+
+    if distillation_config !== nothing && distillation_config.enabled && teacher_model === nothing
+         @warn "Distillation enabled in config but no teacher model provided. Distillation will be skipped."
     end
 
     logger = create_training_logger(checkpoint_dir)
@@ -295,14 +301,16 @@ function train_graphmert(
 
             graph = create_empty_chain_graph(token_ids, String[t for t in toks], chain_config)
 
-            step_total, step_mlm, step_mnm = train_joint_mlm_mnm_step(
+            step_total, step_mlm, step_mnm, step_dist = train_joint_mlm_mnm_step(
                 model,
                 graph,
                 mlm_config,
                 mnm_config,
                 optimizer,
                 μ,
-                rng,
+                rng;
+                distillation_config=distillation_config,
+                teacher_model=teacher_model
             )
 
             total_loss += step_total
@@ -310,7 +318,7 @@ function train_graphmert(
             total_mnm_loss += step_mnm
 
             # Log metrics per step
-            log_metrics(logger, epoch, step, step_total, step_mnm, step_mlm, learning_rate)
+            log_metrics(logger, epoch, step, step_total, step_mnm, step_mlm, step_dist, learning_rate)
         end
 
         avg_loss = 0.0
@@ -370,6 +378,7 @@ function create_training_configurations()::Tuple{
     GraphMERT.MLMConfig,
     GraphMERT.MNMConfig,
     GraphMERT.SeedInjectionConfig,
+    Distillation.DistillationConfig,
 }
     # Model configuration (80M parameters for laptop deployment)
     roberta_config = RoBERTaConfig(
@@ -432,8 +441,10 @@ function create_training_configurations()::Tuple{
         0.2,  # injection_ratio
         10,    # max_triples_per_sequence
     )
+    
+    distillation_config = Distillation.DistillationConfig(enabled=false)
 
-    return model_config, mlm_config, mnm_config, injection_config
+    return model_config, mlm_config, mnm_config, injection_config, distillation_config
 end
 
 """
