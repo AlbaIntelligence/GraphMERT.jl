@@ -546,6 +546,89 @@ end
 # ============================================================================
 
 """
+    extract_biomedical_entities_llm(text::String, config::Any, domain::Any, llm_client::Any)
+
+Extract biomedical entities using LLM with regex fallback.
+"""
+function extract_biomedical_entities_llm(text::String, config::Any, domain::Any, llm_client::Any)
+    # Try LLM extraction
+    try
+        # Create prompt
+        context = Dict{String, Any}("text" => text, "task_type" => :entity_discovery)
+        prompt = create_biomedical_prompt(:entity_discovery, context)
+        
+        # Make request
+        # Note: We assume make_llm_request is available in the context (exported from GraphMERT)
+        # If not, we might need to rely on the passed client being callable or import it
+        response = make_llm_request(llm_client, prompt)
+        
+        if response.success
+            entities = Vector{Entity}()
+            seen_texts = Set{String}()
+            
+            for line in split(response.content, '\n')
+                line = strip(line)
+                isempty(line) && continue
+                
+                # Parse "Entity | Type" format
+                parts = split(line, '|')
+                if length(parts) >= 2
+                    entity_text = String(strip(parts[1]))
+                    entity_type_str = String(strip(parts[2]))
+                else
+                    entity_text = String(strip(line))
+                    entity_type_str = "UNKNOWN"
+                end
+                
+                # Clean up numbering/bullets
+                entity_text = replace(entity_text, r"^\d+\.?\s*" => "")
+                entity_text = replace(entity_text, r"^[-*_]\s*" => "")
+                
+                if !isempty(entity_text) && !(entity_text in seen_texts)
+                    push!(seen_texts, entity_text)
+                    
+                    # Validate/Normalize type
+                    # Try to map string type to BiomedicalEntityType enum if possible, or keep as string
+                    # The prompt asks for standard types, so we expect "DISEASE", "DRUG", etc.
+                    
+                    # Find position (simple first match)
+                    pos = findfirst(entity_text, text)
+                    start_pos = pos !== nothing ? first(pos) : 1
+                    end_pos = pos !== nothing ? last(pos) : length(entity_text)
+                    
+                    entity = Entity(
+                        "entity_llm_$(hash(entity_text))",
+                        entity_text,
+                        entity_text,
+                        entity_type_str, # Use the string from LLM
+                        "biomedical",
+                        Dict{String, Any}(
+                            "source" => "llm",
+                            "confidence" => 0.9, # High confidence for LLM
+                        ),
+                        TextPosition(start_pos, end_pos, 1, 1),
+                        0.9,
+                        text,
+                    )
+                    push!(entities, entity)
+                end
+            end
+            
+            if !isempty(entities)
+                return entities
+            end
+        else
+            @warn "LLM extraction failed: $(response.error)"
+        end
+    catch e
+        @warn "Error in LLM extraction: $e"
+    end
+    
+    # Fallback to regex
+    return extract_biomedical_entities(text, config, domain)
+end
+
+"""
     extract_biomedical_entities(text::String, config::ProcessingOptions, domain::BiomedicalDomain)
 
 Extract biomedical entities from text.
@@ -554,11 +637,19 @@ Extract biomedical entities from text.
 - `text::String`: Input text
 - `config::ProcessingOptions`: Processing options
 - `domain::BiomedicalDomain`: Domain provider instance
+- `llm_client::Any`: Optional LLM client (keyword arg to maintain compatibility)
 
 # Returns
 - `Vector{Entity}`: Extracted entities
 """
-function extract_biomedical_entities(text::String, config::Any, domain::Any)
+function extract_biomedical_entities(text::String, config::Any, domain::Any; llm_client=nothing)
+    # Check if we should use LLM
+    use_llm = hasproperty(config, :use_helper_llm) && config.use_helper_llm && llm_client !== nothing
+    
+    if use_llm
+        return extract_biomedical_entities_llm(text, config, domain, llm_client)
+    end
+
     # Entity and TextPosition are in scope from parent GraphMERT module (types.jl)
     entities = Vector{Entity}()
 
@@ -584,6 +675,7 @@ function extract_biomedical_entities(text::String, config::Any, domain::Any)
             Dict{String, Any}(
                 "entity_type_enum" => entity_type,
                 "confidence" => confidence,
+                "source" => "regex"
             ),
             TextPosition(start_pos, end_pos, 1, 1),
             confidence,

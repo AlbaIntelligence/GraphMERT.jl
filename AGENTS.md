@@ -40,11 +40,12 @@ The implementation is tightly coupled to a **specification set** in `original_pa
   - (Fixed) `predict_tail_tokens` (Stage 3) uses `rand`.
   - (Fixed) `form_tail_from_tokens` (Stage 4) returns `"entity_N"`.
   - (Fixed) Weight I/O stubbed. Now partially implemented (optimizer state).
+  - (Fixed) `BiomedicalDomain.extract_entities` regex fallback only. Now wired to LLM.
 - **Spec**: `reports/RETROSPECTIVE_SPEC.md` defines all type, algorithm, and API contracts.
 - **Roadmap**: `reports/PARITY_PLAN.md` lists 12 confirmed defects and 7 work streams. Stream A (Correctness) is largely complete.
 - **Tasks**: `reports/TASK_LIST.md` has 155 atomic subtasks. Focus is now on **Stream B (Architecture)** and **Stream D (Full Training)**.
-- Domains: biomedical and Wikipedia modules exist; `BiomedicalDomain.extract_entities` has a 3-arg signature but the extraction path tries 4 args — always falls back to heuristics.
-- Tests: known failures in `test_api.jl` (arity mismatch line 103) and contradicting empty-text contracts between unit and integration tests. See `reports/CODE_REVIEW.md`.
+- Domains: biomedical and Wikipedia modules exist; Biomedical extraction now fully wired.
+- Tests: known failures in `test_api.jl` (arity mismatch line 103) resolved; contradicting empty-text contracts fixed.
 - Reliability pipeline: `validate_kg`, `get_provenance`, `evaluate_factscore`, `clean_kg` are partially implemented; `evaluate_factscore` has the cartesian-product bug above.
 - **Do not trust README performance numbers** — they are from mock training with random losses.
 

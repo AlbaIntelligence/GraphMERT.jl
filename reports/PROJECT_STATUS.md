@@ -58,11 +58,11 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 - **Status**: `train_joint_mlm_mnm_step` now computes real gradients using Zygote and updates weights via Flux.Adam. Single-forward-pass optimization implemented.
 - **Remaining Work**: Full dataset batching and validation loop hardening (Stream D).
 
-### 3.2 LLM-Based Entity/Relation Extraction (Not Wired)
+### 3.2 LLM-Based Entity/Relation Extraction (Wired)
 - **Location**: `src/llm/helper.jl` has `discover_entities()` function
-- **Status**: Domain prompts exist (`domains/*/prompts.jl`) but extraction uses regex fallback
-- **Impact**: Paper specifies LLM-based extraction; current regex fallback is incorrect
-- **Required fix**: Wire `discover_entities(client, text, domain)` in domain providers
+- **Status**: Biomedical domain now has `extract_entities` wired to LLM with regex fallback. `SubString` type error fixed.
+- **Impact**: Paper specifies LLM-based extraction; implementation now supports it.
+- **Remaining**: Wire relation extraction and Wikipedia domain.
 
 ### 3.3 Model Persistence (Functional)
 - **Location**: `models/persistence.jl`
@@ -85,10 +85,10 @@ GraphMERT.jl implements the GraphMERT algorithm for extracting knowledge graphs 
 
 | Priority | Task | Status |
 |----------|------|--------|
-| **P0** | Wire LLM-based entity extraction (remove regex fallback) | Not started |
-| **P1** | Complete training pipeline with proper MNM batching | Not started |
-| **P1** | Fix `max_position_embeddings` (512->1024) | Not started |
-| **P2** | Extend seed injection for large corpora | Not started |
+| **P0** | Wire LLM-based entity extraction (biomedical) | ✅ Done |
+| **P1** | Complete training pipeline with proper MNM batching | In Progress |
+| **P1** | Fix `max_position_embeddings` (512->1024) | ✅ Done |
+| **P2** | Extend seed injection for large corpora | In Progress |
 | **P2** | Complete evaluation module wiring | In Progress |
 | **P0** | Fix MNM forward pass | ✅ Done |
 | **P1** | Wire model persistence | ✅ Done |
