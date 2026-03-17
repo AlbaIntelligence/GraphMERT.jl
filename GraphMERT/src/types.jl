@@ -931,6 +931,19 @@ mutable struct LeafyChainGraph
     end
 end
 
+# Helper accessors for LeafyChainGraph
+function Base.getproperty(g::LeafyChainGraph, p::Symbol)
+    if p === :root_nodes
+        # Root nodes are the first `num_roots` nodes
+        return g.nodes[1:g.config.num_roots]
+    elseif p === :leaf_nodes
+        # Leaf nodes are the rest
+        return g.nodes[(g.config.num_roots + 1):end]
+    else
+        return getfield(g, p)
+    end
+end
+
 """
     MNMConfig
 

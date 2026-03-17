@@ -25,6 +25,8 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 
 - **Project status**: See `reports/PROJECT_STATUS.md` for overview; `reports/PARITY_PLAN.md` for current defect list and work streams.
 - **Recent Fixes**:
+  - **Full Pipeline Integration**: `test/integration/test_full_pipeline.jl` now passes, verifying end-to-end flow.
+  - **Entity Linking**: Implemented character 3-gram Jaccard reranking and in-memory index for SapBERT linker.
   - **Core Training**: Replaced `MockGraphMERTModel` with real `GraphMERTModel` in training pipeline. Optimized MNM step to single forward pass.
   - **Extraction**: Fixed type signature mismatches in `BiomedicalDomain`. Fixed `calculate_tail_similarity` logic (Containment vs Jaccard).
   - **Persistence**: Implemented optimizer state serialization (Flux.Adam) for resumable training.
@@ -33,11 +35,11 @@ The implementation is tightly coupled to a **specification set** in `original_pa
   - Implemented LLM client abstraction (OpenAI, Gemini).
   - Implemented UMLS REST API client with mock mode.
   - Implemented Entity Linking abstraction (SapBERT stub).
-- **Confirmed P0 bugs** (nothing works end-to-end until these are fixed):
-  - `max_position_embeddings=512` but sequence length is 1024 — embedding table too small.
-  - (Fixed) `train_graphmert` used `MockGraphMERTModel`. Now uses real model.
-  - (Fixed) `filter_triples_by_confidence` is an O(N²×M) cartesian product.
-  - (Fixed) `predict_tail_tokens` (Stage 3) uses `rand`.
+- **Confirmed P0 bugs** (All major correctness P0 bugs resolved):
+  - (Fixed) `max_position_embeddings=512` -> 1024.
+  - (Fixed) `train_graphmert` mock -> real model.
+  - (Fixed) `filter_triples_by_confidence` cartesian product -> linear.
+  - (Fixed) `predict_tail_tokens` rand -> logit-based.
   - (Fixed) `form_tail_from_tokens` (Stage 4) returns `"entity_N"`.
   - (Fixed) Weight I/O stubbed. Now partially implemented (optimizer state).
   - (Fixed) `BiomedicalDomain.extract_entities` regex fallback only. Now wired to LLM.

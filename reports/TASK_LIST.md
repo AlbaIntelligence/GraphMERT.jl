@@ -161,11 +161,11 @@
 **File**: `src/domains/biomedical/entity_linking.jl`
 
 - ✅ C3.1 Define `AbstractEntityLinker` abstract type
-- 🟡 C3.2 Implement `SapBERTLinker` (Stubbed for future ONNX integration)
-- 🟡 C3.3 Build/load ANN index (Stubbed)
+- 🟡 C3.2 Implement `SapBERTLinker` (Stubbed for future ONNX integration; basic in-memory index available)
+- 🟡 C3.3 Build/load ANN index (In-memory stub)
 - ✅ C3.4 Implement `link_entity(linker, text) -> Vector{(CUI, score)}`
 - ✅ C3.5 Implement `MockEntityLinker` with fixture mappings for CI
-- 🔴 C3.6 Add character 3-gram Jaccard filter as secondary reranker
+- ✅ C3.6 Add character 3-gram Jaccard filter as secondary reranker
 
 ### C4 — Embedding client for contextual selection
 
