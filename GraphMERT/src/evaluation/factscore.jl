@@ -14,8 +14,6 @@ and C(τ) is the set of context sentences containing head and tail entities.
 """
 
 # Types are defined in the main GraphMERT module
-# using ..LLM: make_llm_request, HelperLLMClient
-# using ..Biomedical: link_entity_to_umls
 using Distributions: Normal, quantile
 
 """
@@ -368,7 +366,7 @@ function evaluate_triple_with_llm(
         response = make_llm_request(llm_client, prompt)
         if response.success
             answer = strip(uppercase(response.content))
-            if occursin("SUPPORTED", answer) && !occursin("NOT_SUPPORTED", answer)
+            if occursin("SUPPORTED", answer) && !occursin("NOT_MENTIONED", answer) && !occursin("NOT_SUPPORTED", answer)
                 return :supported
             elseif occursin("CONTRADICTED", answer)
                 return :contradicted

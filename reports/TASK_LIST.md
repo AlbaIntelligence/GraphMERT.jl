@@ -234,15 +234,15 @@
 
 ## STREAM E — Evaluation completeness
 
-### E1 — FActScore\* with LLM verification
+### E1 — FActScore* with LLM verification
 
 **File**: `src/evaluation/factscore.jl`
 
-- 🔴 E1.1 Implement `calculate_factscore_star(kg, source_texts, llm_client)`
-- 🔴 E1.2 Prompt template: claim verification against source passage
-- 🔴 E1.3 Parse LLM response: `:supported`, `:not_supported`, `:contradicted`
-- 🔴 E1.4 Return `FActScore(score, precision, recall, f1, total, correct, incorrect)`
-- 🔴 E1.5 Add mock-LLM test reproducing a known score on a fixed KG
+- ✅ E1.1 Implement `calculate_factscore_star(kg, source_texts, llm_client)` (Implemented as `evaluate_factscore`)
+- ✅ E1.2 Prompt template: claim verification against source passage
+- ✅ E1.3 Parse LLM response: `:supported`, `:not_supported`, `:contradicted`
+- ✅ E1.4 Return `FActScore(score, precision, recall, f1, total, correct, incorrect)` (Implemented as `FActScoreResult`)
+- ✅ E1.5 Add mock-LLM test reproducing a known score on a fixed KG
 
 ### E2 — ValidityScore
 

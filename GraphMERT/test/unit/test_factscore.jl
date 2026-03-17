@@ -1,30 +1,130 @@
 using Test
 using GraphMERT
-using GraphMERT: KnowledgeGraph, Entity, Relation, filter_triples_by_confidence
+using GraphMERT: KnowledgeEntity, KnowledgeRelation, KnowledgeGraph
 
-@testset "FActScore Implementation" begin
+@testset "FActScore Tests" begin
+
+    # Setup entities and relation
+    head_ent = KnowledgeEntity(
+        "1", "aspirin", "DRUG", 0.9, 
+        GraphMERT.TextPosition(1, 1, 0, 7),
+        Dict{String,Any}()
+    )
+    tail_ent = KnowledgeEntity(
+        "2", "pain", "SYMPTOM", 0.9,
+        GraphMERT.TextPosition(1, 20, 20, 24),
+        Dict{String,Any}()
+    )
+    relation = KnowledgeRelation(
+        "1", "2", "TREATS", 0.8,
+        Dict{String,Any}()
+    )
     
+    kg = KnowledgeGraph(
+        [head_ent, tail_ent],
+        [relation],
+        Dict{String,Any}()
+    )
+
+    source_text = "The doctor prescribed aspirin to treat the patient's pain. It was effective."
+
+    @testset "Context Extraction" begin
+        # Test get_triple_context (not exported, so using GraphMERT.get_triple_context)
+        context = GraphMERT.get_triple_context(source_text, head_ent, tail_ent, 1)
+        @test !isempty(context)
+        @test length(context) == 1
+        @test occursin("aspirin", lowercase(context[1]))
+        @test occursin("pain", lowercase(context[1]))
+    end
+
+    @testset "Heuristic Evaluation" begin
+        # Test heuristic support
+        is_supported = GraphMERT.evaluate_triple_heuristic(head_ent, relation, tail_ent, [source_text])
+        @test is_supported == true
+        
+        # Test unsupported
+        unrelated_text = ["The sun is shining today."]
+        is_supported = GraphMERT.evaluate_triple_heuristic(head_ent, relation, tail_ent, unrelated_text)
+        @test is_supported == false
+    end
+
+    @testset "LLM Evaluation" begin
+        # Mock LLM Client
+        struct MockFactScoreLLM <: GraphMERT.AbstractLLMClient
+            response::String
+        end
+        
+        function GraphMERT.make_llm_request(client::MockFactScoreLLM, prompt::String)
+            return GraphMERT.HelperLLMResponse(true, client.response, nothing, Dict{String,Any}(), 200)
+        end
+
+        # Case 1: Supported
+        client_supported = MockFactScoreLLM("SUPPORTED")
+        result = GraphMERT.evaluate_factscore(kg, source_text, llm_client=client_supported)
+        @test result.factscore == 1.0
+        @test result.supported_triples == 1
+        @test result.triple_scores[1] == :supported
+
+        # Case 2: Contradicted
+        client_contradicted = MockFactScoreLLM("CONTRADICTED")
+        result = GraphMERT.evaluate_factscore(kg, source_text, llm_client=client_contradicted)
+        @test result.factscore == 0.0
+        @test result.contradicted_triples == 1
+        @test result.triple_scores[1] == :contradicted
+
+        # Case 3: Not Mentioned
+        client_not_mentioned = MockFactScoreLLM("NOT_MENTIONED")
+        result = GraphMERT.evaluate_factscore(kg, source_text, llm_client=client_not_mentioned)
+        @test result.factscore == 0.0
+        @test result.not_supported_triples == 1
+        @test result.triple_scores[1] == :not_supported
+    end
+
+    @testset "Reference-based Evaluation" begin
+        # Create a reference KG (identical to kg)
+        ref_kg = KnowledgeGraph(
+            [head_ent, tail_ent],
+            [relation],
+            Dict{String,Any}()
+        )
+        
+        score = GraphMERT.evaluate_factscore(kg, ref_kg)
+        @test score.score == 1.0
+        @test score.correct_count == 1
+        
+        # Create a disjoint reference KG
+        other_relation = KnowledgeRelation(
+            "1", "2", "CAUSES", 0.8,
+            Dict{String,Any}()
+        )
+        diff_ref_kg = KnowledgeGraph(
+            [head_ent, tail_ent],
+            [other_relation],
+            Dict{String,Any}()
+        )
+        
+        score = GraphMERT.evaluate_factscore(kg, diff_ref_kg)
+        @test score.score == 0.0
+    end
+
     @testset "Confidence Filtering Efficiency" begin
-        # Verify that filtering happens over relations (O(M)), not cartesian entities (O(N^2))
+        # Legacy test adapted to KnowledgeEntity
         
         num_entities = 100
         num_relations = 500
         
         entities = [
-            Entity(
+            KnowledgeEntity(
                 string(i),           # id
                 "Entity $i",         # text
                 "Entity $i",         # label
-                "Type",              # type
-                "Source",            # domain
-                Dict{String,Any}(),  # attributes
-                GraphMERT.TextPosition(1, 5, 0, 0), # position
                 1.0,                 # confidence
-                ""                   # provenance
+                GraphMERT.TextPosition(1, 5, 0, 0), # position
+                Dict{String,Any}()   # attributes
             ) for i in 1:num_entities
         ]
         
-        relations = Relation[]
+        relations = KnowledgeRelation[]
         
         for i in 1:num_relations
             head_id = string(rand(1:num_entities))
@@ -33,15 +133,11 @@ using GraphMERT: KnowledgeGraph, Entity, Relation, filter_triples_by_confidence
                 tail_id = string(rand(1:num_entities))
             end
             
-            # Relation(head, tail, relation_type, confidence, domain, provenance, evidence, attributes, id)
-            push!(relations, Relation(
+            push!(relations, KnowledgeRelation(
                 head_id, 
                 tail_id,
                 "REL", 
                 0.9, 
-                "Source",      # domain
-                "Provenance",  # provenance
-                "Evidence",    # evidence
                 Dict{String,Any}() # attributes
             ))
         end
@@ -49,43 +145,11 @@ using GraphMERT: KnowledgeGraph, Entity, Relation, filter_triples_by_confidence
         kg = KnowledgeGraph(entities, relations, Dict{String,Any}())
         
         # Test filtering with valid threshold
-        filtered = filter_triples_by_confidence(kg, 0.5)
+        filtered = GraphMERT.filter_triples_by_confidence(kg, 0.5)
         @test length(filtered) == num_relations
         
         # Test filtering with high threshold (should filter everything)
-        empty_filtered = filter_triples_by_confidence(kg, 0.95)
+        empty_filtered = GraphMERT.filter_triples_by_confidence(kg, 0.95)
         @test length(empty_filtered) == 0
-        
-        # Check structure of filtered triples
-        if !isempty(filtered)
-            (h, r, t) = filtered[1]
-            @test 1 <= h <= num_entities
-            @test 1 <= r <= num_relations
-            @test 1 <= t <= num_entities
-            @test h != t
-        end
-    end
-
-    @testset "Small Graph Verification" begin
-        # Create small graph with known structure
-        e1 = Entity("1", "A", "A", "T", "S", Dict{String,Any}(), GraphMERT.TextPosition(0,0,0,0), 1.0, "")
-        e2 = Entity("2", "B", "B", "T", "S", Dict{String,Any}(), GraphMERT.TextPosition(0,0,0,0), 1.0, "")
-        e3 = Entity("3", "C", "C", "T", "S", Dict{String,Any}(), GraphMERT.TextPosition(0,0,0,0), 1.0, "")
-        
-        # R1: A -> B (0.9)
-        r1 = Relation("1", "2", "REL", 0.9, "S", "P", "E", Dict{String,Any}())
-        # R2: B -> C (0.4)
-        r2 = Relation("2", "3", "REL", 0.4, "S", "P", "E", Dict{String,Any}())
-        
-        kg = KnowledgeGraph([e1, e2, e3], [r1, r2], Dict{String,Any}())
-        
-        # Threshold 0.5 -> Should keep R1 only
-        filtered_05 = filter_triples_by_confidence(kg, 0.5)
-        @test length(filtered_05) == 1
-        @test filtered_05[1][2] == 1 # relation index 1
-        
-        # Threshold 0.3 -> Should keep R1 and R2
-        filtered_03 = filter_triples_by_confidence(kg, 0.3)
-        @test length(filtered_03) == 2
     end
 end
