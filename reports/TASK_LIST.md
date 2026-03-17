@@ -248,9 +248,9 @@
 
 **File**: `src/evaluation/validity.jl`
 
-- 🔴 E2.1 Implement `calculate_validity_score(kg, domain) -> ValidityScore`
-- 🔴 E2.2 For each relation, call `domain.validate_relation(head_type, rel_type, tail_type)`
-- 🔴 E2.3 Score = fraction of valid relations
+- ✅ E2.1 Implement `calculate_validity_score(kg, domain) -> ValidityScore`
+- ✅ E2.2 For each relation, call `domain.validate_relation(head_type, rel_type, tail_type)`
+- ✅ E2.3 Score = fraction of valid relations
 
 ### E3 — GraphRAG evaluation
 
