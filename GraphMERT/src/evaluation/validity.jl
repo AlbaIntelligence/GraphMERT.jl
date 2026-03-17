@@ -396,8 +396,22 @@ function check_ontological_compatibility(
     compatible = get(relation_compatibility, relation, ([], []))
     head_compatible, tail_compatible = compatible
 
-    head_ok = "*" in head_compatible || any(t in head_compatible for t in head_types)
-    tail_ok = "*" in tail_compatible || any(t in tail_compatible for t in tail_types)
+    # Helper for loose semantic type matching
+    function is_compatible(actual_types, allowed_specs)
+        "*" in allowed_specs && return true
+        for actual in actual_types
+            for spec in allowed_specs
+                # Allow partial match (e.g. "Disease" matches "Disease or Syndrome")
+                if actual == spec || occursin(spec, actual)
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    head_ok = is_compatible(head_types, head_compatible)
+    tail_ok = is_compatible(tail_types, tail_compatible)
 
     return head_ok && tail_ok
 end
