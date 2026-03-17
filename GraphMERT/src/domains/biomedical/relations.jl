@@ -804,7 +804,7 @@ Extract biomedical relations between entities.
 # Returns
 - `Vector{Relation}`: Extracted relations
 """
-function extract_biomedical_relations(entities::Vector{Any}, text::String, config::Any, domain::Any)
+function extract_biomedical_relations(entities::AbstractVector, text::String, config::Any, domain::Any)
     # Relation is in scope from parent GraphMERT module
     relations = Vector{Relation}()
 

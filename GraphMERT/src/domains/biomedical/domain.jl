@@ -136,12 +136,13 @@ function extract_entities(
 end
 
 """
-    extract_relations(domain::BiomedicalDomain, entities::Vector{Entity}, text::String, config::ProcessingOptions)
+    extract_relations(domain::BiomedicalDomain, entities::AbstractVector, text::String, config::ProcessingOptions)
 
 Extract biomedical relations between entities.
 """
-function extract_relations(domain::BiomedicalDomain, entities::Vector{Any}, text::String, config::Any; llm_client = nothing)
+function extract_relations(domain::BiomedicalDomain, entities::AbstractVector, text::String, config::ProcessingOptions; llm_client=nothing, kws...)
     # Delegate to biomedical relations module (llm_client reserved for future use)
+    # println("DEBUG: Inside BiomedicalDomain.extract_relations")
     return extract_biomedical_relations(entities, text, config, domain)
 end
 

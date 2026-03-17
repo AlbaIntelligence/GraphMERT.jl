@@ -410,7 +410,7 @@ function get_entity_patterns(entity_type::BiomedicalEntityType)
             r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:disease|disorder|syndrome|condition|illness|pathology)\b",
         )
         push!(patterns, r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:syndrome|disease)\b")
-        push!(patterns, r"\b(Diabetes|diabetes)\s+mellitus\b")  # common biomedical term
+        push!(patterns, r"\b(Diabetes|diabetes)(?:\s+mellitus)?\b")  # common biomedical term
     elseif entity_type == DRUG
         push!(
             patterns,

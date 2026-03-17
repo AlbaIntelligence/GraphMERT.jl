@@ -69,7 +69,7 @@ When the domain supports it, `llm_client` is passed for LLM-based relation extra
 - `Vector{Relation}`: Extracted relations
 """
 function match_relations_for_entities(
-  entities::Vector{GraphMERT.Entity},
+  entities::AbstractVector,
   text::String,
   domain::Any,
   options::GraphMERT.ProcessingOptions = GraphMERT.default_processing_options();
@@ -79,8 +79,7 @@ function match_relations_for_entities(
     return _fallback_cooccurrence_relations(entities, text, options)
   end
   try
-    relations = Base.invokelatest(
-      GraphMERT.extract_relations,
+    relations = GraphMERT.extract_relations(
       domain,
       entities,
       text,
@@ -95,7 +94,7 @@ function match_relations_for_entities(
 end
 
 function _fallback_cooccurrence_relations(
-  entities::Vector{GraphMERT.Entity},
+  entities::AbstractVector,
   text::String,
   options::GraphMERT.ProcessingOptions,
 )::Vector{GraphMERT.Relation}
@@ -416,12 +415,18 @@ function calculate_tail_similarity(tail::AbstractString, text::AbstractString)
   text_norm = lowercase(strip(String(text)))
   isempty(tail_norm) && return 0.0
 
-  # Token-overlap based Jaccard similarity
+  # If exact substring match, return 1.0
+  occursin(tail_norm, text_norm) && return 1.0
+
+  # Token-overlap based containment score (not Jaccard)
+  # We want to know how much of the TAIL is in the TEXT.
   tail_tokens = Set(split(tail_norm))
   text_tokens = Set(split(text_norm))
   inter = length(intersect(tail_tokens, text_tokens))
-  union_sz = max(length(union(tail_tokens, text_tokens)), 1)
-  return inter / union_sz
+  tail_sz = max(length(tail_tokens), 1)
+  
+  # Fraction of tail tokens present in text
+  return inter / tail_sz
 end
 
 """
@@ -602,7 +607,7 @@ function discover_head_entities(
   if llm_client !== nothing && options.use_local
     try
       # Pass llm_client to domain for LLM-based entity discovery
-      return Base.invokelatest(GraphMERT.extract_entities, domain, text, options, llm_client)
+      return GraphMERT.extract_entities(domain, text, options, llm_client)
     catch e
       @warn "LLM entity extraction failed: $e, falling back to domain extraction."
     end
@@ -610,8 +615,8 @@ function discover_head_entities(
   
   # Default: use domain's extract_entities
   try
-    # Use invokelatest so concrete domain methods (e.g. BiomedicalDomain) are selected after load
-    return Base.invokelatest(GraphMERT.extract_entities, domain, text, options)
+    # Use direct dispatch so concrete domain methods (e.g. BiomedicalDomain) are selected
+    return GraphMERT.extract_entities(domain, text, options)
   catch e
     @warn "Domain entity extraction failed: $e. Falling back to simple entity recognition."
     # Fallback: use simple pattern-based recognition to create generic entities

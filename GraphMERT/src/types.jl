@@ -502,7 +502,7 @@ struct BiomedicalRelation
 end
 
 # For backward compatibility, make legacy biomedical types available at top level
-export BiomedicalEntity, BiomedicalRelation
+export Entity, Relation, BiomedicalEntity, BiomedicalRelation
 
 # Convenience accessors for biomedical relations
 Base.getproperty(br::BiomedicalRelation, prop::Symbol) = begin

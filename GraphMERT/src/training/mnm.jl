@@ -461,49 +461,16 @@ function train_joint_mlm_mnm_step(
         rng
     )
 
-    # === Forward Pass ===
-
-    input_ids, attention_mask, position_ids, token_type_ids, seq_len, attention_decay_mask, relation_ids =
-        _prepare_roberta_inputs_from_graph(joint_masked_graph, model.config.attention_config, model.config.relation_types)
-
-    logits = _forward_pass_mnm_inputs(
-        model,
-        input_ids,
-        attention_mask,
-        position_ids,
-        token_type_ids,
-        seq_len,
-        attention_decay_mask,
-        joint_masked_graph,
-        relation_ids
-    )
-
-    # === Loss Calculation ===
-
-    # MLM Loss (with boundary loss)
-    mlm_loss, boundary_loss = calculate_mlm_loss_with_boundary(
-        logits,
-        mlm_labels,
-        root_span_boundaries,
-        joint_masked_graph,
-        mlm_config
-    )
-
-    # MNM Loss
-    mnm_loss = calculate_mnm_loss(
-        logits,
-        mnm_labels,
-        joint_masked_graph
-    )
-
-    # Joint Loss
-    total_loss = mlm_loss + μ * mnm_loss
-
     # === Backward Pass ===
 
     ps = Flux.params(model)
+    local mlm_loss, mnm_loss
+
     grads = gradient(ps) do
-        logits_g = _forward_pass_mnm_inputs(
+        input_ids, attention_mask, position_ids, token_type_ids, seq_len, attention_decay_mask, relation_ids =
+            _prepare_roberta_inputs_from_graph(joint_masked_graph, model.config.attention_config, model.config.relation_types)
+
+        logits = _forward_pass_mnm_inputs(
             model,
             input_ids,
             attention_mask,
@@ -514,40 +481,27 @@ function train_joint_mlm_mnm_step(
             joint_masked_graph,
             relation_ids
         )
-        mlm_loss_g, _ = calculate_mlm_loss_with_boundary(
-            logits_g,
+
+        # Calculate losses
+        l_mlm, _ = calculate_mlm_loss_with_boundary(
+            logits,
             mlm_labels,
             root_span_boundaries,
             joint_masked_graph,
             mlm_config,
         )
-        mnm_loss_g = calculate_mnm_loss(logits_g, mnm_labels, joint_masked_graph)
-        return mlm_loss_g + μ * mnm_loss_g
+        l_mnm = calculate_mnm_loss(logits, mnm_labels, joint_masked_graph)
+        
+        # Capture for reporting (Zygote allows assigning to closed-over locals)
+        mlm_loss = l_mlm
+        mnm_loss = l_mnm
+
+        return l_mlm + μ * l_mnm
     end
+
     Flux.update!(optimizer, ps, grads)
 
-    # Recompute scalar losses for reporting (post-update)
-    logits2 = _forward_pass_mnm_inputs(
-        model,
-        input_ids,
-        attention_mask,
-        position_ids,
-        token_type_ids,
-        seq_len,
-        attention_decay_mask,
-        joint_masked_graph,
-        relation_ids
-    )
-    mlm2, _ = calculate_mlm_loss_with_boundary(
-        logits2,
-        mlm_labels,
-        root_span_boundaries,
-        joint_masked_graph,
-        mlm_config,
-    )
-    mnm2 = calculate_mnm_loss(logits2, mnm_labels, joint_masked_graph)
-
-    return mlm2 + μ * mnm2, mlm2, mnm2
+    return mlm_loss + μ * mnm_loss, mlm_loss, mnm_loss
 end
 
 # Export functions for external use
