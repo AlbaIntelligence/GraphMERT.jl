@@ -27,10 +27,12 @@ mutable struct BiomedicalDomain <: DomainProvider
     relation_types::Dict{String, Dict{String, Any}}
     umls_client::Union{UMLSClient, Nothing}  # UMLSClient when available
     entity_linker::Union{AbstractEntityLinker, Nothing} # SapBERT or other linker
+    embedding_client::Union{AbstractEmbeddingClient, Nothing} # Text embedding client
     
     function BiomedicalDomain(
         umls_client::Union{UMLSClient, Nothing} = nothing,
-        entity_linker::Union{AbstractEntityLinker, Nothing} = nothing
+        entity_linker::Union{AbstractEntityLinker, Nothing} = nothing,
+        embedding_client::Union{AbstractEmbeddingClient, Nothing} = nothing
     )
         # Initialize entity types
         entity_types = Dict{String, Dict{String, Any}}(
@@ -88,7 +90,7 @@ mutable struct BiomedicalDomain <: DomainProvider
             confidence_strategies=Dict{String, Any}(),
         )
         
-        new(config, entity_types, relation_types, umls_client, entity_linker)
+        new(config, entity_types, relation_types, umls_client, entity_linker, embedding_client)
     end
 end
 
@@ -189,44 +191,61 @@ end
 Link entity to UMLS using biomedical domain's UMLS integration.
 """
 function link_entity(domain::BiomedicalDomain, entity_text::String, config::Any)
-    if domain.umls_client === nothing
-        return nothing
-    end
-    
-    # Delegate to UMLS linking
-    linking_result = link_entity_to_umls(entity_text, domain.umls_client)
-    
-    # Convert to domain interface format
-    if linking_result === nothing
-        return nothing
-    end
-    
-    # Return in the format expected by seed_injection.jl
-    # Format: Dict with :candidates or :candidate key
-    if isa(linking_result, Vector)
+    # Try using Entity Linker first (e.g., SapBERT)
+    if domain.entity_linker !== nothing
+        top_k = hasproperty(config, :top_k_candidates) ? config.top_k_candidates : 5
+        results = link_entity(domain.entity_linker, entity_text; top_k=top_k)
+        
         candidates = []
-        for result in linking_result
-            if isa(result, EntityLinkingResult)
-                push!(candidates, Dict(
-                    :kb_id => result.cui,
-                    :name => result.preferred_name,
-                    :types => result.semantic_types,
-                    :score => result.similarity_score,
-                    :source => result.source,
-                ))
-            end
+        for (cui, score, name) in results
+            push!(candidates, Dict(
+                :kb_id => cui,
+                :name => name,
+                :types => String[], # Linker doesn't typically provide types yet
+                :score => score,
+                :source => "EntityLinker",
+            ))
         end
         return Dict(:candidates => candidates)
-    elseif isa(linking_result, EntityLinkingResult)
-        return Dict(:candidate => Dict(
-            :kb_id => linking_result.cui,
-            :name => linking_result.preferred_name,
-            :types => linking_result.semantic_types,
-            :score => linking_result.similarity_score,
-            :source => linking_result.source,
-        ))
     end
-    
+
+    # Fallback to UMLS Client
+    if domain.umls_client !== nothing
+        # Delegate to UMLS linking
+        linking_result = link_entity_to_umls(entity_text, domain.umls_client)
+        
+        # Convert to domain interface format
+        if linking_result === nothing
+            return nothing
+        end
+        
+        # Return in the format expected by seed_injection.jl
+        # Format: Dict with :candidates or :candidate key
+        if isa(linking_result, Vector)
+            candidates = []
+            for result in linking_result
+                if isa(result, EntityLinkingResult)
+                    push!(candidates, Dict(
+                        :kb_id => result.cui,
+                        :name => result.preferred_name,
+                        :types => result.semantic_types,
+                        :score => result.similarity_score,
+                        :source => result.source,
+                    ))
+                end
+            end
+            return Dict(:candidates => candidates)
+        elseif isa(linking_result, EntityLinkingResult)
+            return Dict(:candidate => Dict(
+                :kb_id => linking_result.cui,
+                :name => linking_result.preferred_name,
+                :types => linking_result.semantic_types,
+                :score => linking_result.similarity_score,
+                :source => linking_result.source,
+            ))
+        end
+    end
+
     return nothing
 end
 

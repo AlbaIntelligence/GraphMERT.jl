@@ -234,11 +234,19 @@ function validate_biomedical_entity(entity_text::String, entity_type::Biomedical
     entity_text_lower = lowercase(entity_text)
 
     if entity_type == DISEASE
+        # Common disease names that don't match the generic patterns
+        if occursin(r"\b(diabetes|cancer|asthma|hiv|aids)\b", entity_text_lower)
+            return true
+        end
         return occursin(
             r"\b(disease|disorder|syndrome|condition|illness|pathology)\b",
             entity_text_lower,
         )
     elseif entity_type == DRUG
+        # Common drug names that don't match the generic patterns
+        if occursin(r"\b(metformin|insulin|aspirin|ibuprofen)\b", entity_text_lower)
+            return true
+        end
         return occursin(
             r"\b(drug|medication|medicine|pharmaceutical|therapeutic|treatment)\b",
             entity_text_lower,

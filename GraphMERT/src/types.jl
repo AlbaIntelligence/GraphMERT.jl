@@ -1047,6 +1047,8 @@ struct SeedInjectionConfig
   relation_bucket_size::Int
   injection_ratio::Float64
   max_triples_per_sequence::Int
+  use_contextual_filtering::Bool
+  contextual_similarity_threshold::Float64
 
   function SeedInjectionConfig(
     entity_linking_threshold::Float64=0.5,
@@ -1057,6 +1059,8 @@ struct SeedInjectionConfig
     relation_bucket_size::Int=5,
     injection_ratio::Float64=0.2,
     max_triples_per_sequence::Int=10,
+    use_contextual_filtering::Bool=true,
+    contextual_similarity_threshold::Float64=0.6,
   )
     @assert 0 < entity_linking_threshold < 1 "entity_linking_threshold must be between 0 and 1"
     @assert top_k_candidates > 0 "top_k_candidates must be positive"
@@ -1064,8 +1068,9 @@ struct SeedInjectionConfig
     @assert 0 < alpha_score_threshold < 1 "alpha_score_threshold must be between 0 and 1"
     @assert score_bucket_size > 0 "score_bucket_size must be positive"
     @assert relation_bucket_size > 0 "relation_bucket_size must be positive"
-    @assert 0 < injection_ratio < 1 "injection_ratio must be between 0 and 1"
+    @assert 0 <= injection_ratio <= 1 "injection_ratio must be between 0 and 1"
     @assert max_triples_per_sequence > 0 "max_triples_per_sequence must be positive"
+    @assert -1.0 <= contextual_similarity_threshold <= 1.0 "contextual_similarity_threshold must be between -1 and 1"
     new(
       entity_linking_threshold,
       top_k_candidates,
@@ -1075,8 +1080,41 @@ struct SeedInjectionConfig
       relation_bucket_size,
       injection_ratio,
       max_triples_per_sequence,
+      use_contextual_filtering,
+      contextual_similarity_threshold,
     )
   end
+end
+
+"""
+    SeedInjectionConfig(; kwargs...)
+
+Keyword argument constructor for SeedInjectionConfig.
+"""
+function SeedInjectionConfig(;
+    entity_linking_threshold::Float64=0.5,
+    top_k_candidates::Int=10,
+    top_n_triples_per_entity::Int=40,
+    alpha_score_threshold::Float64=0.7,
+    score_bucket_size::Int=10,
+    relation_bucket_size::Int=5,
+    injection_ratio::Float64=0.2,
+    max_triples_per_sequence::Int=10,
+    use_contextual_filtering::Bool=true,
+    contextual_similarity_threshold::Float64=0.6,
+)
+    SeedInjectionConfig(
+        entity_linking_threshold,
+        top_k_candidates,
+        top_n_triples_per_entity,
+        alpha_score_threshold,
+        score_bucket_size,
+        relation_bucket_size,
+        injection_ratio,
+        max_triples_per_sequence,
+        use_contextual_filtering,
+        contextual_similarity_threshold,
+    )
 end
 
 """

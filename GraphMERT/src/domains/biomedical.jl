@@ -8,6 +8,7 @@ This file should be included from within the GraphMERT module context.
 # Load the biomedical domain module
 # Path is relative to this file: domains/biomedical.jl -> biomedical/domain.jl
 include("biomedical/domain.jl")
+include("biomedical/umls.jl")
 
 # Load optional biomedical domain modules
 # These are loaded on-demand when needed, but can be included here for convenience
@@ -42,10 +43,15 @@ domain = load_biomedical_domain()
 register_domain!("biomedical", domain)
 ```
 """
-function load_biomedical_domain(umls_client::Union{Any, Nothing} = nothing, entity_linker::Union{Any, Nothing} = nothing)
-    return BiomedicalDomain(umls_client, entity_linker)
+function load_biomedical_domain(
+    umls_client::Union{Any, Nothing} = nothing,
+    entity_linker::Union{Any, Nothing} = nothing,
+    embedding_client::Union{Any, Nothing} = nothing
+)
+    return BiomedicalDomain(umls_client, entity_linker, embedding_client)
 end
 
 # Export
 export BiomedicalDomain, load_biomedical_domain
 export AbstractEntityLinker, MockEntityLinker, SapBERTLinker
+export UMLSClient, create_umls_client

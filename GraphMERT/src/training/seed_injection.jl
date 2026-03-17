@@ -303,6 +303,10 @@ function inject_seed_kg(
 )
     injected_sequences = Vector{Tuple{String,Vector{SemanticTriple}}}()
 
+    # Check if domain has embedding client and config enables contextual filtering
+    embedding_client = hasproperty(domain, :embedding_client) ? domain.embedding_client : nothing
+    use_embeddings = config.use_contextual_filtering && embedding_client !== nothing
+
     # For demo purposes, inject into a fixed percentage of sequences
     num_to_inject = round(Int, config.injection_ratio * length(sequences))
 
@@ -325,9 +329,25 @@ function inject_seed_kg(
                 append!(linked_entities, linked)
             end
 
+            # Get sequence embedding if applicable
+            sequence_embedding = nothing
+            if use_embeddings
+                try
+                    sequence_embedding = embed(embedding_client, sequence)
+                catch e
+                    @warn "Failed to embed sequence" sequence=sequence error=e
+                end
+            end
+
             # Select triples for injection
             selected_triples =
-                select_triples_for_injection(linked_entities, seed_kg, config)
+                select_triples_for_injection(
+                    linked_entities, 
+                    seed_kg, 
+                    config;
+                    sequence_embedding=sequence_embedding,
+                    embedding_client=embedding_client
+                )
 
             # Limit to max_triples_per_sequence
             if length(selected_triples) > config.max_triples_per_sequence
@@ -380,16 +400,61 @@ Select diverse, high-quality triples for injection using the paper's algorithm.
 function select_triples_for_injection(
     linked_entities::Vector{EntityLinkingResult},
     seed_kg::Vector{SemanticTriple},
-    config::SeedInjectionConfig,
+    config::SeedInjectionConfig;
+    sequence_embedding::Union{Vector{Float32}, Nothing} = nothing,
+    embedding_client::Union{Any, Nothing} = nothing,
 )
     selected_triples = Vector{SemanticTriple}()
 
     # Filter triples by entity knowledge base IDs (e.g., CUI for biomedical, QID for Wikidata)
     relevant_triples = filter(t -> t.head_cui in [e.cui for e in linked_entities], seed_kg)
 
-    # Filter by score threshold
+    # Filter by score threshold (initial filter based on retrieval score)
     relevant_triples = filter(t -> t.score ≥ config.alpha_score_threshold, relevant_triples)
 
+    if isempty(relevant_triples)
+        return selected_triples
+    end
+
+    # Contextual Filtering: Re-score using embeddings if available
+    if sequence_embedding !== nothing && embedding_client !== nothing
+        try
+            # Create text representation for triples: "head relation tail"
+            triple_texts = ["$(t.head) $(t.relation) $(t.tail)" for t in relevant_triples]
+            
+            # Embed triples in batch
+            triple_embeddings = embed_batch(embedding_client, triple_texts)
+            
+            # Calculate similarities and update scores
+            new_relevant = Vector{SemanticTriple}()
+            
+            for (idx, triple) in enumerate(relevant_triples)
+                similarity = cosine_similarity(sequence_embedding, triple_embeddings[idx])
+                
+                # Check against contextual similarity threshold
+                if similarity >= config.contextual_similarity_threshold
+                    # Create new triple with updated score (similarity)
+                    # This score will be used for bucketing later
+                    new_triple = SemanticTriple(
+                        triple.head,
+                        triple.head_cui,
+                        triple.relation,
+                        triple.tail,
+                        triple.tail_tokens,
+                        Float64(similarity), # Use similarity as the new score
+                        triple.source,
+                    )
+                    push!(new_relevant, new_triple)
+                end
+            end
+            
+            relevant_triples = new_relevant
+        catch e
+            @warn "Contextual filtering failed, falling back to original scores" error=e
+            # Fallback to original scores (do nothing, keep relevant_triples as is)
+        end
+    end
+    
     if isempty(relevant_triples)
         return selected_triples
     end

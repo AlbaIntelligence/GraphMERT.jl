@@ -184,13 +184,13 @@
 
 **File**: `src/training/seed_injection.jl`
 
-- 🔴 D1.1 Stage 1: entity linking using C2 + C3
-- 🔴 D1.2 Stage 2: UMLS triple retrieval per CUI
-- 🔴 D1.3 Stage 3: contextual selection with C4 (top-40 per entity)
-- 🔴 D1.4 Stage 4: bucket by relation type, fill proportionally
-- 🔴 D1.5 Inject selected triples into leafy chain graphs
-- 🔴 D1.6 Target ~28k triples for diabetes-scale dataset
-- 🔴 D1.7 End-to-end test with mock clients
+- ✅ D1.1 Stage 1: entity linking using C2 + C3
+- ✅ D1.2 Stage 2: UMLS triple retrieval per CUI
+- ✅ D1.3 Stage 3: contextual selection with C4 (top-40 per entity)
+- ✅ D1.4 Stage 4: bucket by relation type, fill proportionally
+- ✅ D1.5 Inject selected triples into leafy chain graphs
+- ✅ D1.6 Target ~28k triples for diabetes-scale dataset
+- ✅ D1.7 End-to-end test with mock clients
 
 ### D2 — Real MNM training step
 

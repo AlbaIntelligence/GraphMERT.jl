@@ -76,6 +76,7 @@ include("utils.jl")
 # LLM integration
 include("llm/local.jl")
 include("llm/helper.jl")
+include("llm/embeddings.jl")
 # Local LLM (GGUF/llama-cpp) and helper LLM only; no Ollama
 
 # Re-export from LocalLLM module
@@ -85,8 +86,9 @@ using .LocalLLM: LocalLLMConfig, LocalLLMClient, LocalModelMetadata, load_local_
 include("domains/interface.jl")
 include("domains/registry.jl")
 
-# Domain modules (can be loaded conditionally)
-# include("domains/biomedical/domain.jl")  # Loaded on demand or via explicit include
+# Domain modules
+include("domains/biomedical.jl")
+include("domains/wikipedia.jl")
 
 # Architecture components
 include("architectures/attention.jl")
@@ -139,7 +141,6 @@ include("api/serialization.jl")
 # LLM integrations
 include("llm/helper.jl")
 include("llm/local.jl")
-include("llm/embeddings.jl")
 
 # Visualization
 include("visualization/visualization.jl")
