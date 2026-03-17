@@ -491,11 +491,13 @@ function extract_knowledge_graph(
   relations = match_relations_for_entities(entities, text, domain_provider, options; llm_client = llm_client)
   @info "Extracted $(length(relations)) relations using domain: $(options.domain)"
 
-  # Stages 3–5 (optional): run tail prediction only for models that expose the
-  # lightweight two-argument extraction interface used by the current API.
+  # Stages 3–5 (optional): run tail prediction for models that support it.
+  # We check for the 2-arg interface (mock/simple models) or GraphMERTModel (5-arg interface).
   supports_tail_prediction =
-    model !== nothing &&
-    applicable(model, reshape(Int[1], 1, 1), reshape(Int[1], 1, 1))
+    model !== nothing && (
+      applicable(model, reshape(Int[1], 1, 1), reshape(Int[1], 1, 1)) ||
+      model isa GraphMERTModel
+    )
 
   if !isempty(relations) && supports_tail_prediction
     triples = _build_triples_from_relations(entities, relations)

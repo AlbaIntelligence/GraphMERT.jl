@@ -21,22 +21,22 @@ using GraphMERT: BatchProcessingConfig, BatchProcessingResult, BatchProgress,
 # Mock extraction function for testing
 function mock_extract_knowledge_graph(doc::String)
   # Create mock entities and relations based on document content
-  entities = [
-    GraphMERT.BiomedicalEntity("entity1", "C001", "Disease", 0.9,
-      GraphMERT.TextPosition(1, 10, 1, 1),
-      Dict{String,Any}("type" => "disease"), now()),
-    GraphMERT.BiomedicalEntity("entity2", "C002", "Drug", 0.8,
-      GraphMERT.TextPosition(11, 20, 1, 1),
-      Dict{String,Any}("type" => "drug"), now())
-  ]
+  # Use BiomedicalEntity constructor for convenience but extract the underlying Entity
+  # as KnowledgeGraph expects generic Entity/Relation objects
+  e1 = GraphMERT.BiomedicalEntity("entity1", "entity1", "Disease", "C001", ["disease"],
+      GraphMERT.TextPosition(1, 10, 1, 1), 0.9)
+  e2 = GraphMERT.BiomedicalEntity("entity2", "entity2", "Drug", "C002", ["drug"],
+      GraphMERT.TextPosition(11, 20, 1, 1), 0.8)
+  
+  entities = [e1.entity, e2.entity]
 
-  relations = [
-    GraphMERT.BiomedicalRelation("entity1", "entity2", "treats", 0.85,
-      Dict{String,Any}("evidence" => "clinical"), now())
-  ]
+  r1 = GraphMERT.BiomedicalRelation("entity1", "entity2", "treats", 0.85,
+      "clinical") # provenance/evidence
+      
+  relations = [r1.relation]
 
   return GraphMERT.KnowledgeGraph(entities, relations,
-    Dict{String,Any}("source" => doc, "processed" => true), now())
+    Dict{String,Any}("source" => doc, "processed" => true))
 end
 
 @testset "Batch Processing Unit Tests" begin

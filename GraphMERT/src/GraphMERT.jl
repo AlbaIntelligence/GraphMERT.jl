@@ -153,7 +153,7 @@ include("optimization/memory.jl")
 include("optimization/speed.jl")
 
 # Export main API functions
-export extract_knowledge_graph, load_model, preprocess_text
+export extract_knowledge_graph, load_model, save_model, preprocess_text
 export KnowledgeGraph, KnowledgeEntity, KnowledgeRelation, TextPosition, ProvenanceRecord
 export ValidityReport, FactualityScore, CleaningPolicy
 export get_provenance, validate_kg, clean_kg

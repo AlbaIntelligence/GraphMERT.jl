@@ -387,8 +387,8 @@ function process_single_batch(
         @warn "Failed to process document $i: $e"
         # Create empty knowledge graph for failed documents
         results[i] = KnowledgeGraph(
-          BiomedicalEntity[],
-          BiomedicalRelation[],
+          Entity[],
+          Relation[],
           Dict{String,Any}("error" => string(e)),
           now(),
         )
@@ -433,8 +433,8 @@ function merge_knowledge_graphs(
 
   if isempty(knowledge_graphs)
     return KnowledgeGraph(
-      BiomedicalEntity[],
-      BiomedicalRelation[],
+      Entity[],
+      Relation[],
       Dict{String,Any}("merged" => true),
       now(),
     )
