@@ -77,6 +77,21 @@ function evaluate_validity(
     # Filter triples by confidence threshold
     high_confidence_triples = filter_triples_by_confidence(kg, confidence_threshold)
 
+    # Try to get domain provider from registry
+    domain_provider = nothing
+    domain = domain_name
+    if domain === nothing && haskey(kg.metadata, "domain")
+        domain = kg.metadata["domain"]
+    end
+    
+    if domain !== nothing
+        try
+            domain_provider = GraphMERT.get_domain(string(domain))
+        catch e
+            @warn "Failed to get domain provider for '$domain': $e"
+        end
+    end
+
     @info "Evaluating $(length(high_confidence_triples)) high-confidence triples"
 
     # Evaluate each triple
@@ -95,6 +110,7 @@ function evaluate_validity(
             tail_entity,
             llm_client,
             umls_client,
+            domain_provider
         )
 
         push!(triple_validity, is_valid)
@@ -109,7 +125,7 @@ function evaluate_validity(
     @info "ValidityScore = $(round(validity_score, digits=4)) ($valid_triples/$total_triples valid)"
 
     # Build metadata dictionary
-    metadata = Dict(
+    metadata = Dict{String, Any}(
         "confidence_threshold" => confidence_threshold,
         "valid_count" => valid_triples,
         "maybe_count" => count(v -> v == :maybe, triple_validity),
@@ -164,7 +180,7 @@ function evaluate_validity(
     kg::GraphMERT.KnowledgeGraph,
     domain::String;
     confidence_threshold::Float64 = 0.5,
-    llm_client::Union{HelperLLMClient,Nothing} = nothing,
+    llm_client::Union{AbstractLLMClient,Nothing} = nothing,
     umls_client::Union{Any,Nothing} = nothing,
 )::GraphMERT.ValidityReport
     n = length(kg.relations)
@@ -192,31 +208,55 @@ function evaluate_validity(
 end
 
 """
-    evaluate_triple_validity(head_entity::Entity, relation::Relation,
-    tail_entity::Entity,
-                            llm_client::Union{HelperLLMClient, Nothing},
-                            umls_client::Union{Any, Nothing})  # UMLSClient type will be available when biomedical domain is loaded
+    evaluate_triple_validity(head_entity::KnowledgeEntity, relation::KnowledgeRelation,
+                            tail_entity::KnowledgeEntity,
+                            llm_client::Union{AbstractLLMClient, Nothing},
+                            umls_client::Union{Any, Nothing},
+                            domain_provider::Union{DomainProvider, Nothing}=nothing)
 
 Evaluate the ontological validity of a triple.
 
 # Arguments
-- `head_entity::Entity`: Head entity
-- `relation::Relation`: Relation
-- `tail_entity::Entity`: Tail entity
-- `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client
-- `umls_client::Union{Any, Nothing}`: Optional knowledge base client (UMLS for biomedical domain)
+- `head_entity::KnowledgeEntity`: Head entity
+- `relation::KnowledgeRelation`: Relation
+- `tail_entity::KnowledgeEntity`: Tail entity
+- `llm_client::Union{AbstractLLMClient, Nothing}`: Optional LLM client
+- `umls_client::Union{Any, Nothing}`: Optional knowledge base client
+- `domain_provider::Union{DomainProvider, Nothing}`: Optional domain provider
 
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
 function evaluate_triple_validity(
-    head_entity::Entity,
-    relation::Relation,
-    tail_entity::Entity,
-    llm_client::Union{HelperLLMClient,Nothing},
-    umls_client::Union{Any,Nothing},  # UMLSClient type will be available when biomedical domain is loaded
+    head_entity::KnowledgeEntity,
+    relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity,
+    llm_client::Union{AbstractLLMClient,Nothing},
+    umls_client::Union{Any,Nothing},
+    domain_provider::Union{DomainProvider,Nothing} = nothing,
 )
-    # Try LLM-based evaluation first if available
+    # 1. Domain-based validation (Priority 1)
+    if domain_provider !== nothing
+        # Extract entity types from attributes
+        head_type = get(head_entity.attributes, "entity_type", "UNKNOWN")
+        tail_type = get(tail_entity.attributes, "entity_type", "UNKNOWN")
+        
+        # Use domain provider to validate
+        # Note: We pass types as strings, relying on domain implementation to handle them
+        # (BiomedicalDomain uses text-based keywords which match type names like "DRUG")
+        context = Dict{String, Any}(
+            "head_text" => head_entity.text,
+            "tail_text" => tail_entity.text
+        )
+        
+        if validate_relation(domain_provider, head_type, relation.relation_type, tail_type, context)
+            return :yes, "Domain validation: valid signature ($head_type -- $(relation.relation_type) --> $tail_type)"
+        else
+            return :no, "Domain validation: invalid signature ($head_type -- $(relation.relation_type) --> $tail_type)"
+        end
+    end
+
+    # 2. Try LLM-based evaluation first if available
     if llm_client !== nothing
         validity, justification =
             evaluate_triple_with_llm(head_entity, relation, tail_entity, llm_client)
@@ -239,25 +279,16 @@ function evaluate_triple_validity(
 end
 
 """
-    evaluate_triple_with_llm(head_entity::BiomedicalEntity, relation::BiomedicalRelation,
-                            tail_entity::BiomedicalEntity, llm_client::HelperLLMClient)
+    evaluate_triple_with_llm(head_entity::KnowledgeEntity, relation::KnowledgeRelation,
+                            tail_entity::KnowledgeEntity, llm_client::AbstractLLMClient)
 
 Evaluate triple validity using LLM.
-
-# Arguments
-- `head_entity::Entity`: Head entity
-- `relation::Relation`: Relation
-- `tail_entity::Entity`: Tail entity
-- `llm_client::HelperLLMClient`: LLM client
-
-# Returns
-- `Tuple{Symbol, String}`: (validity, justification)
 """
 function evaluate_triple_with_llm(
-    head_entity::Entity,
-    relation::Relation,
-    tail_entity::Entity,
-    llm_client::HelperLLMClient,
+    head_entity::KnowledgeEntity,
+    relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity,
+    llm_client::AbstractLLMClient,
 )
     prompt = """
     Evaluate if the following biomedical relationship is ontologically valid:
@@ -293,25 +324,22 @@ function evaluate_triple_with_llm(
 end
 
 """
-    evaluate_triple_with_umls(head_entity::Entity, relation::Relation,
-                             tail_entity::Entity, umls_client::Any)  # UMLSClient type will be available when biomedical domain is loaded
+    evaluate_triple_with_umls(head_entity::KnowledgeEntity, relation::KnowledgeRelation,
+                             tail_entity::KnowledgeEntity, umls_client::Any)
 
 Evaluate triple validity using UMLS ontology.
 
 # Arguments
-- `head_entity::Entity`: Head entity
-- `relation::Relation`: Relation
-- `tail_entity::Entity`: Tail entity
-- `umls_client::Any`: Knowledge base client (UMLS for biomedical domain)
-
-# Returns
-- `Tuple{Symbol, String}`: (validity, justification)
+- `head_entity::KnowledgeEntity`: Head entity
+- `relation::KnowledgeRelation`: Relation
+- `tail_entity::KnowledgeEntity`: Tail entity
+- `umls_client::Any`: Knowledge base client
 """
 function evaluate_triple_with_umls(
-    head_entity::Entity,
-    relation::Relation,
-    tail_entity::Entity,
-    umls_client::Any,  # UMLSClient type will be available when biomedical domain is loaded
+    head_entity::KnowledgeEntity,
+    relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity,
+    umls_client::Any,
 )
     # Check if entities are linked to UMLS
     head_cui = get(head_entity.attributes, "cui", nothing)
@@ -375,23 +403,23 @@ function check_ontological_compatibility(
 end
 
 """
-    evaluate_triple_heuristic_validity(head_entity::Entity, relation::Relation,
-                                      tail_entity::Entity)
+    evaluate_triple_heuristic_validity(head_entity::KnowledgeEntity, relation::KnowledgeRelation,
+                                      tail_entity::KnowledgeEntity)
 
 Simple heuristic evaluation of triple validity.
 
 # Arguments
-- `head_entity::Entity`: Head entity
-- `relation::Relation`: Relation
-- `tail_entity::Entity`: Tail entity
+- `head_entity::KnowledgeEntity`: Head entity
+- `relation::KnowledgeRelation`: Relation
+- `tail_entity::KnowledgeEntity`: Tail entity
 
 # Returns
 - `Tuple{Symbol, String}`: (validity, justification)
 """
 function evaluate_triple_heuristic_validity(
-    head_entity::Entity,
-    relation::Relation,
-    tail_entity::Entity,
+    head_entity::KnowledgeEntity,
+    relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity,
 )
     # Simple heuristic based on entity and relation types
     head_type = lowercase(head_entity.label)
