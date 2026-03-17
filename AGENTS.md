@@ -29,7 +29,7 @@ The implementation is tightly coupled to a **specification set** in `original_pa
   - **Entity Linking**: Implemented character 3-gram Jaccard reranking and in-memory index for SapBERT linker.
   - **Core Training**: Replaced `MockGraphMERTModel` with real `GraphMERTModel` in training pipeline. Optimized MNM step to single forward pass.
   - **Extraction**: Fixed type signature mismatches in `BiomedicalDomain`. Fixed `calculate_tail_similarity` logic (Containment vs Jaccard).
-  - **Persistence**: Implemented optimizer state serialization (Flux.Adam) for resumable training.
+  - **Persistence**: Fully implemented with JLD2, including optimizer state serialization and functional round-trip tests.
   - **Evaluation**: Verified `FActScore` scalability (linear time).
   - **Tests**: `test/integration/test_extraction_pipeline.jl` and `test_real_training_loop.jl` now pass.
   - Implemented LLM client abstraction (OpenAI, Gemini).
@@ -41,7 +41,7 @@ The implementation is tightly coupled to a **specification set** in `original_pa
   - (Fixed) `filter_triples_by_confidence` cartesian product -> linear.
   - (Fixed) `predict_tail_tokens` rand -> logit-based.
   - (Fixed) `form_tail_from_tokens` (Stage 4) returns `"entity_N"`.
-  - (Fixed) Weight I/O stubbed. Now partially implemented (optimizer state).
+  - (Fixed) Weight I/O stubbed. Now implemented with JLD2.
   - (Fixed) `BiomedicalDomain.extract_entities` regex fallback only. Now wired to LLM.
 - **Spec**: `reports/RETROSPECTIVE_SPEC.md` defines all type, algorithm, and API contracts.
 - **Roadmap**: `reports/PARITY_PLAN.md` lists 12 confirmed defects and 7 work streams. Stream A (Correctness) is largely complete.

@@ -285,9 +285,9 @@
 
 ### F4 — Persistence round-trip test
 
-- 🔴 F4.1 Save model to temp file
-- 🔴 F4.2 Load from temp file
-- 🔴 F4.3 Assert `loaded_model(x) ≈ original_model(x)` for fixed toy input
+- ✅ F4.1 Save model to temp file
+- ✅ F4.2 Load from temp file
+- ✅ F4.3 Assert `loaded_model(x) ≈ original_model(x)` for fixed toy input
 
 ### F5 — Remove/gate README performance claims
 

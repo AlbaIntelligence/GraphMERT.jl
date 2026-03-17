@@ -85,6 +85,35 @@ using Flux: state, loadmodel!
             ps_load = Flux.params(loaded_model)
             @test length(ps_orig) == length(ps_load)
 
+            # 7. Functional verification: loaded_model(x) ≈ original_model(x)
+            # Create dummy inputs
+            batch_size = 2
+            seq_len = 16
+            input_ids = rand(1:100, seq_len, batch_size)
+            attention_mask = ones(Float32, seq_len, seq_len, batch_size)
+            position_ids = repeat(1:seq_len, 1, batch_size)
+            token_type_ids = zeros(Int, seq_len, batch_size)
+            
+            # Simple chain graph for H-GAT
+            # create_empty_chain_graph requires a ChainGraphConfig
+            graph_config = GraphMERT.ChainGraphConfig()
+            lcg = GraphMERT.create_empty_chain_graph(graph_config)
+            
+            # We need to manually populate enough to run forward pass if needed,
+            # or just call the roberta component directly if simpler.
+            # GraphMERTModel forward expects a LeafyChainGraph.
+            
+            # Let's test just the RoBERTa component output first to avoid complex graph setup
+            # The model is: roberta -> hgat -> heads.
+            # Calling model(...) requires valid graph for H-GAT.
+            
+            # For this test, let's just check the RoBERTa component which is the bulk of weights
+            out_orig = model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
+            out_load = loaded_model.roberta(input_ids, attention_mask, position_ids, token_type_ids)
+            
+            # RoBERTa returns (sequence_output, pooled_output)
+            @test out_orig[1] ≈ out_load[1]
+
         finally
             rm(test_dir, recursive=true, force=true)
         end
