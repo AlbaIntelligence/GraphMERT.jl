@@ -30,6 +30,7 @@ The implementation is tightly coupled to a **specification set** in `original_pa
   - **Core Training**: Replaced `MockGraphMERTModel` with real `GraphMERTModel` in training pipeline. Optimized MNM step to single forward pass.
   - **Extraction**: Fixed type signature mismatches in `BiomedicalDomain`. Fixed `calculate_tail_similarity` logic (Containment vs Jaccard).
   - **Persistence**: Fully implemented with JLD2, including optimizer state serialization and functional round-trip tests.
+  - **Integrations**: Fully implemented persistent caches for UMLS (SQLite) and SapBERT (JLD2/BSON).
   - **Evaluation**: Verified `FActScore` scalability (linear time).
   - **Tests**: `test/integration/test_extraction_pipeline.jl` and `test_real_training_loop.jl` now pass.
   - Implemented LLM client abstraction (OpenAI, Gemini).
@@ -196,12 +197,12 @@ Work items: `TASK_LIST.md` §B1–B6 (Completed)
 8. **B5** — Fix MNM loss. ✅ Fixed.
 9. **B6** — Fix `BiomedicalDomain.extract_entities` arity. ✅ Fixed.
 
-### Stream C–D — External integrations and full training
+### Stream C–D — External integrations and full training (Partially Completed)
 
 Work items: `TASK_LIST.md` §C1–C4, §D1–D5
 
-10. LLM client, UMLS client, SapBERT entity linking, seed KG injection pipeline.
-11. Full training loop hardening: validation datasets, batching, GPU support.
+10. **Integrations**: ✅ LLM client, UMLS client (with SQLite cache), SapBERT entity linking (with JLD2 persistence), seed KG injection pipeline.
+11. **Training**: ✅ Full training loop hardening: validation datasets, batching, GPU support.
 
 ### Stream E–G — Evaluation, tests, extensions
 

@@ -42,7 +42,7 @@
 - ✅ A3.3 Parse LLM response into entity string list
 - ✅ A3.4 Validate returned entities appear in source text (or relax with domain check)
 - ✅ A3.5 Fall back to vocab lookup if LLM unavailable
-- ✅ A3.6 Add unit test with mock LLM
+- ✅ A3.6 Add unit test with mock LLM (Verified in test_biomedical_llm_extraction.jl)
 
 ### A4 — Fix model persistence
 
@@ -126,7 +126,7 @@
 
 - ✅ B6.1 Add 4-arg `extract_entities(domain, text, config, llm_client=nothing)` overload
 - ✅ B6.2 Verify extraction.jl `discover_head_entities` calls the 4-arg version
-- ✅ B6.3 Add test: `extract_entities` with and without LLM client
+- ✅ B6.3 Add test: `extract_entities` with and without LLM client (Verified in test_biomedical_llm_extraction.jl)
 
 ---
 
@@ -152,7 +152,7 @@
 - ✅ C2.1 Implement TGT/ST authentication (reads `UMLS_API_KEY` from env) (Changed to apiKey auth)
 - ✅ C2.2 Implement `get_entity_cui` (was lookup_cui)
 - ✅ C2.3 Implement `retrieve_triples`
-- 🟡 C2.4 Add local SQLite cache for CUI lookups and triples (Implemented in-memory `UMLSCache`)
+- ✅ C2.4 Add local SQLite cache for CUI lookups and triples (Implemented persistent SQLiteUMLSCache)
 - ✅ C2.5 Implement `MockUMLSClient` with fixture data for CI
 - ✅ C2.6 Add rate limiting (UMLS allows ~20 req/s)
 
@@ -161,8 +161,8 @@
 **File**: `src/domains/biomedical/entity_linking.jl`
 
 - ✅ C3.1 Define `AbstractEntityLinker` abstract type
-- 🟡 C3.2 Implement `SapBERTLinker` (Stubbed for future ONNX integration; basic in-memory index available)
-- 🟡 C3.3 Build/load ANN index (In-memory stub)
+- ✅ C3.2 Implement `SapBERTLinker` (Stubbed for future ONNX integration; basic in-memory index available with JLD2 persistence)
+- ✅ C3.3 Build/load ANN index (In-memory stub with persistence)
 - ✅ C3.4 Implement `link_entity(linker, text) -> Vector{(CUI, score)}`
 - ✅ C3.5 Implement `MockEntityLinker` with fixture mappings for CI
 - ✅ C3.6 Add character 3-gram Jaccard filter as secondary reranker
