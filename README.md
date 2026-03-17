@@ -7,10 +7,7 @@
 A Julia implementation of the GraphMERT algorithm for constructing reliable knowledge graphs from unstructured text data, using a RoBERTa encoder with Hierarchical Graph Attention Networks (H-GAT).
 
 > **Implementation status (March 2026)**: Architecture, leafy chain graphs, MLM training, and
-> domain abstraction are structurally complete. The training pipeline currently uses a mock model
-> with random losses — **no real trained weights exist yet**. Tail prediction and model persistence
-> are also stubbed. See [`reports/PARITY_PLAN.md`](reports/PARITY_PLAN.md) for the defect list
-> and [`reports/TASK_LIST.md`](reports/TASK_LIST.md) for the implementation roadmap.
+> domain abstraction are structurally complete. The training pipeline is **functional** (computes real gradients, updates weights), but convergence has not been verified on large datasets. Tail prediction and extraction pipelines are wired. See [`reports/PROJECT_STATUS.md`](reports/PROJECT_STATUS.md) for details and [`reports/TASK_LIST.md`](reports/TASK_LIST.md) for the roadmap.
 
 ## Overview
 
