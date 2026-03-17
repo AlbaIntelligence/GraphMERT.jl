@@ -8,6 +8,8 @@ mapping text mentions to UMLS CUIs using SapBERT embeddings and approximate near
 using LinearAlgebra
 using Statistics
 using Random
+using JLD2
+using FileIO
 
 """
     calculate_character_3gram_jaccard(s1::String, s2::String)
@@ -110,14 +112,13 @@ end
 Entity linker using SapBERT embeddings and vector search, with optional Jaccard reranking.
 Requires a running SapBERT model service or loaded ONNX model.
 """
-struct SapBERTLinker <: AbstractEntityLinker
+mutable struct SapBERTLinker <: AbstractEntityLinker
     model_path::String
     index_path::String
     reranking_weight::Float64
     top_n_candidates::Int
     
     # In-memory index for small-scale or fallback use
-    # If loaded from index_path, this would be populated
     embeddings::Union{Matrix{Float32}, Nothing} # (dim, num_entities)
     cui_list::Union{Vector{String}, Nothing}    # (num_entities,)
     name_list::Union{Vector{String}, Nothing}   # (num_entities,) - Optional
@@ -127,12 +128,60 @@ struct SapBERTLinker <: AbstractEntityLinker
                           embeddings::Union{Matrix{Float32}, Nothing}=nothing,
                           cui_list::Union{Vector{String}, Nothing}=nothing,
                           name_list::Union{Vector{String}, Nothing}=nothing)
-        # Verify paths existence if we were loading real models
-        # if !isfile(model_path) || !isfile(index_path)
-        #     error("SapBERT model or index not found")
-        # end
-        new(model_path, index_path, reranking_weight, top_n_candidates, embeddings, cui_list, name_list)
+        
+        linker = new(model_path, index_path, reranking_weight, top_n_candidates, embeddings, cui_list, name_list)
+        
+        # Try to auto-load index if not provided and file exists
+        if embeddings === nothing && isfile(index_path)
+            try
+                load_index!(linker, index_path)
+            catch e
+                @warn "Failed to auto-load SapBERT index from $index_path: $e"
+            end
+        end
+        
+        return linker
     end
+end
+
+"""
+    save_index(linker::SapBERTLinker, path::String)
+
+Save the current in-memory index to a JLD2 file.
+"""
+function save_index(linker::SapBERTLinker, path::String)
+    if linker.embeddings === nothing || linker.cui_list === nothing
+        error("Cannot save empty index")
+    end
+    
+    jldsave(path; 
+        embeddings = linker.embeddings,
+        cui_list = linker.cui_list,
+        name_list = linker.name_list
+    )
+    @info "Saved SapBERT index to $path"
+end
+
+"""
+    load_index!(linker::SapBERTLinker, path::String)
+
+Load an index from a JLD2 file into the linker.
+"""
+function load_index!(linker::SapBERTLinker, path::String)
+    if !isfile(path)
+        error("Index file not found: $path")
+    end
+    
+    data = load(path)
+    linker.embeddings = data["embeddings"]
+    linker.cui_list = data["cui_list"]
+    
+    if haskey(data, "name_list")
+        linker.name_list = data["name_list"]
+    end
+    
+    linker.index_path = path
+    @info "Loaded SapBERT index from $path with $(length(linker.cui_list)) entities"
 end
 
 """

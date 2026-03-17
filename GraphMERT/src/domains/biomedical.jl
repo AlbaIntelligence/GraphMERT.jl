@@ -53,5 +53,5 @@ end
 
 # Export
 export BiomedicalDomain, load_biomedical_domain
-export AbstractEntityLinker, MockEntityLinker, SapBERTLinker
+export AbstractEntityLinker, MockEntityLinker, SapBERTLinker, save_index, load_index!
 export UMLSClient, create_umls_client
