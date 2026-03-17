@@ -23,16 +23,17 @@ using Flux
 using Dates
 
 """
-    save_model(model::GraphMERTModel, save_path::String; include_config::Bool=true, include_optimizer_state::Bool=false)::Bool
+    save_model(model::GraphMERT.GraphMERTModel, save_path::String; include_config::Bool=true, optimizer=nothing, include_optimizer_state::Bool=false)::Bool
 
-Save model weights and configuration to a JLD2 file.
+Save model weights, configuration, and optional optimizer state to a JLD2 file.
 Uses `Flux.state` to serialize parameters in a framework-compatible way.
 
 # Arguments
 - `model::GraphMERTModel`: Model to save
 - `save_path::String`: Output path (should end in .jld2)
 - `include_config::Bool`: Whether to save configuration (default: true)
-- `include_optimizer_state::Bool`: (Not yet implemented)
+- `optimizer`: Optional optimizer instance to save state from
+- `include_optimizer_state::Bool`: Whether to save optimizer state (requires optimizer)
 
 # Returns
 - `Bool`: Success status
@@ -41,6 +42,7 @@ function save_model(
     model::GraphMERT.GraphMERTModel,
     save_path::String;
     include_config::Bool = true,
+    optimizer = nothing,
     include_optimizer_state::Bool = false,
 )::Bool
     try
@@ -65,6 +67,35 @@ function save_model(
             data["config"] = model.config
         end
 
+        # Save optimizer state if requested
+        if include_optimizer_state && optimizer !== nothing
+            # Flux.state(optimizer) works for newer Flux versions
+            # However, Flux optimizers are often stateless (just config), state is in the tree
+            # Wait, Flux.Adam is stateful in implicit params style? No, in explicit style (Flux.setup), the state is separate.
+            # But here we are using `optimizer = Flux.Adam(learning_rate)`.
+            # In explicit training loop: `Flux.update!(optimizer, ps, gs)` 
+            # If we use `Flux.setup`, `optimizer` IS the state.
+            # If we use old implicit style `Flux.Adam()`, the state is inside the optimizer struct (e.g. momenta).
+            
+            # Let's check how `train_graphmert` uses it.
+            # `optimizer = Flux.Adam(learning_rate)`
+            # `Flux.update!(optimizer, ps, gs)`
+            # In Flux < 0.13 (implicit), Adam stored state.
+            # In Flux >= 0.13 (explicit), `Flux.setup` returns the state tree.
+            # Code uses `Flux.update!(optimizer, ps, gs)`. 
+            # If `ps` are implicit params (Zygote.Params), `optimizer` stores state.
+            # If `ps` is the model struct (explicit), then `optimizer` should be the state tree from `Flux.setup`.
+            
+            # Looking at `src/training/mnm.jl`:
+            # `ps = Flux.params(model)` -> This implies implicit parameters!
+            # So `optimizer` (Flux.Adam) holds the state (momenta).
+            # So we can just save the optimizer struct itself, as JLD2 handles structs.
+            
+            data["optimizer_state"] = optimizer
+        elseif include_optimizer_state
+             @warn "Optimizer state requested but no optimizer provided."
+        end
+
         # Save using JLD2.save which handles Dict{String, Any} correctly
         data["model_state"] = model_state
         JLD2.save(save_path, data)
@@ -73,6 +104,52 @@ function save_model(
         return true
     catch e
         @error "Failed to save model to $save_path: $e"
+        return false
+    end
+end
+
+"""
+    load_optimizer_state!(optimizer, load_path::String)
+
+Load optimizer state from a checkpoint into an existing optimizer instance.
+Only works for stateful optimizers (implicit params style) as used in current pipeline.
+"""
+function load_optimizer_state!(optimizer, load_path::String)
+    try
+        if !isfile(load_path)
+            @error "Checkpoint file not found: $load_path"
+            return false
+        end
+        
+        data = JLD2.load(load_path)
+        if !haskey(data, "optimizer_state")
+            @warn "Checkpoint does not contain optimizer state."
+            return false
+        end
+        
+        saved_opt = data["optimizer_state"]
+        
+        # For Flux.Adam (implicit), we can copy fields if types match
+        # or we might need to return the saved optimizer and let caller replace it.
+        # But `optimizer` is a mutable struct reference.
+        
+        # Verify compatibility
+        if typeof(saved_opt) != typeof(optimizer)
+            @warn "Saved optimizer type $(typeof(saved_opt)) does not match current $(typeof(optimizer)). Skipping load."
+            return false
+        end
+        
+        # Copy fields (beta1, beta2, state, etc.)
+        for field in fieldnames(typeof(optimizer))
+            if isdefined(saved_opt, field)
+                setfield!(optimizer, field, getfield(saved_opt, field))
+            end
+        end
+        
+        @info "Optimizer state restored from $load_path"
+        return true
+    catch e
+        @error "Failed to load optimizer state: $e"
         return false
     end
 end

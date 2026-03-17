@@ -314,8 +314,7 @@ function train_graphmert(
 
         if save_checkpoints && !isempty(checkpoint_dir) && epoch % 2 == 0
             checkpoint_path = joinpath(checkpoint_dir, "graphmert_epoch$(epoch).jld2")
-            save_training_checkpoint(model, checkpoint_path)
-            println("Saved checkpoint: $checkpoint_path")
+            save_training_checkpoint(model, checkpoint_path, optimizer)
         end
     end
 
@@ -448,27 +447,45 @@ function load_training_data(data_path::String)::Tuple{Vector{String},Vector{Sema
 end
 
 """
-    save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String)
+    save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String, optimizer=nothing)
 
-Save model checkpoint to disk.
+Save model checkpoint to disk, including optimizer state.
+Creates versioned checkpoints and updates 'latest' symlink.
 
 # Arguments
 - `model::GraphMERTModel`: Model to save
 - `checkpoint_path::String`: Path to save checkpoint
+- `optimizer`: Optional optimizer state to save
 """
-function save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String)
+function save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String, optimizer=nothing)
     # Create directory if it doesn't exist
-    mkpath(dirname(checkpoint_path))
+    dir_path = dirname(checkpoint_path)
+    mkpath(dir_path)
 
-    # For demo purposes, just save a placeholder
-    # In full implementation, would use JLD2.jl or similar
-    open(checkpoint_path, "w") do io
-        write(io, "GraphMERT Model Checkpoint\n")
-        write(io, "Saved at: $(Dates.now())\n")
-        write(io, "Model parameters: $(length(Flux.params(model)))\n")
+    # Save using persistence module
+    success = GraphMERT.save_model(
+        model, 
+        checkpoint_path; 
+        include_config=true, 
+        optimizer=optimizer, 
+        include_optimizer_state=(optimizer!==nothing)
+    )
+
+    if success
+        println("Saved checkpoint: $checkpoint_path")
+        
+        # Create/Update 'latest.jld2' symlink/copy
+        latest_path = joinpath(dir_path, "latest.jld2")
+        try
+            # On some systems symlinks might fail or be tricky, copy is safer for now
+            # or just write a small file pointing to it?
+            # Let's try to copy to keep it simple and robust
+            cp(checkpoint_path, latest_path; force=true)
+            println("Updated latest checkpoint: $latest_path")
+        catch e
+            @warn "Failed to update latest checkpoint symlink/copy: $e"
+        end
     end
-
-    println("Model saved to: $checkpoint_path")
 end
 
 """

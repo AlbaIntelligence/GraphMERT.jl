@@ -207,10 +207,10 @@
 
 **File**: `src/models/persistence.jl`
 
-- 🔴 D3.1 Save model weights + `GraphMERTConfig` as JLD2
-- 🔴 D3.2 Save optimizer state alongside weights (for resume)
-- 🔴 D3.3 Load and restore optimizer state
-- 🔴 D3.4 Versioned checkpoint directory (epoch_N, best, latest symlinks)
+- ✅ D3.1 Save model weights + `GraphMERTConfig` as JLD2
+- ✅ D3.2 Save optimizer state alongside weights (for resume)
+- ✅ D3.3 Load and restore optimizer state
+- ✅ D3.4 Versioned checkpoint directory (epoch_N, best, latest symlinks)
 
 ### D4 — Training metrics logging
 

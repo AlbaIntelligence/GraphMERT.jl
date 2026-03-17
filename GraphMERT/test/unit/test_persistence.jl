@@ -90,6 +90,47 @@ using Flux: state, loadmodel!
         end
     end
 
+    @testset "Optimizer State" begin
+        test_dir = mktempdir()
+        test_path = joinpath(test_dir, "model_opt.jld2")
+        
+        try
+            config = create_test_config()
+            model = GraphMERT.GraphMERTModel(config)
+            
+            # Create optimizer with specific params
+            # Note: Flux.Adam(eta, (beta1, beta2))
+            lr = 0.00123
+            betas = (0.85, 0.995)
+            opt = Flux.Adam(lr, betas)
+            
+            # Save with optimizer state
+            success = GraphMERT.save_model(
+                model, 
+                test_path; 
+                optimizer=opt, 
+                include_optimizer_state=true
+            )
+            @test success
+            
+            # Create a fresh optimizer (default params)
+            new_opt = Flux.Adam(0.1, (0.9, 0.999))
+            @test new_opt.eta != lr
+            
+            # Load state into new optimizer
+            # Note: load_optimizer_state! is not exported, access via module
+            success_load = GraphMERT.load_optimizer_state!(new_opt, test_path)
+            @test success_load
+            
+            # Verify restoration
+            @test new_opt.eta ≈ lr
+            @test new_opt.beta == betas
+            
+        finally
+            rm(test_dir, recursive=true, force=true)
+        end
+    end
+
     @testset "Error Handling" begin
         test_dir = mktempdir()
         try
