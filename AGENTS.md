@@ -27,7 +27,7 @@ The implementation is tightly coupled to a **specification set** in `original_pa
 - **Recent Fixes**:
   - **Full Pipeline Integration**: `test/integration/test_full_pipeline.jl` now passes, verifying end-to-end flow.
   - **Entity Linking**: Implemented character 3-gram Jaccard reranking and in-memory index for SapBERT linker.
-  - **Core Training**: Replaced `MockGraphMERTModel` with real `GraphMERTModel` in training pipeline. Optimized MNM step to single forward pass.
+  - **Core Training**: Replaced `MockGraphMERTModel` with real `GraphMERTModel` in training pipeline. Optimized MNM step to single forward pass. Fixed `BoundsError` in `compute_relation_logits` and ensured Zygote compatibility for full end-to-end training.
   - **Extraction**: Fixed type signature mismatches in `BiomedicalDomain`. Fixed `calculate_tail_similarity` logic (Containment vs Jaccard).
   - **Persistence**: Fully implemented with JLD2, including optimizer state serialization and functional round-trip tests.
   - **Integrations**: Fully implemented persistent caches for UMLS (SQLite) and SapBERT (JLD2/BSON).

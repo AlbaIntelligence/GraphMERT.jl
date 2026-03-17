@@ -82,27 +82,27 @@ struct HGATAttention
   dropout::Dropout
   num_heads::Int
   head_dim::Int
+end
 
-  function HGATAttention(config::HGATConfig)
-    head_dim = config.hidden_dim ÷ config.num_heads
-    @assert head_dim * config.num_heads == config.hidden_dim "Hidden dimension must be divisible by number of heads"
+function HGATAttention(config::HGATConfig)
+  head_dim = config.hidden_dim ÷ config.num_heads
+  @assert head_dim * config.num_heads == config.hidden_dim "Hidden dimension must be divisible by number of heads"
 
-    query_projection = Dense(config.input_dim, config.hidden_dim)
-    key_projection = Dense(config.input_dim, config.hidden_dim)
-    value_projection = Dense(config.input_dim, config.hidden_dim)
-    output_projection = Dense(config.hidden_dim, config.hidden_dim)
-    dropout = Dropout(config.attention_dropout_rate)
+  query_projection = Dense(config.hidden_dim, config.hidden_dim)
+  key_projection = Dense(config.hidden_dim, config.hidden_dim)
+  value_projection = Dense(config.hidden_dim, config.hidden_dim)
+  output_projection = Dense(config.hidden_dim, config.hidden_dim)
+  dropout = Dropout(config.attention_dropout_rate)
 
-    new(
-      query_projection,
-      key_projection,
-      value_projection,
-      output_projection,
-      dropout,
-      config.num_heads,
-      head_dim,
-    )
-  end
+  HGATAttention(
+    query_projection,
+    key_projection,
+    value_projection,
+    output_projection,
+    dropout,
+    config.num_heads,
+    head_dim,
+  )
 end
 
 """
@@ -116,17 +116,17 @@ struct HGATFeedForward
   output_projection::Dense
   activation::Function
   dropout::Dropout
+end
 
-  function HGATFeedForward(config::HGATConfig)
-    intermediate_dim = config.hidden_dim * 4  # Standard transformer scaling
+function HGATFeedForward(config::HGATConfig)
+  intermediate_dim = config.hidden_dim * 4  # Standard transformer scaling
 
-    input_projection = Dense(config.hidden_dim, intermediate_dim)
-    output_projection = Dense(intermediate_dim, config.hidden_dim)
-    activation = gelu  # GELU activation
-    dropout = Dropout(config.dropout_rate)
+  input_projection = Dense(config.hidden_dim, intermediate_dim)
+  output_projection = Dense(intermediate_dim, config.hidden_dim)
+  activation = gelu  # GELU activation
+  dropout = Dropout(config.dropout_rate)
 
-    new(input_projection, output_projection, activation, dropout)
-  end
+  HGATFeedForward(input_projection, output_projection, activation, dropout)
 end
 
 """
@@ -143,24 +143,24 @@ struct HGATLayer
   dropout::Dropout
   use_residual::Bool
   use_layer_norm::Bool
+end
 
-  function HGATLayer(config::HGATConfig)
-    attention = HGATAttention(config)
-    feed_forward = HGATFeedForward(config)
-    layer_norm1 = LayerNorm(config.hidden_dim; eps = config.layer_norm_eps)
-    layer_norm2 = LayerNorm(config.hidden_dim; eps = config.layer_norm_eps)
-    dropout = Dropout(config.dropout_rate)
+function HGATLayer(config::HGATConfig)
+  attention = HGATAttention(config)
+  feed_forward = HGATFeedForward(config)
+  layer_norm1 = LayerNorm(config.hidden_dim; eps = config.layer_norm_eps)
+  layer_norm2 = LayerNorm(config.hidden_dim; eps = config.layer_norm_eps)
+  dropout = Dropout(config.dropout_rate)
 
-    new(
-      attention,
-      feed_forward,
-      layer_norm1,
-      layer_norm2,
-      dropout,
-      config.use_residual,
-      config.use_layer_norm,
-    )
-  end
+  HGATLayer(
+    attention,
+    feed_forward,
+    layer_norm1,
+    layer_norm2,
+    dropout,
+    config.use_residual,
+    config.use_layer_norm,
+  )
 end
 
 """
@@ -174,39 +174,39 @@ struct HGATModel
   input_projection::Dense
   output_projection::Dense
   config::HGATConfig
+end
 
-  function HGATModel(config::HGATConfig)
-    layers = [HGATLayer(config) for _ = 1:config.num_layers]
-    input_projection = Dense(config.input_dim, config.hidden_dim)
-    output_projection = Dense(config.hidden_dim, config.input_dim)
+function HGATModel(config::HGATConfig)
+  layers = [HGATLayer(config) for _ = 1:config.num_layers]
+  input_projection = Dense(config.input_dim, config.hidden_dim)
+  output_projection = Dense(config.hidden_dim, config.input_dim)
 
-    new(layers, input_projection, output_projection, config)
-  end
+  HGATModel(layers, input_projection, output_projection, config)
 end
 
 # ============================================================================
 # Functor definitions (Flux parameter traversal)
 # ============================================================================
 
-Flux.@functor HGATAttention (query_projection, key_projection, value_projection, output_projection, dropout)
+Flux.@functor HGATAttention (query_projection, key_projection, value_projection, output_projection, dropout, num_heads, head_dim)
 Flux.@functor HGATFeedForward (input_projection, output_projection, activation, dropout)
-Flux.@functor HGATLayer (attention, feed_forward, layer_norm1, layer_norm2, dropout)
-Flux.@functor HGATModel (layers, input_projection, output_projection)
+Flux.@functor HGATLayer (attention, feed_forward, layer_norm1, layer_norm2, dropout, use_residual, use_layer_norm)
+Flux.@functor HGATModel (layers, input_projection, output_projection, config)
 
 # ============================================================================
 # Forward Pass Functions
 # ============================================================================
 
 """
-    (attention::HGATAttention)(node_features::AbstractArray{Float32, 3}, adjacency_matrix::SparseMatrixCSC{Float32})
+    (attention::HGATAttention)(node_features::AbstractArray{<:Real, 3}, adjacency_matrix::SparseMatrixCSC)
 
 Forward pass for H-GAT attention mechanism.
 Handles input shape: (batch_size, num_nodes, hidden_dim)
 """
 function (attention::HGATAttention)(
-  node_features::AbstractArray{Float32, 3},
-  adjacency_matrix::SparseMatrixCSC{Float32},
-)
+  node_features::AbstractArray{T, 3},
+  adjacency_matrix::SparseMatrixCSC,
+) where T <: Real
   batch_size, num_nodes, hidden_dim = size(node_features)
 
   # Permute to (hidden, nodes, batch) for Flux layers
@@ -237,12 +237,12 @@ function (attention::HGATAttention)(
   # Compute attention scores: (nodes, nodes, batch*heads)
   # (Target, Dim) * (Dim, Source) -> (Target, Source)
   attention_scores = batched_mul(query_merged, key_merged)
-  attention_scores = attention_scores ./ sqrt(Float32(attention.head_dim))
+  attention_scores = attention_scores ./ sqrt(T(attention.head_dim))
 
   # Apply adjacency mask
-  adjacency_mask = convert(Matrix{Float32}, adjacency_matrix)
+  adjacency_mask = convert(Matrix{T}, adjacency_matrix)
   # Broadcast over batch*heads (dims 1 and 2 match, dim 3 is broadcast)
-  attention_scores = attention_scores .+ (1.0f0 .- adjacency_mask) .* -1e9
+  attention_scores = attention_scores .+ (one(T) .- adjacency_mask) .* T(-1e9)
 
   # Softmax over source nodes (dim 2)
   attention_probs = Flux.softmax(attention_scores, dims=2)
@@ -272,15 +272,15 @@ function (attention::HGATAttention)(
 end
 
 """
-    (layer::HGATLayer)(node_features::AbstractArray{Float32, 3}, adjacency_matrix::SparseMatrixCSC{Float32})
+    (layer::HGATLayer)(node_features::AbstractArray{<:Real, 3}, adjacency_matrix::SparseMatrixCSC)
 
 Forward pass for a single H-GAT layer.
 Handles input shape: (batch_size, num_nodes, hidden_dim)
 """
 function (layer::HGATLayer)(
-  node_features::AbstractArray{Float32, 3},
-  adjacency_matrix::SparseMatrixCSC{Float32},
-)
+  node_features::AbstractArray{T, 3},
+  adjacency_matrix::SparseMatrixCSC,
+) where T <: Real
   # Self-attention (returns batch, nodes, hidden)
   attention_output = layer.attention(node_features, adjacency_matrix)
   attention_output = layer.dropout(attention_output)
@@ -329,16 +329,16 @@ function (layer::HGATLayer)(
 end
 
 """
-    (model::HGATModel)(node_features::AbstractArray{Float32, 3}, adjacency_matrix::SparseMatrixCSC{Float32})
+    (model::HGATModel)(node_features::AbstractArray{<:Real, 3}, adjacency_matrix::SparseMatrixCSC)
 
 Forward pass for complete H-GAT model.
 Handles input shape: (batch_size, num_nodes, input_dim)
 Returns shape: (batch_size, num_nodes, input_dim)
 """
 function (model::HGATModel)(
-  node_features::AbstractArray{Float32, 3},
-  adjacency_matrix::SparseMatrixCSC{Float32},
-)
+  node_features::AbstractArray{T, 3},
+  adjacency_matrix::SparseMatrixCSC,
+) where T <: Real
   # Permute to (input_dim, nodes, batch) for Flux layers
   batch_size, num_nodes, input_dim = size(node_features)
   

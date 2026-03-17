@@ -321,3 +321,4 @@ function load_metadata(load_path::String)
     @warn "Metadata loading not yet implemented"
     return nothing
 end
+export save_model, load_model

@@ -80,44 +80,32 @@ struct GraphMERTModel
     relation_classifier::Dense
     lm_head::Dense
     config::GraphMERTConfig
-
-    function GraphMERTModel(
-        roberta::RoBERTaModel,
-        hgat::HGATModel,
-        relation_embeddings::Embedding,
-        entity_classifier::Dense,
-        relation_classifier::Dense,
-        lm_head::Dense,
-        config::GraphMERTConfig,
-    )
-        new(roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head, config)
-    end
-
-    function GraphMERTModel(config::GraphMERTConfig)
-        # Create RoBERTa model
-        roberta = RoBERTaModel(config.roberta_config)
-
-        # Create H-GAT model
-        hgat = HGATModel(config.hgat_config)
-
-        # Create relation embeddings
-        # +1 for padding/unknown relation
-        relation_embeddings = Embedding(length(config.relation_types) + 1, config.hidden_dim)
-
-        # Create entity classifier
-        entity_classifier = Dense(config.hidden_dim, length(config.entity_types))
-
-        # Create relation classifier
-        relation_classifier = Dense(config.hidden_dim * 2, length(config.relation_types))
-
-        # Create language modeling head for MLM/MNM (hidden_dim → vocab_size)
-        lm_head = Dense(config.hidden_dim, config.roberta_config.vocab_size)
-
-        return new(roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head, config)
-    end
 end
 
-Flux.@functor GraphMERTModel (roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head)
+function GraphMERTModel(config::GraphMERTConfig)
+    # Create RoBERTa model
+    roberta = RoBERTaModel(config.roberta_config)
+
+    # Create H-GAT model
+    hgat = HGATModel(config.hgat_config)
+
+    # Create relation embeddings
+    # +1 for padding/unknown relation
+    relation_embeddings = Embedding(length(config.relation_types) + 1, config.hidden_dim)
+
+    # Create entity classifier
+    entity_classifier = Dense(config.hidden_dim, length(config.entity_types))
+
+    # Create relation classifier
+    relation_classifier = Dense(config.hidden_dim * 2, length(config.relation_types))
+
+    # Create language modeling head for MLM/MNM (hidden_dim → vocab_size)
+    lm_head = Dense(config.hidden_dim, config.roberta_config.vocab_size)
+
+    GraphMERTModel(roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head, config)
+end
+
+Flux.@functor GraphMERTModel (roberta, hgat, relation_embeddings, entity_classifier, relation_classifier, lm_head, config)
 
 """
     create_graphmert_model(config::GraphMERTConfig)
@@ -126,47 +114,13 @@ Create a new GraphMERT model with the specified configuration.
 """
 create_graphmert_model(config::GraphMERTConfig) = GraphMERTModel(config)
 
-"""
-    load_graphmert_model(model_path::String, config_path::String)
-
-Load a pre-trained GraphMERT model from files.
-"""
-function load_graphmert_model(model_path::String, config_path::String)
-    # Load configuration
-    config = load_config(config_path)
-
-    # Create model
-    model = create_graphmert_model(config)
-
-    # Load weights (this would be implemented with actual model loading)
-    # For now, return the model with default weights
-    return model
-end
-
-"""
-    save_graphmert_model(model::GraphMERTModel, model_path::String, config_path::String)
-
-Save a GraphMERT model to files.
-"""
-function save_graphmert_model(
-    model::GraphMERTModel,
-    model_path::String,
-    config_path::String,
-)
-    # Save configuration
-    save_config(model.config, config_path)
-
-    # Save model weights (this would be implemented with actual model saving)
-    # For now, just return success
-    return true
-end
 
 # ============================================================================
 # Forward Pass
 # ============================================================================
 
 """
-    (model::GraphMERTModel)(input_ids::Matrix{Int}, attention_mask::Matrix{Float32},
+    (model::GraphMERTModel)(input_ids::Matrix{Int}, attention_mask::AbstractArray{<:Real},
                            position_ids::Matrix{Int}, token_type_ids::Matrix{Int},
                            leafy_chain_graph::LeafyChainGraph)
 
@@ -174,14 +128,14 @@ Forward pass for the complete GraphMERT model.
 """
 function (model::GraphMERTModel)(
     input_ids::Matrix{Int},
-    attention_mask::AbstractArray{Float32},
+    attention_mask::AbstractArray{T},
     position_ids::Matrix{Int},
     token_type_ids::Matrix{Int},
     leafy_chain_graph::LeafyChainGraph,
     ;
     attention_decay_mask::Union{GraphMERT.AttentionDecayMask, Nothing} = nothing,
     relation_ids::Union{Vector{Int}, Nothing} = nothing
-)
+) where T <: Real
 
     # 1. Get initial embeddings from RoBERTa
     embedding_output = model.roberta.embeddings(input_ids, position_ids, token_type_ids)
@@ -227,7 +181,7 @@ function (model::GraphMERTModel)(
         mask_bs = permutedims(attention_mask, (2, 1))
         
         # Convert 1/0 to 0/-10000
-        mask_vals = (1.0f0 .- mask_bs) .* -10000.0f0
+        mask_vals = (one(T) .- mask_bs) .* T(-10000.0)
         
         # Reshape to (batch, 1, seq)
         mask_3d = reshape(mask_vals, batch_size, 1, seq_len)
@@ -352,7 +306,7 @@ Deprecated: Use get_relation_ids_for_sequence and vector addition instead.
 Kept for backward compatibility if needed, but not Zygote-safe.
 """
 function inject_relation_types!(
-    embeddings::AbstractArray{Float32, 3},
+    embeddings::AbstractArray{<:Real, 3},
     relation_embeddings::Embedding,
     graph::LeafyChainGraph,
     relation_types::Vector{String},
@@ -391,24 +345,72 @@ function inject_relation_types!(
 end
 
 """
-    compute_relation_logits(hgat_output::Matrix{Float32}, leafy_chain_graph::LeafyChainGraph,
+    compute_relation_logits(hgat_output::AbstractArray{<:Real, 3}, leafy_chain_graph::LeafyChainGraph,
                            relation_classifier::Dense)
 
-Compute relation logits for all possible entity pairs.
+Compute relation logits for all root-leaf edges.
 """
 function compute_relation_logits(
-    hgat_output::AbstractArray{Float32, 3},
+    hgat_output::AbstractArray{<:Real, 3},
     leafy_chain_graph::LeafyChainGraph,
     relation_classifier::Dense,
 )
-    # Placeholder implementation to avoid crashes.
-    # The original implementation iterated over `edges` which is not present in LeafyChainGraph.
-    # Real implementation should likely iterate over relevant node pairs (e.g. root-leaf).
+    # hgat_output: (batch, seq_len, hidden)
+    # We want to form pairs (root_i, leaf_i_j) for all i, j.
+    # Total edges = num_roots * num_leaves_per_root
+
+    config = leafy_chain_graph.config
+    num_roots = config.num_roots
+    num_leaves = config.num_leaves_per_root
+    total_edges = num_roots * num_leaves
     
-    batch_size, seq_length, hidden_dim = size(hgat_output)
-    # Output shape: (batch, 1, num_relations) - just a dummy return for now
+    # Construct indices (flat vectors of length total_edges)
+    # These are 1-based indices into the sequence
     
-    return zeros(Float32, batch_size, 1, size(relation_classifier.weight, 1))
+    # Roots: repeat each root index num_leaves times
+    # 1, 1, ..., 2, 2, ...
+    root_indices = repeat(1:num_roots, inner=num_leaves)
+    
+    # Leaves: sequential from num_roots + 1
+    # e.g., 129, 130, ..., 1024
+    leaf_indices = collect((num_roots+1):(num_roots + total_edges))
+    
+    # Extract embeddings
+    # hgat_output is (batch, seq, hidden)
+    # Index dimension 2
+    
+    root_embeds = hgat_output[:, root_indices, :] # (batch, num_edges, hidden)
+    leaf_embeds = hgat_output[:, leaf_indices, :] # (batch, num_edges, hidden)
+    
+    # Concatenate along feature dimension (dim 3)
+    pair_embeds = cat(root_embeds, leaf_embeds, dims=3) # (batch, num_edges, 2*hidden)
+    
+    # Apply classifier
+    # relation_classifier is Dense(2*hidden, num_relations)
+    # Dense expects (features, batch_size) or broadcasts over other dims if features match first dim?
+    # No, Dense(x::AbstractArray) applies to last dimension if it matches?
+    # Flux Dense: W * x .+ b. 
+    # If x is matrix (in, batch), result is (out, batch).
+    # If x is 3D (in, seq, batch), usually need to reshape or permute.
+    # Here features are dimension 3.
+    
+    # Permute to (2*hidden, num_edges, batch)
+    pair_embeds_perm = permutedims(pair_embeds, (3, 2, 1))
+    
+    # Apply classifier (broadcasts over last dimension batch)
+    # But middle dimension num_edges?
+    # Flux's Dense usually flattens if not 2D?
+    # We can reshape to (2*hidden, num_edges * batch)
+    batch_size = size(pair_embeds, 1)
+    pair_embeds_reshaped = reshape(pair_embeds_perm, size(pair_embeds_perm, 1), total_edges * batch_size)
+    
+    logits_flat = relation_classifier(pair_embeds_reshaped) # (num_rel, total_edges * batch)
+    
+    # Reshape back to (num_rel, num_edges, batch)
+    logits_reshaped = reshape(logits_flat, size(logits_flat, 1), total_edges, batch_size)
+    
+    # Permute back to (batch, num_edges, num_relations)
+    return permutedims(logits_reshaped, (3, 2, 1))
 end
 
 # ============================================================================
@@ -425,11 +427,11 @@ Extract entities from the input using the GraphMERT model.
 function extract_entities(
     model::GraphMERTModel,
     input_ids::Matrix{Int},
-    attention_mask::Matrix{Float32},
+    attention_mask::AbstractArray{<:Real},
     position_ids::Matrix{Int},
     token_type_ids::Matrix{Int},
     leafy_chain_graph::LeafyChainGraph,
-    confidence_threshold::Float32,
+    confidence_threshold::Real,
 )
 
     # Forward pass
@@ -474,22 +476,23 @@ function extract_entities(
 end
 
 """
-    extract_relations(model::GraphMERTModel, input_ids::Matrix{Int}, attention_mask::Matrix{Float32},
+    extract_relations(model::GraphMERTModel, input_ids::Matrix{Int}, attention_mask::AbstractArray{<:Real},
                     position_ids::Matrix{Int}, token_type_ids::Matrix{Int},
                     leafy_chain_graph::LeafyChainGraph, entities::Vector{BiomedicalEntity},
-                    confidence_threshold::Float32)
+                    confidence_threshold::Real,
+)
 
 Extract relations between entities using the GraphMERT model.
 """
 function extract_relations(
     model::GraphMERTModel,
     input_ids::Matrix{Int},
-    attention_mask::Matrix{Float32},
+    attention_mask::AbstractArray{<:Real},
     position_ids::Matrix{Int},
     token_type_ids::Matrix{Int},
     leafy_chain_graph::LeafyChainGraph,
     entities::Vector{BiomedicalEntity},
-    confidence_threshold::Float32,
+    confidence_threshold::Real,
 )
 
     # Forward pass
@@ -502,18 +505,27 @@ function extract_relations(
     # Extract relations above confidence threshold
     relations = Vector{BiomedicalRelation}()
 
+    config = leafy_chain_graph.config
+    num_roots = config.num_roots
+    num_leaves = config.num_leaves_per_root
+
     for batch_idx = 1:size(relation_probs, 1)
-        for rel_idx = 1:size(relation_probs, 2)
-            max_prob, max_class = findmax(relation_probs[batch_idx, rel_idx, :])
+        edge_idx = 1
+        for r in 1:num_roots
+            for l in 1:num_leaves
+                max_prob, max_class = findmax(relation_probs[batch_idx, edge_idx, :])
 
-            if max_prob >= confidence_threshold
-                relation_type = model.config.relation_types[max_class]
+                if max_prob >= confidence_threshold
+                    relation_type = model.config.relation_types[max_class]
 
-                # Get source and target entities
-                if rel_idx <= length(leafy_chain_graph.edges)
-                    source_idx, target_idx = leafy_chain_graph.edges[rel_idx]
-                    source_entity = find_entity_by_position(entities, source_idx)
-                    target_entity = find_entity_by_position(entities, target_idx)
+                    # Get source and target entities
+                    # Source is root r (index r)
+                    # Target is leaf l (index num_roots + (r-1)*7 + l)
+                    source_node_idx = r
+                    target_node_idx = num_roots + (r-1)*num_leaves + l
+                    
+                    source_entity = find_entity_by_position(entities, source_node_idx)
+                    target_entity = find_entity_by_position(entities, target_node_idx)
 
                     if source_entity !== nothing && target_entity !== nothing
                         relation = BiomedicalRelation(
@@ -527,6 +539,7 @@ function extract_relations(
                         push!(relations, relation)
                     end
                 end
+                edge_idx += 1
             end
         end
     end

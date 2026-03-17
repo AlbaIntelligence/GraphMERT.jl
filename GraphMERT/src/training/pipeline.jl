@@ -248,7 +248,11 @@ function train_graphmert(
     save_checkpoints::Bool = true,
     val_texts::Vector{String} = String[],
     val_interval::Int = 1,
+    domain::Union{Any, Nothing} = nothing,
 )::GraphMERTModel
+
+    println("train_graphmert started")
+    flush(stdout)
 
     set_reproducible_seed(random_seed)
     rng = Random.MersenneTwister(random_seed)
@@ -264,7 +268,7 @@ function train_graphmert(
     optimizer = Flux.Adam(learning_rate)
 
     if seed_kg !== nothing || injection_config !== nothing
-        @warn "Seed KG injection is not yet wired into the real training loop; training proceeds without injection" has_seed_kg = (seed_kg !== nothing) has_injection_config = (injection_config !== nothing)
+        @info "Seed KG injection enabled" num_triples=(seed_kg === nothing ? 0 : length(seed_kg))
     end
 
     if distillation_config !== nothing && distillation_config.enabled && teacher_model === nothing
@@ -283,8 +287,10 @@ function train_graphmert(
         total_loss = 0.0
         total_mlm_loss = 0.0
         total_mnm_loss = 0.0
+        total_dist_loss = 0.0
 
         for step in 1:steps
+            println("Step $step/$steps")
             text = shuffled_texts[step]
             toks = split(text)
             toks = toks[1:min(length(toks), chain_config.num_roots)]
@@ -301,6 +307,48 @@ function train_graphmert(
 
             graph = create_empty_chain_graph(token_ids, String[t for t in toks], chain_config)
 
+            # Inject seed triples if available
+            println("Starting injection...")
+            if seed_kg !== nothing && injection_config !== nothing
+                # Use the Stream D1 injection pipeline
+                # Note: inject_seed_kg processes a batch, here we process one text
+                injection_results = GraphMERT.inject_seed_kg([text], seed_kg, injection_config, domain)
+                
+                if !isempty(injection_results)
+                    _, selected_triples = injection_results[1]
+                    
+                    # Inject into graph (distribute across roots)
+                    # We inject into the first available root whose token matches the head entity
+                    # or fallback to sequential distribution if no match found.
+                    
+                    triples_to_inject = first(selected_triples, min(length(selected_triples), chain_config.num_roots))
+                    
+                    for (i, triple) in enumerate(triples_to_inject)
+                        # Find root position matching head entity
+                        # (Simple heuristic: match first occurrence of head word)
+                        root_idx = findfirst(t -> occursin(lowercase(t), lowercase(triple.head)), toks)
+                        
+                        # Fallback if not found
+                        if root_idx === nothing
+                            root_idx = i 
+                        end
+                        
+                        target_root = min(root_idx, chain_config.num_roots)
+                        
+                        GraphMERT.inject_triple!(
+                            graph, 
+                            target_root - 1, 
+                            0, 
+                            triple.tail_tokens, 
+                            triple.tail, 
+                            Symbol(triple.relation), 
+                            triple.head
+                        )
+                    end
+                end
+            end
+            println("Injection done. Running step...")
+
             step_total, step_mlm, step_mnm, step_dist = train_joint_mlm_mnm_step(
                 model,
                 graph,
@@ -316,6 +364,7 @@ function train_graphmert(
             total_loss += step_total
             total_mlm_loss += step_mlm
             total_mnm_loss += step_mnm
+            total_dist_loss += step_dist
 
             # Log metrics per step
             log_metrics(logger, epoch, step, step_total, step_mnm, step_mlm, step_dist, learning_rate)
@@ -324,11 +373,13 @@ function train_graphmert(
         avg_loss = 0.0
         avg_mlm = 0.0
         avg_mnm = 0.0
+        avg_dist = 0.0
         
         if steps > 0
             avg_loss = total_loss / steps
             avg_mlm = total_mlm_loss / steps
             avg_mnm = total_mnm_loss / steps
+            avg_dist = total_dist_loss / steps
         end
         
         # Validation
@@ -356,7 +407,7 @@ function train_graphmert(
             checkpoint_path_str = path
         end
         
-        log_epoch_summary(logger, epoch, avg_loss, avg_mnm, avg_mlm, checkpoint_path_str, val_score)
+        log_epoch_summary(logger, epoch, avg_loss, avg_mnm, avg_mlm, avg_dist, checkpoint_path_str, val_score)
     end
 
     close_logger(logger)

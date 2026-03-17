@@ -158,9 +158,9 @@ The GraphMERT implementation follows a sophisticated multi-stage architecture:
 ## Performance Benchmarks
 
 > ⚠️ **Implementation notice**: The numbers below are paper targets. The current Julia implementation
-> uses a mock training pipeline with random losses and has not yet produced real trained weights.
-> Benchmarks will be updated once Stream A (correctness fixes) and Stream D (real training) are
-> complete. See `reports/PARITY_PLAN.md` for the roadmap and `reports/TASK_LIST.md` for tasks.
+> now supports the full real training pipeline (MLM+MNM with gradients), but has not yet produced 
+> a converged model trained on large datasets. Benchmarks will be updated once full-scale training 
+> is complete. See `reports/PARITY_PLAN.md` for the roadmap and `reports/TASK_LIST.md` for tasks.
 
 | Metric             | Paper target         | Status            |
 | ------------------ | -------------------- | ----------------- |
