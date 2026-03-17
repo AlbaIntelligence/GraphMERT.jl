@@ -9,6 +9,8 @@ using Dates
 using Logging
 using HTTP
 using JSON
+using SQLite
+using DBInterface
 
 # EntityLinkingResult is defined in the main GraphMERT module
 
@@ -40,17 +42,24 @@ struct UMLSResponse
 end
 
 """
-    UMLSCache
+    AbstractUMLSCache
 
-Local cache for UMLS responses with TTL.
+Abstract base type for UMLS caches.
 """
-mutable struct UMLSCache
+abstract type AbstractUMLSCache end
+
+"""
+    InMemoryUMLSCache <: AbstractUMLSCache
+
+Local in-memory cache for UMLS responses with TTL.
+"""
+mutable struct InMemoryUMLSCache <: AbstractUMLSCache
     concepts::Dict{String,Tuple{Any,DateTime}}
     relations::Dict{String,Tuple{Any,DateTime}}
     max_size::Int
     ttl_seconds::Int
 
-    function UMLSCache(max_size::Int = 1000, ttl_seconds::Int = 3600)
+    function InMemoryUMLSCache(max_size::Int = 1000, ttl_seconds::Int = 3600)
         new(
             Dict{String,Tuple{Any,DateTime}}(),
             Dict{String,Tuple{Any,DateTime}}(),
@@ -61,13 +70,117 @@ mutable struct UMLSCache
 end
 
 """
+    SQLiteUMLSCache <: AbstractUMLSCache
+
+SQLite-backed persistent cache for UMLS responses with TTL.
+"""
+struct SQLiteUMLSCache <: AbstractUMLSCache
+    db::SQLite.DB
+    ttl_seconds::Int
+
+    function SQLiteUMLSCache(path::String, ttl_seconds::Int = 86400 * 7) # Default 1 week for disk cache
+        db = SQLite.DB(path)
+        
+        # Create tables if not exist
+        DBInterface.execute(db, """
+            CREATE TABLE IF NOT EXISTS umls_cache (
+                key TEXT PRIMARY KEY,
+                category TEXT NOT NULL,
+                data TEXT NOT NULL,
+                timestamp DATETIME NOT NULL
+            )
+        """)
+        
+        # Create index on category for cleanup if needed
+        DBInterface.execute(db, "CREATE INDEX IF NOT EXISTS idx_category ON umls_cache(category)")
+        
+        new(db, ttl_seconds)
+    end
+end
+
+# ============================================================================
+# Cache Interface Methods
+# ============================================================================
+
+function get_cached_item(cache::InMemoryUMLSCache, category::String, key::String)
+    store = category == "relations" ? cache.relations : cache.concepts
+    
+    if haskey(store, key)
+        data, timestamp = store[key]
+        if now() - timestamp < Second(cache.ttl_seconds)
+            return data
+        else
+            delete!(store, key) # Expired
+        end
+    end
+    return nothing
+end
+
+function set_cached_item(cache::InMemoryUMLSCache, category::String, key::String, data::Any)
+    store = category == "relations" ? cache.relations : cache.concepts
+    
+    # Simple LRU-like eviction (random deletion if full)
+    if length(store) >= cache.max_size
+        # Delete a random key (not true LRU but sufficient for simple memory cache)
+        pop!(store) 
+    end
+    
+    store[key] = (data, now())
+end
+
+function get_cached_item(cache::SQLiteUMLSCache, category::String, key::String)
+    # Composite key for DB lookup to avoid collisions between categories if key logic overlaps
+    # But here we use (key, category) in WHERE clause
+    
+    # Note: SQLite.jl returns a DataFrame-like iterator
+    # We select data and timestamp
+    row = DBInterface.execute(cache.db, "SELECT data, timestamp FROM umls_cache WHERE key = ? AND category = ?", [key, category])
+    
+    for r in row
+        # Parse timestamp (SQLite stores as string typically, need to check format)
+        # SQLite.jl handles DateTime conversion usually if column type is detected
+        # Assuming r.timestamp is compatible or string
+        
+        # Check TTL
+        # If r.timestamp is a string, parse it. If DateTime, use it.
+        ts = r.timestamp isa AbstractString ? DateTime(r.timestamp) : r.timestamp
+        
+        if now() - ts < Second(cache.ttl_seconds)
+            return JSON.parse(r.data)
+        else
+            # Delete expired
+            DBInterface.execute(cache.db, "DELETE FROM umls_cache WHERE key = ? AND category = ?", [key, category])
+            return nothing
+        end
+    end
+    
+    return nothing
+end
+
+function set_cached_item(cache::SQLiteUMLSCache, category::String, key::String, data::Any)
+    json_data = JSON.json(data)
+    ts = now()
+    
+    # Upsert
+    DBInterface.execute(cache.db, """
+        INSERT INTO umls_cache (key, category, data, timestamp) 
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            data = excluded.data,
+            timestamp = excluded.timestamp,
+            category = excluded.category
+    """, [key, category, json_data, ts])
+end
+
+
+"""
     UMLSClient
 
 UMLS API client with rate limiting and caching.
 """
 mutable struct UMLSClient
     config::UMLSConfig
-    cache::UMLSCache
+    cache::AbstractUMLSCache
     last_request_time::Float64
     request_count::Int
     rate_limit_window_start::Float64
@@ -78,6 +191,9 @@ end
 
 Create a new UMLS client with authentication and rate limiting.
 If `api_key` is "mock", `mock_mode` defaults to true.
+
+# Arguments
+- `cache_path::String`: Path to SQLite cache file (optional). If provided, uses persistent cache.
 """
 function create_umls_client(
     api_key::String;
@@ -88,6 +204,7 @@ function create_umls_client(
     rate_limit::Int = 100,
     cache_ttl::Int = 3600,
     mock_mode::Bool = (api_key == "mock"),
+    cache_path::Union{String, Nothing} = nothing
 )
     config = UMLSConfig(
         api_key,
@@ -98,7 +215,18 @@ function create_umls_client(
         rate_limit,
         mock_mode,
     )
-    cache = UMLSCache(1000, cache_ttl)
+    
+    local cache
+    if cache_path !== nothing && !isempty(cache_path)
+        # Use persistent cache (default 7 days if not specified, but here we use passed cache_ttl)
+        # Maybe allow separate TTL for disk? For now use same or default to longer.
+        # Let's use cache_ttl * 24 for disk to make it worth it, or just 1 week default logic
+        disk_ttl = cache_ttl == 3600 ? 86400 * 7 : cache_ttl
+        cache = SQLiteUMLSCache(cache_path, disk_ttl)
+    else
+        cache = InMemoryUMLSCache(1000, cache_ttl)
+    end
+
     return UMLSClient(config, cache, 0.0, 0, time())
 end
 
@@ -272,11 +400,10 @@ Get relations for a UMLS CUI.
 function get_relations(client::UMLSClient, cui::String)
     # Check cache first
     cache_key = "relations:$cui"
-    if haskey(client.cache.relations, cache_key)
-        cached_data, cached_time = client.cache.relations[cache_key]
-        if now() - cached_time < Second(client.cache.ttl_seconds)
-            return UMLSResponse(true, cached_data, nothing, 200)
-        end
+    cached_data = get_cached_item(client.cache, "relations", cache_key)
+    
+    if cached_data !== nothing
+        return UMLSResponse(true, cached_data, nothing, 200)
     end
 
     if client.config.mock_mode
@@ -288,9 +415,7 @@ function get_relations(client::UMLSClient, cui::String)
             ]
         )
          # Cache the mock response
-        if length(client.cache.relations) < client.cache.max_size
-            client.cache.relations[cache_key] = (mock_data, now())
-        end
+        set_cached_item(client.cache, "relations", cache_key, mock_data)
         return UMLSResponse(true, mock_data, nothing, 200)
     end
 
@@ -299,9 +424,7 @@ function get_relations(client::UMLSClient, cui::String)
     response = _make_request(client, "/content/current/CUI/$cui/relations", Dict{String,String}())
     
     if response.success
-        if length(client.cache.relations) < client.cache.max_size
-            client.cache.relations[cache_key] = (response.data, now())
-        end
+        set_cached_item(client.cache, "relations", cache_key, response.data)
     end
     
     return response
@@ -400,21 +523,16 @@ Get semantic types for a UMLS CUI.
 function get_entity_semantic_types(client::UMLSClient, cui::String)
     # Check cache first
     cache_key = "semantic_types:$cui"
-    if haskey(client.cache.concepts, cache_key)
-        cached_data, cached_time = client.cache.concepts[cache_key]
-        if now() - cached_time < Dates.Second(client.cache.ttl_seconds)
-            if isa(cached_data, Dict) && haskey(cached_data, "semantic_types")
-                return cached_data["semantic_types"]
-            end
-        end
+    cached_data = get_cached_item(client.cache, "concepts", cache_key)
+    
+    if cached_data !== nothing && isa(cached_data, Dict) && haskey(cached_data, "semantic_types")
+        return cached_data["semantic_types"]
     end
 
     if client.config.mock_mode
         # Deterministic mock types
         mock_types = ["T047"] # Disease or Syndrome
-        if length(client.cache.concepts) < client.cache.max_size
-            client.cache.concepts[cache_key] = (Dict("semantic_types" => mock_types), now())
-        end
+        set_cached_item(client.cache, "concepts", cache_key, Dict("semantic_types" => mock_types))
         return mock_types
     end
 
@@ -437,9 +555,7 @@ function get_entity_semantic_types(client::UMLSClient, cui::String)
     end
     
     # Cache the result
-    if length(client.cache.concepts) < client.cache.max_size
-        client.cache.concepts[cache_key] = (Dict("semantic_types" => semantic_types), now())
-    end
+    set_cached_item(client.cache, "concepts", cache_key, Dict("semantic_types" => semantic_types))
     
     return semantic_types
 end
