@@ -19,7 +19,7 @@ GraphMERT.jl implements the state-of-the-art GraphMERT algorithm from the paper 
 - **Hierarchical Graph Attention (H-GAT)**: Advanced attention mechanisms for semantic relation encoding
 - **Leafy Chain Graph Structure**: Novel graph representation for text with semantic nodes
 - **Domain-Agnostic Architecture**: Pluggable domain system supporting multiple application domains
-- **Biomedical Domain**: Full support for biomedical text with UMLS integration
+- **Biomedical Domain**: Full support for biomedical text with UMLS integration and SapBERT + Jaccard Entity Linking
 - **Wikipedia Domain**: Support for general knowledge extraction with Wikidata integration
 - **UMLS Integration**: Seamless integration with the Unified Medical Language System (biomedical domain)
 - **Wikidata Integration**: Support for Wikidata entity linking (Wikipedia domain)
