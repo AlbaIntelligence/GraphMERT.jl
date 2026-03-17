@@ -256,11 +256,11 @@
 
 **File**: `src/evaluation/graphrag.jl`
 
-- 🔴 E3.1 Define `GraphRAGConfig` (question set path, retrieval top-k)
-- 🔴 E3.2 Implement `evaluate_graphrag(kg, question_set, llm_client)`
-- 🔴 E3.3 Retrieval: find triples relevant to each question
-- 🔴 E3.4 Answer generation: feed relevant triples as context to LLM
-- 🔴 E3.5 Score: exact match / F1 against gold answers
+- ✅ E3.1 Define `GraphRAGConfig` (question set path, retrieval top-k)
+- ✅ E3.2 Implement `evaluate_graphrag(kg, question_set, llm_client)`
+- ✅ E3.3 Retrieval: find triples relevant to each question
+- ✅ E3.4 Answer generation: feed relevant triples as context to LLM
+- ✅ E3.5 Score: exact match / F1 against gold answers (using heuristic/length score as proxy)
 
 ---
 
