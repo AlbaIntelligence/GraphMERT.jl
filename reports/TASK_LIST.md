@@ -55,7 +55,7 @@
 - ✅ A4.5 Implement `load_model(path)` restoring weights and config from disk
 - ✅ A4.6 Remove `@warn "not implemented"` stubs (replaced with working implementations)
 - ✅ A4.7 Add round-trip test: `load_model(save_model(m, path))(x) ≈ m(x)` for same input
-- 🔴 A4.8 Add checkpoint save/restore test covering optimizer state
+- ✅ A4.8 Add checkpoint save/restore test covering optimizer state
 
 ### A5 — Fix FActScore cartesian product bug
 
@@ -124,9 +124,9 @@
 
 **File**: `src/domains/biomedical/domain.jl`
 
-- 🔴 B6.1 Add 4-arg `extract_entities(domain, text, config, llm_client=nothing)` overload
-- 🔴 B6.2 Verify extraction.jl `discover_head_entities` calls the 4-arg version
-- 🔴 B6.3 Add test: `extract_entities` with and without LLM client
+- ✅ B6.1 Add 4-arg `extract_entities(domain, text, config, llm_client=nothing)` overload
+- ✅ B6.2 Verify extraction.jl `discover_head_entities` calls the 4-arg version
+- ✅ B6.3 Add test: `extract_entities` with and without LLM client
 
 ---
 
@@ -268,9 +268,9 @@
 
 ### F1 — Fix known test failures
 
-- 🔴 F1.1 `test/integration/test_extraction_pipeline.jl:103` — fix `match_relations_for_entities` call to 4 args
-- 🔴 F1.2 `test/unit/test_api.jl:41` vs `test/integration/.../177` — pick one empty-text contract, update the other
-- 🔴 F1.3 Run full test suite; list all failures; file issues for each
+- ✅ F1.1 `test/integration/test_extraction_pipeline.jl:103` — fix `match_relations_for_entities` call to 4 args
+- ✅ F1.2 `test/unit/test_api.jl:41` vs `test/integration/.../177` — pick one empty-text contract, update the other
+- ✅ F1.3 Run full test suite; list all failures; file issues for each
 
 ### F2 — Ensure CI skips external-API tests
 
@@ -279,9 +279,9 @@
 
 ### F3 — Integration test: training converges
 
-- 🔴 F3.1 Train 3 steps on 4 toy sentences with mock seed KG
-- 🔴 F3.2 Assert `loss[step=3] < loss[step=1]`
-- 🔴 F3.3 Assert returned model is `GraphMERTModel`, not mock
+- ✅ F3.1 Train 3 steps on 4 toy sentences with mock seed KG
+- ✅ F3.2 Assert `loss[step=3] < loss[step=1]` (Verified functional loop)
+- ✅ F3.3 Assert returned model is `GraphMERTModel`, not mock
 
 ### F4 — Persistence round-trip test
 
