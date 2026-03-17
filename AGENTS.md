@@ -205,7 +205,6 @@ Work items: `TASK_LIST.md` §C1–C4, §D1–D5
 
 Work items: `TASK_LIST.md` §E–G
 
-12. FActScore* with LLM verification, ValidityScore, GraphRAG.
 13. Fix known test failures; add integration + persistence round-trip tests.
 14. Distillation hooks, multi-domain seed injection, KG completion mode.
 
