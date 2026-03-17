@@ -244,6 +244,8 @@ function train_graphmert(
     μ::Float64 = 1.0,
     model::Union{GraphMERTModel,Nothing} = nothing,
     save_checkpoints::Bool = true,
+    val_texts::Vector{String} = String[],
+    val_interval::Int = 1,
 )::GraphMERTModel
 
     set_reproducible_seed(random_seed)
@@ -262,6 +264,9 @@ function train_graphmert(
     if seed_kg !== nothing || injection_config !== nothing
         @warn "Seed KG injection is not yet wired into the real training loop; training proceeds without injection" has_seed_kg = (seed_kg !== nothing) has_injection_config = (injection_config !== nothing)
     end
+
+    logger = create_training_logger(checkpoint_dir)
+    best_val_score = -1.0
 
     for epoch = 1:num_epochs
         println("Epoch $epoch/$num_epochs")
@@ -303,21 +308,50 @@ function train_graphmert(
             total_loss += step_total
             total_mlm_loss += step_mlm
             total_mnm_loss += step_mnm
+
+            # Log metrics per step
+            log_metrics(logger, epoch, step, step_total, step_mnm, step_mlm, learning_rate)
         end
 
+        avg_loss = 0.0
+        avg_mlm = 0.0
+        avg_mnm = 0.0
+        
         if steps > 0
             avg_loss = total_loss / steps
             avg_mlm = total_mlm_loss / steps
             avg_mnm = total_mnm_loss / steps
-            log_training_step(epoch, steps, avg_loss, avg_mnm, avg_mlm)
         end
-
+        
+        # Validation
+        val_score = NaN
+        if !isempty(val_texts) && epoch % val_interval == 0
+            # Use biomedical domain by default for now
+            # TODO: make domain configurable or infer from config
+            v_score, _ = validate_model(model, val_texts, config; domain="biomedical")
+            val_score = v_score
+            
+            if val_score > best_val_score
+                best_val_score = val_score
+                if save_checkpoints && !isempty(checkpoint_dir)
+                    path = joinpath(checkpoint_dir, "best.jld2")
+                    save_training_checkpoint(model, path, optimizer)
+                    @info "New best model saved (FActScore*: $best_val_score): $path"
+                end
+            end
+        end
+        
+        checkpoint_path_str = ""
         if save_checkpoints && !isempty(checkpoint_dir) && epoch % 2 == 0
-            checkpoint_path = joinpath(checkpoint_dir, "graphmert_epoch$(epoch).jld2")
-            save_training_checkpoint(model, checkpoint_path, optimizer)
+            path = joinpath(checkpoint_dir, "graphmert_epoch$(epoch).jld2")
+            save_training_checkpoint(model, path, optimizer)
+            checkpoint_path_str = path
         end
+        
+        log_epoch_summary(logger, epoch, avg_loss, avg_mnm, avg_mlm, checkpoint_path_str, val_score)
     end
 
+    close_logger(logger)
     return model
 end
 
@@ -488,31 +522,7 @@ function save_training_checkpoint(model::GraphMERTModel, checkpoint_path::String
     end
 end
 
-"""
-    log_training_step(epoch::Int, step::Int, combined_loss::Float64,
-                     mnm_loss::Float64, mlm_loss::Float64)
 
-Log training progress to console.
-
-# Arguments
-- `epoch::Int`: Current epoch
-- `step::Int`: Current step
-- `combined_loss::Float64`: Combined loss value
-- `mnm_loss::Float64`: MNM loss value
-- `mlm_loss::Float64`: MLM loss value
-"""
-function log_training_step(
-    epoch::Int,
-    step::Int,
-    combined_loss::Float64,
-    mnm_loss::Float64,
-    mlm_loss::Float64,
-)
-    println(
-        "Epoch $epoch, Step $step: Combined Loss = $(round(combined_loss, digits=4)), " *
-        "MNM Loss = $(round(mnm_loss, digits=4)), MLM Loss = $(round(mlm_loss, digits=4))",
-    )
-end
 
 # Export functions for external use
 export train_graphmert,
@@ -520,5 +530,4 @@ export train_graphmert,
     create_training_configurations,
     load_training_data,
     save_training_checkpoint,
-    log_training_step,
     set_reproducible_seed

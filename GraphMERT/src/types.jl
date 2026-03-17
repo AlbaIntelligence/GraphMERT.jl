@@ -979,6 +979,33 @@ struct MNMConfig
 end
 
 """
+    MNMConfig(; kwargs...)
+
+Keyword argument constructor for MNMConfig.
+"""
+function MNMConfig(;
+    vocab_size::Int=30522,
+    hidden_size::Int=512,
+    num_leaves::Int=7,
+    mask_probability::Float64=0.15,
+    relation_dropout::Float64=0.3,
+    loss_weight::Float64=1.0,
+    mask_entire_leaf_span::Bool=true,
+    mask_token_id::Int=103,
+)
+    MNMConfig(
+        vocab_size,
+        hidden_size,
+        num_leaves,
+        mask_probability,
+        relation_dropout,
+        loss_weight,
+        mask_entire_leaf_span,
+        mask_token_id,
+    )
+end
+
+"""
     default_mnm_config()
 
 Create default MNM configuration for GraphMERT training.

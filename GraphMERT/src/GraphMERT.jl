@@ -114,6 +114,7 @@ include("training/mlm.jl")
 include("training/mnm.jl")
 include("training/seed_injection.jl")
 include("seed_injection.jl")  # New EPIC 2 module
+include("training/logging.jl")
 include("training/pipeline.jl")
 include("training/span_masking.jl")
 include("data/preparation.jl")
@@ -132,6 +133,7 @@ include("monitoring/performance.jl")
 
 # API
 include("api/extraction.jl")
+include("training/validation.jl")
 include("api/reliability.jl")
 include("api/batch.jl")
 include("api/config.jl")
