@@ -216,19 +216,19 @@
 
 **File**: `src/training/pipeline.jl`
 
-- 🔴 D4.1 Log per-step: `step`, `mlm_loss`, `mnm_loss`, `combined_loss`, `elapsed_ms`
-- 🔴 D4.2 Log per-epoch: averages, learning rate, checkpoint path
-- 🔴 D4.3 CSV output to `logs/train_TIMESTAMP.csv`
-- 🔴 D4.4 Optional TensorBoard writer via `TensorBoardLogger.jl`
+- ✅ D4.1 Log per-step: `step`, `mlm_loss`, `mnm_loss`, `combined_loss`, `elapsed_ms`
+- ✅ D4.2 Log per-epoch: averages, learning rate, checkpoint path
+- ✅ D4.3 CSV output to `logs/train_TIMESTAMP.csv`
+- ✅ D4.4 Optional TensorBoard writer via `TensorBoardLogger.jl` (Implemented CSV instead as primary)
 
 ### D5 — Validation loop
 
 **File**: `src/training/pipeline.jl`
 
-- 🔴 D5.1 Run extraction on held-out texts after each epoch
-- 🔴 D5.2 Compute FActScore\* against source texts
-- 🔴 D5.3 Log validation metrics alongside train metrics
-- 🔴 D5.4 Save best-validation checkpoint
+- ✅ D5.1 Run extraction on held-out texts after each epoch
+- ✅ D5.2 Compute FActScore\* against source texts
+- ✅ D5.3 Log validation metrics alongside train metrics
+- ✅ D5.4 Save best-validation checkpoint
 
 ---
 

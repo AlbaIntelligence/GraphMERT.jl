@@ -25,17 +25,19 @@ Result of FActScore* evaluation containing detailed metrics.
 
 """
 struct FActScoreResult
-    triple_scores::Vector{Bool}
+    triple_scores::Vector{Symbol}  # :supported, :contradicted, :not_supported
     triple_contexts::Vector{String}
     factscore::Float64
     supported_triples::Int
+    contradicted_triples::Int
+    not_supported_triples::Int
     total_triples::Int
     metadata::Dict{String,Any}
 end
 
 """
     evaluate_factscore(kg::KnowledgeGraph, text::String;
-                      llm_client::Union{HelperLLMClient, Nothing}=nothing,
+                      llm_client::Union{AbstractLLMClient, Nothing}=nothing,
                       confidence_threshold::Float64=0.5,
                       max_context_sentences::Int=5,
                       domain_name::Union{String, Nothing}=nothing,
@@ -49,7 +51,7 @@ and validity (is the triple ontologically consistent?) of extracted triples.
 # Arguments
 - `kg::KnowledgeGraph`: Knowledge graph to evaluate
 - `text::String`: Original source text for context
-- `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client for validation
+- `llm_client::Union{AbstractLLMClient, Nothing}`: Optional LLM client for validation
 - `confidence_threshold::Float64`: Minimum confidence for triple inclusion
 - `max_context_sentences::Int`: Maximum context sentences to consider
 - `domain_name::Union{String, Nothing}`: Optional domain name to use for domain-specific metrics (if not provided, will try to infer from kg.metadata)
@@ -70,7 +72,7 @@ where:
 function evaluate_factscore(
     kg::KnowledgeGraph,
     text::String;
-    llm_client::Union{HelperLLMClient,Nothing} = nothing,
+    llm_client::Union{AbstractLLMClient,Nothing} = nothing,
     confidence_threshold::Float64 = 0.5,
     max_context_sentences::Int = 5,
     domain_name::Union{String,Nothing} = nothing,
@@ -84,7 +86,7 @@ function evaluate_factscore(
     @info "Evaluating $(length(high_confidence_triples)) high-confidence triples"
 
     # Evaluate each triple
-    triple_scores = Vector{Bool}()
+    triple_scores = Vector{Symbol}()
     triple_contexts = Vector{String}()
 
     for (head_idx, rel_idx, tail_idx) in high_confidence_triples
@@ -96,16 +98,19 @@ function evaluate_factscore(
         context = get_triple_context(text, head_entity, tail_entity, max_context_sentences)
 
         # Evaluate factuality using LLM or simple heuristic
-        is_supported =
+        support_status =
             evaluate_triple_support(head_entity, relation, tail_entity, context, llm_client)
 
-        push!(triple_scores, is_supported)
+        push!(triple_scores, support_status)
         push!(triple_contexts, join(context, " "))
     end
 
     # Calculate overall FActScore*
     total_triples = length(triple_scores)
-    supported_triples = sum(triple_scores)
+    supported_triples = count(x -> x == :supported, triple_scores)
+    contradicted_triples = count(x -> x == :contradicted, triple_scores)
+    not_supported_triples = count(x -> x == :not_supported, triple_scores)
+    
     factscore = total_triples > 0 ? supported_triples / total_triples : 0.0
 
     @info "FActScore* = $(round(factscore, digits=4)) ($supported_triples/$total_triples supported)"
@@ -145,6 +150,8 @@ function evaluate_factscore(
         triple_contexts,
         factscore,
         supported_triples,
+        contradicted_triples,
+        not_supported_triples,
         total_triples,
         metadata,
     )
@@ -213,15 +220,15 @@ function filter_triples_by_confidence(kg::KnowledgeGraph, threshold::Float64)
 end
 
 """
-    get_triple_context(text::String, head_entity::Entity,
-                      tail_entity::Entity, max_sentences::Int)
+    get_triple_context(text::String, head_entity::KnowledgeEntity,
+                      tail_entity::KnowledgeEntity, max_sentences::Int)
 
 Extract context sentences containing both head and tail entities.
 
 # Arguments
 - `text::String`: Original source text
-- `head_entity::Entity`: Head entity
-- `tail_entity::Entity`: Tail entity
+- `head_entity::KnowledgeEntity`: Head entity
+- `tail_entity::KnowledgeEntity`: Tail entity
 - `max_sentences::Int`: Maximum number of context sentences
 
 # Returns
@@ -229,8 +236,8 @@ Extract context sentences containing both head and tail entities.
 """
 function get_triple_context(
     text::String,
-    head_entity::Entity,
-    tail_entity::Entity,
+    head_entity::KnowledgeEntity,
+    tail_entity::KnowledgeEntity,
     max_sentences::Int,
 )
     sentences = split(text, r"[\.\!\?]+")
@@ -278,28 +285,28 @@ function get_triple_context(
 end
 
 """
-    evaluate_triple_support(head_entity::Entity, relation::Relation,
-                           tail_entity::Entity, context::Vector{String},
-                           llm_client::Union{HelperLLMClient, Nothing})
+    evaluate_triple_support(head_entity::KnowledgeEntity, relation::KnowledgeRelation,
+                           tail_entity::KnowledgeEntity, context::Vector{String},
+                           llm_client::Union{AbstractLLMClient, Nothing})
 
 Evaluate whether a triple is supported by its context.
 
 # Arguments
-- `head_entity::Entity`: Head entity
-- `relation::Relation`: Relation
-- `tail_entity::Entity`: Tail entity
+- `head_entity::KnowledgeEntity`: Head entity
+- `relation::KnowledgeRelation`: Relation
+- `tail_entity::KnowledgeEntity`: Tail entity
 - `context::Vector{String}`: Context sentences
-- `llm_client::Union{HelperLLMClient, Nothing}`: Optional LLM client
+- `llm_client::Union{AbstractLLMClient, Nothing}`: Optional LLM client
 
 # Returns
-- `Bool`: True if triple is supported by context
+- `Symbol`: :supported, :contradicted, or :not_supported
 """
 function evaluate_triple_support(
-    head_entity::Entity,
-    relation::Relation,
-    tail_entity::Entity,
+    head_entity::KnowledgeEntity,
+    relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity,
     context::Vector{String},
-    llm_client::Union{HelperLLMClient,Nothing},
+    llm_client::Union{AbstractLLMClient,Nothing},
 )
     # Simple heuristic evaluation (would use LLM in practice)
     if llm_client !== nothing
@@ -311,80 +318,91 @@ function evaluate_triple_support(
             llm_client,
         )
     else
-        return evaluate_triple_heuristic(head_entity, relation, tail_entity, context)
+        return evaluate_triple_heuristic(head_entity, relation, tail_entity, context) ? :supported : :not_supported
     end
 end
 
 """
-    evaluate_triple_with_llm(head_entity::Entity, relation::Relation,
-                            tail_entity::Entity, context::Vector{String},
-                            llm_client::HelperLLMClient)
+    evaluate_triple_with_llm(head_entity::KnowledgeEntity, relation::KnowledgeRelation,
+                            tail_entity::KnowledgeEntity, context::Vector{String},
+                            llm_client::AbstractLLMClient)
 
 Evaluate triple support using LLM.
 
 # Arguments
-- `head_entity::Entity`: Head entity
-- `relation::Relation`: Relation
-- `tail_entity::Entity`: Tail entity
+- `head_entity::KnowledgeEntity`: Head entity
+- `relation::KnowledgeRelation`: Relation
+- `tail_entity::KnowledgeEntity`: Tail entity
 - `context::Vector{String}`: Context sentences
-- `llm_client::HelperLLMClient`: LLM client
+- `llm_client::AbstractLLMClient`: LLM client
 
 # Returns
-- `Bool`: LLM evaluation result
+- `Symbol`: :supported, :contradicted, or :not_supported
 """
 function evaluate_triple_with_llm(
-    head_entity::Entity,
-    relation::Relation,
-    tail_entity::Entity,
+    head_entity::KnowledgeEntity,
+    relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity,
     context::Vector{String},
-    llm_client::HelperLLMClient,
+    llm_client::AbstractLLMClient,
 )
     # Create evaluation prompt
-    context_text = join(context, " ")
+    context_text = isempty(context) ? "No context available." : join(context, " ")
     prompt = """
-    Evaluate if the following biomedical relationship is supported by the context:
-
+    Evaluate if the following relationship is supported by the context.
+    
     Relationship: $(head_entity.text) --[$(relation.relation_type)]--> $(tail_entity.text)
 
     Context: $context_text
 
-    Is this relationship factually supported by the context?
-    Answer YES or NO only:
+    Does the context support this relationship?
+    Select one of:
+    - SUPPORTED: The context explicitly confirms this relationship.
+    - CONTRADICTED: The context explicitly contradicts this relationship.
+    - NOT_MENTIONED: The context does not provide enough information.
+
+    Answer with just the category name (SUPPORTED, CONTRADICTED, or NOT_MENTIONED).
     """
 
     try
         response = make_llm_request(llm_client, prompt)
         if response.success
-            answer = strip(lowercase(response.content))
-            return startswith(answer, "yes")
+            answer = strip(uppercase(response.content))
+            if occursin("SUPPORTED", answer) && !occursin("NOT_SUPPORTED", answer)
+                return :supported
+            elseif occursin("CONTRADICTED", answer)
+                return :contradicted
+            else
+                return :not_supported
+            end
         end
     catch e
         @warn "LLM evaluation failed: $e"
     end
 
     # Fallback to heuristic
-    return evaluate_triple_heuristic(head_entity, relation, tail_entity, context)
+    return evaluate_triple_heuristic(head_entity, relation, tail_entity, context) ? :supported : :not_supported
 end
 
 """
-    evaluate_triple_heuristic(head_entity::Entity, relation::Relation,
-    tail_entity::Entity, context::Vector{String})
+    evaluate_triple_heuristic(head_entity::KnowledgeEntity, relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity, context::Vector{String})
 
 Simple heuristic evaluation of triple support.
 
 # Arguments
-- `head_entity::Entity`: Head entity
-- `relation::Relation`: Relation
-- `tail_entity::Entity`: Tail entity
+- `head_entity::KnowledgeEntity`: Head entity
+- `relation::KnowledgeRelation`: Relation
+- `tail_entity::KnowledgeEntity`: Tail entity
 - `context::Vector{String}`: Context sentences
 
 # Returns
 - `Bool`: Heuristic evaluation result
 """
 function evaluate_triple_heuristic(
-    head_entity::Entity,
-    relation::Relation,
-    tail_entity::Entity,
+    head_entity::KnowledgeEntity,
+    relation::KnowledgeRelation,
+    tail_entity::KnowledgeEntity,
     context::Vector{String},
 )
     # Simple heuristic: check if both entities appear in the same context
