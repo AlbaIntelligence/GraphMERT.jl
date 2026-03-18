@@ -848,7 +848,7 @@ function deduplicate_entities(entities::Vector{GraphMERT.Entity})
 end
 
 """
-    extend_knowledge_graph(existing_kg::KnowledgeGraph, text::String, model; options=default_processing_options())
+    extend_knowledge_graph(existing_kg::KnowledgeGraph, text::String, model; options=ProcessingOptions())
 
 Extend an existing Knowledge Graph with new facts extracted from text.
 New entities and relations are merged, preserving provenance.
@@ -857,7 +857,7 @@ function extend_knowledge_graph(
     existing_kg::KnowledgeGraph,
     text::String,
     model;
-    options::ProcessingOptions=default_processing_options()
+    options::ProcessingOptions=ProcessingOptions()
 )
     # Extract new KG from text
     new_kg = extract_knowledge_graph(text, model; options=options)
