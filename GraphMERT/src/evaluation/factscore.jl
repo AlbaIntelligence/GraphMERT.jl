@@ -129,16 +129,23 @@ function evaluate_factscore(
         end
 
         if domain !== nothing
-            try
-                # Try to get domain provider from registry
-                domain_provider = GraphMERT.get_domain(string(domain))
-                if domain_provider !== nothing
-                    domain_metrics = GraphMERT.create_evaluation_metrics(domain_provider, kg)
-                    metadata["domain_metrics"] = domain_metrics
-                    metadata["domain"] = domain
+            domain_str = string(domain)
+            if GraphMERT.has_domain(domain_str)
+                try
+                    domain_provider = GraphMERT.get_domain(domain_str)
+                    if domain_provider !== nothing
+                        domain_metrics = GraphMERT.create_evaluation_metrics(domain_provider, kg)
+                        metadata["domain_metrics"] = domain_metrics
+                        metadata["domain"] = domain_str
+                    end
+                catch e
+                    @warn "Failed to compute domain metrics for domain '$domain_str': $e"
                 end
-            catch e
-                @warn "Failed to get domain metrics for domain '$domain': $e"
+            else
+                # Graceful degradation: factuality evaluation should not require a registered domain.
+                metadata["domain"] = domain_str
+                metadata["domain_metrics_skipped"] = true
+                @debug "Domain '$domain_str' not registered; skipping domain-specific metrics."
             end
         end
     end

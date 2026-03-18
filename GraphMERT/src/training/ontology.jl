@@ -1,7 +1,8 @@
 module Ontology
 
 using ..GraphMERT: SemanticTriple
-using ..GraphMERT.BiomedicalDomain: UMLSClient, retrieve_triples, UMLSTriple
+# Biomedical domain is flattened into GraphMERT
+using ..GraphMERT: UMLSClient, retrieve_triples, UMLSTriple
 import GraphMERT # to access BiomedicalDomain
 
 export OntologySource, UMLSOntologySource, fetch_triples
@@ -58,6 +59,8 @@ function fetch_triples(source::UMLSOntologySource, entity_text::String; kwargs..
     end
     
     # 2. Retrieve triples
+    # retrieve_triples expects (client, cui, relations) or (client, cui)
+    # The previous code passed allowed_relations, let's keep it.
     umls_triples = retrieve_triples(source.client, cui, source.allowed_relations)
     
     # 3. Convert to SemanticTriple
@@ -70,12 +73,7 @@ function fetch_triples(source::UMLSOntologySource, entity_text::String; kwargs..
             t.cui,          # head_cui
             t.relation_label, # relation
             t.related_name,   # tail
-            t.related_cui,    # tail_cui (if SemanticTriple has it - wait, type def shows tail is String)
-            # Checking SemanticTriple constructor from previous `bash` output:
-            # SemanticTriple(head, head_cui, relation, tail, tail_tokens, score, source)
-            # We don't have tail_tokens here (need tokenizer).
-            # We'll use empty tokens for now and expect the pipeline to tokenize later if needed.
-            # But wait, tail_tokens::Vector{Int} is required?
+            t.related_cui,    # tail_cui 
             Int[],          # tail_tokens (empty)
             1.0,            # score (UMLS is trusted)
             t.source        # source

@@ -36,23 +36,33 @@ function calculate_distillation_loss(student_logits::AbstractArray, teacher_logi
         return 0.0f0
     end
     
-    # Simple KL Divergence or MSE for logits
     # Loss = T^2 * KL(softmax(teacher/T), softmax(student/T))
     T = config.temperature
+    
+    # Correct KD implementation:
+    # 1. Soft targets from teacher: p = softmax(teacher_logits / T)
+    # 2. Log-probs from student: log_q = logsoftmax(student_logits / T)
+    # 3. KL Div (ignoring constant entropy of p): -sum(p * log_q)
+    # OR Flux.crossentropy(p, q) where q is probs? No, Flux.crossentropy(y_hat, y) takes y as one-hot or probs.
+    # Flux.crossentropy(ŷ, y) = -sum(y .* log.(ŷ))
+    
+    # We want: -sum(p * log(q))
+    # In Flux: crossentropy(q_probs, p_probs) -> -sum(p * log(q))
+    # Wait, Flux.crossentropy(y_hat, y) calculates -sum(y * log(y_hat))
+    # So y=p (teacher probs), y_hat=q_probs (student probs)
+    
     p = softmax(teacher_logits ./ T, dims=1)
-    q = logsoftmax(student_logits ./ T, dims=1)
+    q_log = logsoftmax(student_logits ./ T, dims=1)
     
-    # KL Divergence: sum(p * (log(p) - log(q))) = sum(p * log(p)) - sum(p * log(q))
-    # We only need -sum(p * log(q)) for optimization usually, but KL includes the entropy term.
-    # Here we use crossentropy between soft targets and student logits
+    # If using crossentropy with log-probs, we need to be careful.
+    # Flux.logitcrossentropy takes logits and targets.
+    # Let's use manual KL-like loss for clarity and stability:
+    # Loss = -sum(p * log_q) / batch_size
     
-    return config.teacher_weight * Flux.Losses.crossentropy(p, q) # Note: crossentropy expects probs and logs? No, Flux.crossentropy(y_hat, y).
-    # Flux.crossentropy(ŷ, y) expects probabilities.
-    # We want Softmax-Temperature distillation.
+    loss = -sum(p .* q_log) / size(student_logits, 2)
     
-    # Let's stick to a simple MSE for now if logits are raw, or CrossEntropy if probability distributions.
-    # Assuming logits:
-    return config.teacher_weight * Flux.Losses.mse(student_logits, teacher_logits)
+    # Scale by T^2 as per Hinton et al.
+    return config.teacher_weight * (T^2) * loss
 end
 
 """
