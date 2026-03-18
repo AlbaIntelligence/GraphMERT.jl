@@ -343,8 +343,19 @@ function select_triples_for_injection(
                 end
             end
         end
+    elseif config.ontology_source !== nothing
+        # Fetch from ontology source if configured
+        for res in linked_entities
+            query = !isempty(res.cui) && res.cui != "CUI_UNKNOWN" ? res.cui : res.preferred_name
+            if isempty(query)
+                query = res.entity_text
+            end
+            
+            triples = fetch_triples(config.ontology_source, query)
+            append!(candidates, triples)
+        end
     else
-        # TODO: Fetch from ontology source if seed_kg is empty
+        # No source available
     end
     
     # Deduplicate candidates
